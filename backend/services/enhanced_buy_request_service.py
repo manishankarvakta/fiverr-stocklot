@@ -187,6 +187,16 @@ class EnhancedBuyRequestService(BuyRequestService):
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
             
+            # Enhanced content fields
+            "images": images or [],
+            "vet_certificates": vet_certificates or [],
+            "weight_range": weight_range,
+            "age_requirements": age_requirements,
+            "vaccination_requirements": vaccination_requirements or [],
+            "delivery_preferences": delivery_preferences,
+            "inspection_allowed": inspection_allowed,
+            "additional_requirements": additional_requirements,
+            
             # Enhanced AI features
             "ai_analysis": ai_analysis,
             "price_suggestions": price_suggestions,
