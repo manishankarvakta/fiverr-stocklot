@@ -45,6 +45,8 @@ import SuggestButton from './components/suggestions/SuggestButton';
 import ShoppingCartModal from './components/cart/ShoppingCart';
 import FAQChatbot from './components/support/FAQChatbot';
 import PublicBuyRequestsPage from './pages/PublicBuyRequestsPage';
+import EnhancedPublicBuyRequestsPage from './pages/EnhancedPublicBuyRequestsPage';
+import EnhancedCreateBuyRequestForm from './components/buyRequests/EnhancedCreateBuyRequestForm';
 import "./App.css";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
