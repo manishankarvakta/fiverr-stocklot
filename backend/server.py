@@ -4593,6 +4593,15 @@ class BuyRequestCreate(PydanticBaseModel):
     country: Optional[str] = "ZA"
     expires_at: Optional[str] = None
     notes: Optional[str] = None
+    # New fields for enhanced content
+    images: Optional[List[str]] = []
+    vet_certificates: Optional[List[str]] = []
+    weight_range: Optional[dict] = None  # {"min": 1.5, "max": 2.0, "unit": "kg"}
+    age_requirements: Optional[dict] = None  # {"min": 6, "max": 12, "unit": "weeks"}
+    vaccination_requirements: Optional[List[str]] = []
+    delivery_preferences: Optional[str] = "both"  # "pickup", "delivery", "both"
+    inspection_allowed: Optional[bool] = True
+    additional_requirements: Optional[str] = None
 
 class OfferCreate(PydanticBaseModel):
     offer_price: float
