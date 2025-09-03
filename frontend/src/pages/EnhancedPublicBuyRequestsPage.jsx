@@ -532,10 +532,59 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         )}
       </div>
 
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg border p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Search Bar */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by species, breed, location, requirements..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearch}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+          
+          {/* Filter Button */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(true)}
+              className="min-w-[120px] justify-center"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Advanced Filters
+            </Button>
+            <Button
+              onClick={handleSearch}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-[44px] touch-manipulation"
+            >
+              Search
+            </Button>
+          </div>
+        </div>
+        
+        {/* Active Filters Display */}
+        {currentFilters && (
+          <div className="mt-3 pt-3 border-t">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Active filters:</span>
+              <Badge variant="secondary" className="cursor-pointer" onClick={() => setCurrentFilters('')}>
+                Clear all filters ×
+              </Badge>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Results Summary */}
       <div className="mb-6">
         <p className="text-gray-600 text-sm md:text-base">
           {requests.length} active requests found • Enhanced with images, requirements, and detailed specifications
+          {searchTerm && ` • Searching for "${searchTerm}"`}
         </p>
       </div>
 
