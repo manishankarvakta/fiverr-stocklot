@@ -554,7 +554,7 @@ async def upload_buy_request_image(
         
         # Upload to Cloudinary with buy request specific folder
         result = await media_service.upload_livestock_image(
-            content, image_id, image_type, folder="buy_requests"
+            content, image_id, image_type
         )
         
         if not result.get("success"):
