@@ -7000,7 +7000,15 @@ async def get_public_buy_requests(
                 "deadline_at": req["expires_at"].isoformat(),
                 "has_target_price": bool(req.get("target_price") and req.get("target_price") > 0),
                 "offers_count": offers_count,
-                "created_at": req["created_at"].isoformat()
+                "created_at": req["created_at"].isoformat(),
+                # Enhanced content fields (public safe)
+                "images": req.get("images", [])[:3],  # Limit to first 3 images for list view
+                "has_vet_certificates": bool(req.get("vet_certificates")),
+                "weight_range": req.get("weight_range"),
+                "age_requirements": req.get("age_requirements"),
+                "vaccination_requirements": req.get("vaccination_requirements", []),
+                "delivery_preferences": req.get("delivery_preferences", "both"),
+                "inspection_allowed": req.get("inspection_allowed", True)
             }
             
             if distance_km is not None:
