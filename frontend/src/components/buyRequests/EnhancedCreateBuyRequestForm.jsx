@@ -5,9 +5,10 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/card';
-import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
-import { Loader2, Sparkles, MapPin, DollarSign, MessageSquare, Target } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Switch } from '../ui/switch';
+import { Loader2, Upload, X, FileText, Image as ImageIcon, Plus } from 'lucide-react';
 
 const EnhancedCreateBuyRequestForm = ({
   defaultCountry = 'ZA',
