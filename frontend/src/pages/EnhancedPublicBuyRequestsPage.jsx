@@ -408,32 +408,51 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
 
   // Load buy requests
   useEffect(() => {
-    const loadBuyRequests = async () => {
-      try {
-        console.log('Loading enhanced buy requests from:', `${BACKEND_URL}/api/public/buy-requests`);
-        
-        const response = await fetch(`${BACKEND_URL}/api/public/buy-requests?limit=20`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('Enhanced buy requests loaded:', data);
-        
-        setRequests(data.items || []);
-        setError(null);
-        
-      } catch (error) {
-        console.error('Error loading buy requests:', error);
-        setError(`Failed to load buy requests: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadBuyRequests();
-  }, []);
+  }, [currentFilters]);
+
+  const loadBuyRequests = async () => {
+    try {
+      console.log('Loading enhanced buy requests from:', `${BACKEND_URL}/api/public/buy-requests`);
+      
+      const queryParams = new URLSearchParams(currentFilters);
+      queryParams.append('limit', '20');
+      
+      if (searchTerm) {
+        queryParams.append('search', searchTerm);
+      }
+      
+      const response = await fetch(`${BACKEND_URL}/api/public/buy-requests?${queryParams.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Enhanced buy requests loaded:', data);
+      
+      setRequests(data.items || []);
+      setError(null);
+      
+    } catch (error) {
+      console.error('Error loading buy requests:', error);
+      setError(`Failed to load buy requests: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFiltersChange = (filterParams) => {
+    setCurrentFilters(filterParams);
+    setLoading(true);
+  };
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter' || e.type === 'click') {
+      setLoading(true);
+      loadBuyRequests();
+    }
+  };
 
   const handleViewDetails = (request) => {
     setSelectedRequest(request);
