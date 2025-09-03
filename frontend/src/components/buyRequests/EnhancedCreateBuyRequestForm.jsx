@@ -719,8 +719,8 @@ const EnhancedCreateBuyRequestForm = ({
           </TabsContent>
         </Tabs>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <div className="text-sm text-gray-600">
+      <CardFooter className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+        <div className="text-sm text-gray-600 order-2 sm:order-1">
           {activeTab !== 'preferences' && (
             <Button 
               variant="outline" 
@@ -731,12 +731,17 @@ const EnhancedCreateBuyRequestForm = ({
                   setActiveTab(tabs[currentIndex + 1]);
                 }
               }}
+              className="w-full sm:w-auto min-h-[44px] touch-manipulation"
             >
-              Next Step
+              Next Step →
             </Button>
           )}
         </div>
-        <Button onClick={handleSubmit} disabled={!isValid || loading}>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={!isValid || loading}
+          className="w-full sm:w-auto order-1 sm:order-2 min-h-[44px] touch-manipulation"
+        >
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
