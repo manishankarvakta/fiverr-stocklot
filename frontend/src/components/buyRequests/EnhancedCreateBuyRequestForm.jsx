@@ -349,11 +349,11 @@ const EnhancedCreateBuyRequestForm = ({
 
           <TabsContent value="basic" className="space-y-4">
             {/* Species, Product Type, Breed */}
-            <div className="grid md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label>Species *</Label>
+                <Label className="text-sm md:text-base">Species *</Label>
                 <Select value={species} onValueChange={setSpecies}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 md:h-11">
                     <SelectValue placeholder="Select species" />
                   </SelectTrigger>
                   <SelectContent>
@@ -364,9 +364,9 @@ const EnhancedCreateBuyRequestForm = ({
                 </Select>
               </div>
               <div>
-                <Label>Product Type *</Label>
+                <Label className="text-sm md:text-base">Product Type *</Label>
                 <Select value={productType} onValueChange={setProductType} disabled={!species}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 md:h-11">
                     <SelectValue placeholder="Live, Day-old, Eggs…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -377,9 +377,9 @@ const EnhancedCreateBuyRequestForm = ({
                 </Select>
               </div>
               <div>
-                <Label>Breed (optional)</Label>
+                <Label className="text-sm md:text-base">Breed (optional)</Label>
                 <Select value={breed} onValueChange={setBreed} disabled={!species || breedOpts.length === 0}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 md:h-11">
                     <SelectValue placeholder={breedOpts.length ? 'Select breed' : 'No breeds'} />
                   </SelectTrigger>
                   <SelectContent>
@@ -392,20 +392,21 @@ const EnhancedCreateBuyRequestForm = ({
             </div>
 
             {/* Quantity, Unit, Target Price, Expires */}
-            <div className="grid md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
-                <Label>Quantity *</Label>
+                <Label className="text-sm md:text-base">Quantity *</Label>
                 <Input 
                   type="number" 
                   value={qty} 
                   onChange={(e) => setQty(e.target.value)}
                   min="1"
+                  className="h-10 md:h-11"
                 />
               </div>
               <div>
-                <Label>Unit *</Label>
+                <Label className="text-sm md:text-base">Unit *</Label>
                 <Select value={unit} onValueChange={setUnit}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 md:h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -416,7 +417,7 @@ const EnhancedCreateBuyRequestForm = ({
                 </Select>
               </div>
               <div>
-                <Label>Target Price (per unit)</Label>
+                <Label className="text-sm md:text-base">Target Price (per unit)</Label>
                 <Input 
                   type="number" 
                   placeholder="e.g. 1800" 
@@ -424,24 +425,26 @@ const EnhancedCreateBuyRequestForm = ({
                   onChange={(e) => setTargetPrice(e.target.value)}
                   min="0"
                   step="0.01"
+                  className="h-10 md:h-11"
                 />
               </div>
               <div>
-                <Label>Expires *</Label>
+                <Label className="text-sm md:text-base">Expires *</Label>
                 <Input 
                   type="date" 
                   value={expiresAt} 
                   onChange={(e) => setExpiresAt(e.target.value)} 
+                  className="h-10 md:h-11"
                 />
               </div>
             </div>
 
             {/* Province, Country */}
-            <div className="grid md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="md:col-span-2">
-                <Label>Province *</Label>
+                <Label className="text-sm md:text-base">Province *</Label>
                 <Select value={province} onValueChange={setProvince}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 md:h-11">
                     <SelectValue placeholder="Select province" />
                   </SelectTrigger>
                   <SelectContent>
@@ -452,19 +455,20 @@ const EnhancedCreateBuyRequestForm = ({
                 </Select>
               </div>
               <div>
-                <Label>Country</Label>
-                <Input value={country} disabled />
+                <Label className="text-sm md:text-base">Country</Label>
+                <Input value={country} disabled className="h-10 md:h-11" />
               </div>
             </div>
 
             {/* Notes */}
             <div>
-              <Label>Notes (optional)</Label>
+              <Label className="text-sm md:text-base">Notes (optional)</Label>
               <Textarea 
                 rows={4} 
                 placeholder="Any specifications (weight range, sex, vaccination requirements)…" 
                 value={notes} 
                 onChange={(e) => setNotes(e.target.value)} 
+                className="mt-1"
               />
             </div>
           </TabsContent>
