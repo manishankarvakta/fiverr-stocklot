@@ -54,7 +54,7 @@ class PaystackService:
                 "amount": amount_kobo,
                 "currency": "ZAR",
                 "reference": f"STOCKLOT_{order_id}_{uuid.uuid4().hex[:8]}",
-                "callback_url": callback_url or f"{os.getenv('FRONTEND_URL', 'https://farmstock-2.preview.emergentagent.com')}/payment/callback",
+                "callback_url": callback_url or f"{os.getenv('FRONTEND_URL', 'https://procurement-hub-10.preview.emergentagent.com')}/payment/callback",
                 "metadata": {
                     "order_id": order_id,
                     "platform": "stocklot_livestock",
