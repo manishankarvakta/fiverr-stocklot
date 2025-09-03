@@ -549,6 +549,15 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         onClose={() => setShowDetail(false)}
         onSendOffer={handleSendOffer}
       />
+
+      {/* Send Offer Modal */}
+      <SendOfferModal
+        request={selectedRequest}
+        user={user}
+        open={showOfferModal}
+        onClose={() => setShowOfferModal(false)}
+        onSuccess={handleOfferSuccess}
+      />
     </div>
   );
 };
