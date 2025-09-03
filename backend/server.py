@@ -526,6 +526,109 @@ async def upload_livestock_image(
         logger.error(f"Error uploading livestock image: {e}")
         raise HTTPException(status_code=500, detail="Failed to upload image")
 
+@api_router.post("/upload/buy-request-image")
+async def upload_buy_request_image(
+    file: UploadFile,
+    request_id: Optional[str] = None,
+    image_type: str = "reference",
+    current_user: User = Depends(get_current_user)
+):
+    """Upload buy request reference image"""
+    try:
+        if not MEDIA_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Media service unavailable")
+        
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Validate file size (max 10MB)
+        content = await file.read()
+        file_size = len(content)
+        
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            raise HTTPException(status_code=400, detail="File size must be less than 10MB")
+        
+        # Generate unique identifier for buy request images
+        image_id = f"buy_request_{request_id or 'temp'}_{int(datetime.now().timestamp())}"
+        
+        # Upload to Cloudinary with buy request specific folder
+        result = await media_service.upload_livestock_image(
+            content, image_id, image_type, folder="buy_requests"
+        )
+        
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Upload failed"))
+        
+        return {
+            "success": True,
+            "image": {
+                "public_id": result["public_id"],
+                "secure_url": result["secure_url"],
+                "variants": result.get("variants", {}),
+                "width": result.get("width"),
+                "height": result.get("height"),
+                "format": result.get("format"),
+                "size_bytes": result.get("bytes")
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading buy request image: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image")
+
+@api_router.post("/upload/vet-certificate")
+async def upload_vet_certificate(
+    file: UploadFile,
+    request_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Upload vet certificate for buy request"""
+    try:
+        if not MEDIA_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Media service unavailable")
+        
+        # Validate file type (allow PDF and images)
+        allowed_types = ['image/', 'application/pdf']
+        if not any(file.content_type.startswith(t) for t in allowed_types):
+            raise HTTPException(status_code=400, detail="File must be an image or PDF")
+        
+        # Validate file size (max 5MB for certificates)
+        content = await file.read()
+        file_size = len(content)
+        
+        if file_size > 5 * 1024 * 1024:  # 5MB
+            raise HTTPException(status_code=400, detail="File size must be less than 5MB")
+        
+        # Generate unique identifier for vet certificates
+        cert_id = f"vet_cert_{request_id or 'temp'}_{int(datetime.now().timestamp())}"
+        
+        # Upload to Cloudinary with vet certificate specific folder
+        result = await media_service.upload_livestock_image(
+            content, cert_id, "certificate", folder="vet_certificates"
+        )
+        
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Upload failed"))
+        
+        return {
+            "success": True,
+            "certificate": {
+                "public_id": result["public_id"],
+                "secure_url": result["secure_url"],
+                "format": result.get("format"),
+                "size_bytes": result.get("bytes")
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading vet certificate: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload certificate")
+
 # AI-POWERED LISTING ENHANCEMENT
 @api_router.post("/listings/{listing_id}/enhance")
 async def enhance_listing_with_ai(
