@@ -33,7 +33,16 @@ class EnhancedBuyRequestService(BuyRequestService):
         notes: str = None,
         org_id: str = None,
         enable_ai_enhancements: bool = True,
-        auto_generate_description: bool = False
+        auto_generate_description: bool = False,
+        # New enhanced fields
+        images: list = None,
+        vet_certificates: list = None,
+        weight_range: dict = None,
+        age_requirements: dict = None,
+        vaccination_requirements: list = None,
+        delivery_preferences: str = "both",
+        inspection_allowed: bool = True,
+        additional_requirements: str = None
     ) -> Dict[str, Any]:
         """Create a new buy request with AI and mapping enhancements"""
         
