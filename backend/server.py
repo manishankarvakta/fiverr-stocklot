@@ -5076,6 +5076,15 @@ class EnhancedBuyRequestCreate(BaseModel):
     notes: Optional[str] = None
     enable_ai_enhancements: bool = True
     auto_generate_description: bool = False
+    # New fields for enhanced content
+    images: Optional[List[str]] = []
+    vet_certificates: Optional[List[str]] = []
+    weight_range: Optional[dict] = None  # {"min": 1.5, "max": 2.0, "unit": "kg"}
+    age_requirements: Optional[dict] = None  # {"min": 6, "max": 12, "unit": "weeks"}
+    vaccination_requirements: Optional[List[str]] = []
+    delivery_preferences: Optional[str] = "both"  # "pickup", "delivery", "both"
+    inspection_allowed: Optional[bool] = True
+    additional_requirements: Optional[str] = None
 
 @api_router.post("/buy-requests/enhanced")
 async def create_enhanced_buy_request(
