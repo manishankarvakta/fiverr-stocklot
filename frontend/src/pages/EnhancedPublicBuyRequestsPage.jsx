@@ -400,6 +400,9 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentFilters, setCurrentFilters] = useState('');
   
   const navigate = useNavigate();
 
