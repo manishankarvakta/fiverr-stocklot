@@ -40,6 +40,7 @@ const menuItems = [
   { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard, component: AdminDashboard },
   { id: 'users', label: 'User Management', icon: Users, component: AdminUsersQueue },
   { id: 'listings', label: 'Livestock Listings', icon: Package, component: AdminListingsQueue },
+  { id: 'buy-requests', label: 'Buy Requests', icon: MessageSquare, component: AdminBuyRequestsManagement },
   { id: 'orders', label: 'Orders & Escrow', icon: ShoppingCart, component: AdminOrdersManagement },
   
   // Financial Management Section
