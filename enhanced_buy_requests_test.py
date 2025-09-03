@@ -423,9 +423,9 @@ class EnhancedBuyRequestTester:
         
         # Test sending offer without authentication
         offer_data = {
-            "price_per_unit": 15000.0,
-            "quantity_available": 25,
-            "notes": "Test offer without auth"
+            "offer_price": 15000.0,
+            "qty": 25,
+            "message": "Test offer without auth"
         }
         
         # Temporarily remove token
