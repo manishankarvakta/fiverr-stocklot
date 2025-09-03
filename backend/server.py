@@ -34,6 +34,16 @@ from referral_service_extended import ExtendedReferralService
 from notification_service_extended import ExtendedNotificationService
 from paystack_service import PaystackService
 
+# Import AI & Mapping enhanced services
+from services.enhanced_buy_request_service import EnhancedBuyRequestService
+from services.ai_enhanced_service import AIEnhancedService
+from services.mapbox_service import MapboxService
+from services.order_management_service import OrderManagementService
+from services.ml_faq_service import MLFAQService
+from services.ml_matching_service import MLMatchingService
+from services.ml_engine_service import MLEngineService
+from services.photo_intelligence_service import PhotoIntelligenceService
+
 # Import new models
 from models import (
     MessageCreate, ThreadCreate, MessageThread, Message, MessageParticipant,
@@ -65,6 +75,16 @@ messaging_service = MessagingService(db)
 referral_service_extended = ExtendedReferralService(db)
 notification_service_extended = ExtendedNotificationService(db)
 paystack_service = PaystackService(db)
+
+# Initialize AI & Mapping enhanced services
+enhanced_buy_request_service = EnhancedBuyRequestService(db)
+ai_service = AIEnhancedService()
+mapbox_service = MapboxService()
+order_management_service = OrderManagementService(db)
+ml_faq_service = MLFAQService(db)
+ml_matching_service = MLMatchingService(db)
+ml_engine_service = MLEngineService(db)
+photo_intelligence_service = PhotoIntelligenceService(db)
 
 # Paystack configuration
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
@@ -377,10 +397,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     return None
 
-async def get_current_user_optional(request: Request) -> Optional[User]:
+async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))) -> Optional[User]:
     """Get current user or None if not authenticated"""
     try:
-        return await get_current_user(request)
+        if not credentials:
+            return None
+        return await get_current_user(credentials)
     except:
         return None
 
@@ -5029,6 +5051,345 @@ async def moderate_buy_request(
         raise HTTPException(status_code=500, detail="Failed to moderate request")
 
 # ==============================================================================
+# 🤖 AI-ENHANCED BUY REQUESTS API ENDPOINTS
+# ==============================================================================
+
+class EnhancedBuyRequestCreate(BaseModel):
+    species: str
+    product_type: str
+    qty: int
+    unit: str
+    target_price: Optional[float] = None
+    breed: Optional[str] = None
+    province: Optional[str] = None
+    country: str = "ZA"
+    expires_at: Optional[str] = None
+    notes: Optional[str] = None
+    enable_ai_enhancements: bool = True
+    auto_generate_description: bool = False
+
+@api_router.post("/buy-requests/enhanced")
+async def create_enhanced_buy_request(
+    data: EnhancedBuyRequestCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create an AI-enhanced buy request with smart features"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Parse expires_at if provided
+        expires_at = None
+        if data.expires_at:
+            expires_at = datetime.fromisoformat(data.expires_at.replace('Z', '+00:00'))
+        
+        request = await enhanced_buy_request_service.create_enhanced_buy_request(
+            buyer_id=current_user.id,
+            species=data.species,
+            product_type=data.product_type,
+            qty=data.qty,
+            unit=data.unit,
+            target_price=data.target_price,
+            breed=data.breed,
+            province=data.province,
+            country=data.country,
+            expires_at=expires_at,
+            notes=data.notes,
+            enable_ai_enhancements=data.enable_ai_enhancements,
+            auto_generate_description=data.auto_generate_description
+        )
+        
+        return {
+            "ok": True,
+            "id": request["id"],
+            "moderation_status": request["moderation_status"],
+            "ai_enhanced": request.get("ai_enhanced", False),
+            "ai_analysis": request.get("ai_analysis", {}),
+            "price_suggestions": request.get("price_suggestions", {}),
+            "location_data": request.get("location_data", {}),
+            "categorization": request.get("categorization", {})
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating enhanced buy request: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create enhanced buy request: {str(e)}")
+
+@api_router.post("/buy-requests/{request_id}/offers/enhanced")
+async def create_enhanced_offer(
+    request_id: str,
+    data: OfferCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create an AI-enhanced offer with smart matching"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        offer = await enhanced_buy_request_service.create_enhanced_offer(
+            request_id=request_id,
+            seller_id=current_user.id,
+            offer_price=data.offer_price,
+            qty=data.qty,
+            message=data.message,
+            listing_id=data.listing_id,
+            org_id=current_user.org_id,
+            enable_ai_matching=True
+        )
+        
+        return {
+            "ok": True,
+            "offer_id": offer["id"],
+            "ai_matching": offer.get("ai_enhanced_data", {}).get("ai_matching", {}),
+            "distance_analysis": offer.get("ai_enhanced_data", {}).get("distance_analysis", {})
+        }
+        
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error creating enhanced offer: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create enhanced offer: {str(e)}")
+
+@api_router.get("/buy-requests/intelligent-matches")
+async def get_intelligent_matches(
+    current_user: User = Depends(get_current_user),
+    max_distance_km: float = 200,
+    min_matching_score: int = 60,
+    limit: int = 20
+):
+    """Get intelligently matched buy requests for seller"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        matches = await enhanced_buy_request_service.get_intelligent_matches(
+            seller_id=current_user.id,
+            max_distance_km=max_distance_km,
+            min_matching_score=min_matching_score,
+            limit=limit
+        )
+        
+        return {
+            "matches": matches,
+            "total_count": len(matches),
+            "filters": {
+                "max_distance_km": max_distance_km,
+                "min_matching_score": min_matching_score,
+                "limit": limit
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting intelligent matches: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get intelligent matches: {str(e)}")
+
+@api_router.get("/buy-requests/price-suggestions")
+async def get_price_suggestions(
+    species: str,
+    product_type: str,
+    breed: Optional[str] = None,
+    province: Optional[str] = None,
+    quantity: Optional[int] = None,
+    unit: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI-powered price suggestions"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Get recent market data
+        recent_data = await enhanced_buy_request_service._get_recent_market_data(
+            species=species,
+            product_type=product_type,
+            province=province
+        )
+        
+        suggestions = await ai_service.generate_price_suggestions(
+            species=species,
+            product_type=product_type,
+            breed=breed,
+            location=province,
+            quantity=quantity,
+            unit=unit,
+            market_data=recent_data
+        )
+        
+        return {
+            "suggestions": suggestions,
+            "market_data_points": len(recent_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting price suggestions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get price suggestions: {str(e)}")
+
+@api_router.post("/buy-requests/auto-description")
+async def generate_auto_description(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate AI-powered description for buy request"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        description_data = await ai_service.generate_auto_description(
+            species=data.get('species'),
+            product_type=data.get('product_type'),
+            breed=data.get('breed'),
+            quantity=data.get('quantity'),
+            unit=data.get('unit'),
+            location=data.get('province'),
+            target_price=data.get('target_price'),
+            basic_notes=data.get('notes')
+        )
+        
+        return description_data
+        
+    except Exception as e:
+        logger.error(f"Error generating auto description: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate description: {str(e)}")
+
+@api_router.get("/analytics/market")
+async def get_market_analytics(
+    species: Optional[str] = None,
+    province: Optional[str] = None,
+    days_back: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Get market analytics and trends"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        analytics = await enhanced_buy_request_service.get_market_analytics(
+            species=species,
+            province=province,
+            days_back=days_back
+        )
+        
+        return analytics
+        
+    except Exception as e:
+        logger.error(f"Error getting market analytics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get market analytics: {str(e)}")
+
+# ==============================================================================
+# 🗺️ MAPPING & GEOLOCATION API ENDPOINTS
+# ==============================================================================
+
+@api_router.post("/mapping/geocode")
+async def geocode_location(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Geocode a location to coordinates"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        result = await mapbox_service.geocode_location(
+            location=data.get('location'),
+            country=data.get('country', 'ZA')
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error geocoding location: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to geocode location: {str(e)}")
+
+@api_router.post("/mapping/distance")
+async def calculate_distance(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Calculate distance between two locations"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        result = await mapbox_service.calculate_delivery_distance(
+            seller_location=(data['seller_lng'], data['seller_lat']),
+            buyer_location=(data['buyer_lng'], data['buyer_lat'])
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error calculating distance: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate distance: {str(e)}")
+
+@api_router.post("/mapping/route-optimization")
+async def optimize_delivery_route(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Optimize delivery route for multiple stops"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        depot = (data['depot_lng'], data['depot_lat'])
+        delivery_points = [(point['lng'], point['lat']) for point in data['delivery_points']]
+        
+        result = await mapbox_service.optimize_delivery_route(
+            depot=depot,
+            delivery_points=delivery_points,
+            return_to_depot=data.get('return_to_depot', True)
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error optimizing route: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to optimize route: {str(e)}")
+
+@api_router.get("/mapping/nearby-requests")
+async def find_nearby_requests(
+    lng: float,
+    lat: float,
+    radius_km: float = 50,
+    current_user: User = Depends(get_current_user)
+):
+    """Find buy requests near a location"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Get all open buy requests with coordinates
+        query = {
+            "status": BuyRequestStatus.OPEN.value,
+            "moderation_status": {"$in": ["auto_pass", "approved"]},
+            "location_data.coordinates": {"$exists": True}
+        }
+        
+        cursor = db.buy_requests.find(query).limit(100)
+        all_requests = await cursor.to_list(length=None)
+        
+        # Remove MongoDB _ids
+        for req in all_requests:
+            if "_id" in req:
+                del req["_id"]
+        
+        nearby_requests = await mapbox_service.find_nearby_requests(
+            center_location=(lng, lat),
+            radius_km=radius_km,
+            buy_requests=all_requests
+        )
+        
+        return {
+            "requests": nearby_requests,
+            "total_count": len(nearby_requests),
+            "search_radius_km": radius_km,
+            "center": {"lng": lng, "lat": lat}
+        }
+        
+    except Exception as e:
+        logger.error(f"Error finding nearby requests: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to find nearby requests: {str(e)}")
+
+# ==============================================================================
 # 💬 MESSAGING API ENDPOINTS
 # ==============================================================================
 
@@ -5486,6 +5847,679 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
+# ==============================================================================
+# 🤖 MACHINE LEARNING API ENDPOINTS
+# ==============================================================================
+
+# FAQ ML Endpoints
+@api_router.post("/ml/faq/ingest")
+async def ingest_faq_questions(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Ingest questions from various sources for FAQ generation"""
+    try:
+        result = await ml_faq_service.ingest_questions_from_sources()
+        
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result.get("error", "Ingestion failed"))
+        
+        return {
+            "message": "Questions ingested successfully",
+            "ingestion_id": result["ingestion_id"],
+            "stats": result["stats"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"FAQ ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to ingest questions")
+
+@api_router.post("/ml/faq/cluster/{ingestion_id}")
+async def cluster_faq_questions(
+    ingestion_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Cluster similar questions and identify topics"""
+    try:
+        result = await ml_faq_service.cluster_questions(ingestion_id)
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result.get("error", "Clustering failed"))
+        
+        return {
+            "message": "Questions clustered successfully",
+            "clustering_id": result["clustering_id"],
+            "stats": result["stats"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"FAQ clustering failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cluster questions")
+
+@api_router.post("/ml/faq/generate-answers/{clustering_id}")
+async def generate_draft_answers(
+    clustering_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Generate draft answers for question clusters"""
+    try:
+        result = await ml_faq_service.generate_draft_answers(clustering_id)
+        
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result.get("error", "Answer generation failed"))
+        
+        return {
+            "message": "Draft answers generated successfully",
+            "draft_id": result["draft_id"],
+            "answers_generated": result["answers_generated"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"FAQ answer generation failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate answers")
+
+@api_router.get("/faq/search")
+async def search_faq(
+    q: str,
+    limit: int = 5,
+    current_user: User = Depends(get_current_user)
+):
+    """Search FAQ using semantic similarity"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        results = await ml_faq_service.semantic_search_faq(q, limit)
+        
+        return {
+            "query": q,
+            "results": results,
+            "total_found": len(results)
+        }
+        
+    except Exception as e:
+        logger.error(f"FAQ search failed: {e}")
+        raise HTTPException(status_code=500, detail="Search failed")
+
+@api_router.post("/faq/{faq_id}/feedback")
+async def record_faq_feedback(
+    faq_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Record feedback on FAQ answers"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        feedback_type = data.get("feedback_type")  # 'helpful' or 'not_helpful'
+        comment = data.get("comment")
+        
+        if feedback_type not in ["helpful", "not_helpful"]:
+            raise HTTPException(status_code=400, detail="Invalid feedback type")
+        
+        success = await ml_faq_service.record_faq_feedback(
+            faq_id=faq_id,
+            user_id=current_user.id,
+            feedback_type=feedback_type,
+            comment=comment
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to record feedback")
+        
+        return {"message": "Feedback recorded successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"FAQ feedback failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to record feedback")
+
+# Smart Matching ML Endpoints
+@api_router.get("/ml/matching/smart-requests")
+async def get_smart_matched_requests(
+    current_user: User = Depends(get_current_user),
+    limit: int = 20
+):
+    """Get intelligently ranked buy requests for seller"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        # Get basic in-range requests first
+        query = {
+            "status": "open",
+            "moderation_status": {"$in": ["auto_pass", "approved"]}
+        }
+        
+        # Get seller service areas
+        seller = await db.users.find_one({"id": current_user.id})
+        service_provinces = seller.get("service_provinces", [])
+        
+        if service_provinces:
+            query["province"] = {"$in": service_provinces}
+        
+        cursor = db.buy_requests.find(query).limit(limit * 2)  # Get more to rank
+        requests = await cursor.to_list(length=None)
+        
+        # Clean MongoDB IDs
+        for req in requests:
+            if "_id" in req:
+                del req["_id"]
+        
+        # Apply ML ranking
+        ranked_requests = await ml_matching_service.rank_requests_for_seller(
+            seller_id=current_user.id,
+            requests=requests,
+            limit=limit
+        )
+        
+        return {
+            "requests": ranked_requests,
+            "total_considered": len(requests),
+            "ml_ranked": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Smart matching failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get smart matches")
+
+@api_router.post("/ml/matching/record-interaction")
+async def record_matching_interaction(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Record seller interaction with buy request for ML training"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        request_id = data.get("request_id")
+        interaction_type = data.get("interaction_type")  # 'view', 'offer_sent', 'skipped'
+        features = data.get("features")
+        
+        if not request_id or not interaction_type:
+            raise HTTPException(status_code=400, detail="Missing required fields")
+        
+        success = await ml_matching_service.record_interaction(
+            seller_id=current_user.id,
+            request_id=request_id,
+            interaction_type=interaction_type,
+            features=features
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to record interaction")
+        
+        return {"message": "Interaction recorded successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Interaction recording failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to record interaction")
+
+@api_router.post("/ml/matching/train")
+async def train_matching_model(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Train ML matching model from collected data"""
+    try:
+        result = await ml_matching_service.train_model()
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result.get("error", "Training failed"))
+        
+        return {
+            "message": "Model trained successfully",
+            "performance": result["model_performance"],
+            "feature_importance": result["feature_importance"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Model training failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to train model")
+
+@api_router.get("/ml/matching/performance")
+async def get_matching_model_performance(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get current matching model performance metrics"""
+    try:
+        performance = await ml_matching_service.get_model_performance()
+        return performance
+        
+    except Exception as e:
+        logger.error(f"Performance retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get model performance")
+
+# ============================================================================
+# ADVANCED ML ENGINE API ENDPOINTS
+# ============================================================================
+
+@api_router.post("/ml/engine/smart-pricing")
+async def smart_pricing_analysis(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """AI-powered smart pricing analysis with 15+ market factors"""
+    try:
+        listing_data = data.get("listing_data", {})
+        market_context = data.get("market_context")
+        
+        if not listing_data:
+            raise HTTPException(status_code=400, detail="listing_data is required")
+        
+        # Add user context if available
+        if current_user:
+            listing_data["seller_id"] = current_user.id
+        
+        analysis = await ml_engine_service.smart_pricing_analysis(
+            listing_data=listing_data,
+            market_context=market_context
+        )
+        
+        if not analysis.get("success"):
+            raise HTTPException(status_code=500, detail=analysis.get("error", "Pricing analysis failed"))
+        
+        return analysis
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Smart pricing analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze pricing")
+
+@api_router.post("/ml/engine/demand-forecast")
+async def demand_forecasting(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Predict demand patterns using temporal analysis"""
+    try:
+        species = data.get("species")
+        region = data.get("region")
+        forecast_days = data.get("forecast_days", 30)
+        
+        if not species:
+            raise HTTPException(status_code=400, detail="species is required")
+        
+        if not region:
+            # Use user's region if available, otherwise default
+            region = current_user.province if current_user and current_user.province else "gauteng"
+        
+        forecast = await ml_engine_service.demand_forecasting(
+            species=species,
+            region=region,
+            forecast_days=forecast_days
+        )
+        
+        if not forecast.get("success"):
+            raise HTTPException(status_code=500, detail=forecast.get("error", "Demand forecasting failed"))
+        
+        return forecast
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Demand forecasting failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to forecast demand")
+
+@api_router.post("/ml/engine/market-intelligence")
+async def market_intelligence_analysis(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Comprehensive market intelligence and competitive analysis"""
+    try:
+        species = data.get("species")
+        region = data.get("region")
+        
+        # Use user's region if not provided and available
+        if not region and current_user and current_user.province:
+            region = current_user.province
+        
+        intelligence = await ml_engine_service.market_intelligence_analysis(
+            species=species,
+            region=region
+        )
+        
+        if not intelligence.get("success"):
+            raise HTTPException(status_code=500, detail=intelligence.get("error", "Market intelligence failed"))
+        
+        return intelligence
+        
+    except Exception as e:
+        logger.error(f"Market intelligence analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze market intelligence")
+
+@api_router.post("/ml/engine/content-optimization")
+async def content_optimization_analysis(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """AI-powered content optimization and SEO recommendations"""
+    try:
+        listing_data = data.get("listing_data", {})
+        performance_data = data.get("performance_data")
+        
+        if not listing_data:
+            raise HTTPException(status_code=400, detail="listing_data is required")
+        
+        # Add user context if available
+        if current_user:
+            listing_data["seller_id"] = current_user.id
+        
+        optimization = await ml_engine_service.content_optimization_analysis(
+            listing_data=listing_data,
+            performance_data=performance_data
+        )
+        
+        if not optimization.get("success"):
+            raise HTTPException(status_code=500, detail=optimization.get("error", "Content optimization failed"))
+        
+        return optimization
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Content optimization failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to optimize content")
+
+# ============================================================================
+# PHOTO INTELLIGENCE API ENDPOINTS
+# ============================================================================
+
+@api_router.post("/ml/photo/analyze")
+async def analyze_livestock_photo(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Comprehensive AI analysis of livestock photos"""
+    try:
+        image_data = data.get("image_data")  # Base64 encoded
+        listing_context = data.get("listing_context", {})
+        
+        if not image_data:
+            raise HTTPException(status_code=400, detail="image_data (base64) is required")
+        
+        # Add user context if available
+        if current_user:
+            listing_context["seller_id"] = current_user.id
+        
+        analysis = await photo_intelligence_service.analyze_livestock_photo(
+            image_data=image_data,
+            listing_context=listing_context
+        )
+        
+        if not analysis.get("success"):
+            raise HTTPException(status_code=500, detail=analysis.get("error", "Photo analysis failed"))
+        
+        return analysis
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Photo analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze photo")
+
+@api_router.post("/ml/photo/bulk-analyze")
+async def bulk_analyze_photos(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk analysis of multiple livestock photos"""
+    try:
+        photos = data.get("photos", [])  # Array of {image_data, listing_context}
+        
+        if not photos or len(photos) == 0:
+            raise HTTPException(status_code=400, detail="photos array is required")
+        
+        if len(photos) > 10:
+            raise HTTPException(status_code=400, detail="Maximum 10 photos per request")
+        
+        results = []
+        for i, photo in enumerate(photos):
+            try:
+                image_data = photo.get("image_data")
+                listing_context = photo.get("listing_context", {})
+                
+                if not image_data:
+                    results.append({
+                        "photo_index": i,
+                        "success": False,
+                        "error": "image_data is required"
+                    })
+                    continue
+                
+                # Add user context
+                listing_context["seller_id"] = current_user.id
+                
+                analysis = await photo_intelligence_service.analyze_livestock_photo(
+                    image_data=image_data,
+                    listing_context=listing_context
+                )
+                
+                results.append({
+                    "photo_index": i,
+                    **analysis
+                })
+                
+            except Exception as e:
+                logger.error(f"Photo {i} analysis failed: {e}")
+                results.append({
+                    "photo_index": i,
+                    "success": False,
+                    "error": str(e)
+                })
+        
+        # Calculate overall statistics
+        successful_analyses = [r for r in results if r.get("success")]
+        total_quality_score = sum(r.get("overall_quality_score", 0) for r in successful_analyses)
+        avg_quality_score = total_quality_score / len(successful_analyses) if successful_analyses else 0
+        
+        return {
+            "success": True,
+            "total_photos": len(photos),
+            "successful_analyses": len(successful_analyses),
+            "failed_analyses": len(photos) - len(successful_analyses),
+            "average_quality_score": round(avg_quality_score, 1),
+            "results": results,
+            "analyzed_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Bulk photo analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze photos")
+
+# ============================================================================
+# BUY REQUEST DASHBOARD API ENDPOINTS
+# ============================================================================
+
+@api_router.get("/buy-requests/my-requests")
+async def get_my_buy_requests(
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20
+):
+    """Get buyer's own buy requests with filtering and pagination"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Build query
+        query = {"buyer_id": current_user.id}
+        if status:
+            query["status"] = status
+        
+        # Calculate pagination
+        skip = (page - 1) * limit
+        
+        # Get buy requests
+        cursor = db.buy_requests.find(query).sort("created_at", -1).skip(skip).limit(limit)
+        requests = await cursor.to_list(length=None)
+        
+        # Get total count
+        total = await db.buy_requests.count_documents(query)
+        
+        # Format response
+        for req in requests:
+            if "_id" in req:
+                del req["_id"]
+            
+            # Add offer count
+            offers_count = await db.buy_request_offers.count_documents({"request_id": req["id"]})
+            req["offers_count"] = offers_count
+        
+        return {
+            "requests": requests,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting my buy requests: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get buy requests")
+
+@api_router.get("/buy-requests/seller-inbox")
+async def get_seller_inbox(
+    current_user: User = Depends(get_current_user),
+    species: Optional[str] = None,
+    province: Optional[str] = None,
+    max_distance_km: Optional[int] = 100,
+    page: int = 1,
+    limit: int = 20
+):
+    """Get buy requests in seller's delivery range"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Check if user is seller
+        if "seller" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Seller access required")
+        
+        # Build query
+        query = {"status": "active"}
+        if species:
+            query["species"] = species
+        if province:
+            query["province"] = province
+        
+        # Get buy requests
+        skip = (page - 1) * limit
+        cursor = db.buy_requests.find(query).sort("created_at", -1).skip(skip).limit(limit)
+        requests = await cursor.to_list(length=None)
+        
+        # Format response
+        for req in requests:
+            if "_id" in req:
+                del req["_id"]
+            
+            # Check if seller already made an offer
+            existing_offer = await db.buy_request_offers.find_one({
+                "request_id": req["id"],
+                "seller_id": current_user.id
+            })
+            req["has_offer"] = bool(existing_offer)
+            
+            # Add offer count
+            offers_count = await db.buy_request_offers.count_documents({"request_id": req["id"]})
+            req["offers_count"] = offers_count
+        
+        # Get total count
+        total = await db.buy_requests.count_documents(query)
+        
+        return {
+            "requests": requests,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting seller inbox: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get seller inbox")
+
+@api_router.get("/buy-requests/my-offers")
+async def get_my_offers(
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20
+):
+    """Get seller's own offers"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Check if user is seller
+        if "seller" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Seller access required")
+        
+        # Build query
+        query = {"seller_id": current_user.id}
+        if status:
+            query["status"] = status
+        
+        # Get offers with pagination
+        skip = (page - 1) * limit
+        cursor = db.buy_request_offers.find(query).sort("created_at", -1).skip(skip).limit(limit)
+        offers = await cursor.to_list(length=None)
+        
+        # Get associated buy requests
+        for offer in offers:
+            if "_id" in offer:
+                del offer["_id"]
+            
+            # Get the buy request details
+            buy_request = await db.buy_requests.find_one({"id": offer["request_id"]})
+            if buy_request:
+                if "_id" in buy_request:
+                    del buy_request["_id"]
+                offer["buy_request"] = buy_request
+        
+        # Get total count
+        total = await db.buy_request_offers.count_documents(query)
+        
+        return {
+            "offers": offers,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting my offers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get offers")
+
 @api_router.get("/admin/stats")
 async def get_admin_stats(current_user: User = Depends(get_current_admin_user)):
     """Get admin dashboard statistics"""
@@ -5714,6 +6748,359 @@ async def admin_refund_escrow(
     except Exception as e:
         logger.error(f"Error refunding escrow: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# PUBLIC BUY REQUESTS API ENDPOINTS
+# ============================================================================
+
+@api_router.get("/public/buy-requests")
+async def get_public_buy_requests(
+    species: Optional[str] = None,
+    product_type: Optional[str] = None,
+    province: Optional[str] = None,
+    min_qty: Optional[int] = None,
+    max_qty: Optional[int] = None,
+    has_target_price: Optional[bool] = None,
+    sort: str = "relevance",  # relevance, newest, ending_soon
+    limit: int = 24,
+    after: Optional[str] = None,
+    user_lat: Optional[float] = None,
+    user_lng: Optional[float] = None,
+    max_distance_km: Optional[int] = None
+):
+    """Get public buy requests list with filters, sorting, and pagination"""
+    try:
+        # Build query for open, non-expired requests
+        query = {
+            "status": "open",
+            "expires_at": {
+                "$ne": None,  # Not null
+                "$gt": datetime.now(timezone.utc)  # And greater than now
+            }
+        }
+        
+        # Apply filters
+        if species:
+            query["species"] = species
+        if product_type:
+            query["product_type"] = product_type
+        if province:
+            query["province"] = province
+        if min_qty is not None:
+            query["qty"] = {"$ne": None, "$gte": min_qty}
+        if max_qty is not None:
+            if "qty" in query:
+                query["qty"]["$lte"] = max_qty
+            else:
+                query["qty"] = {"$ne": None, "$lte": max_qty}
+        if has_target_price is not None:
+            if has_target_price:
+                query["target_price"] = {"$ne": None, "$gt": 0}
+            else:
+                query["$or"] = [
+                    {"target_price": {"$exists": False}},
+                    {"target_price": None},
+                    {"target_price": {"$lte": 0}}
+                ]
+        
+        # Handle cursor pagination
+        if after:
+            try:
+                after_id = after
+                query["_id"] = {"$lt": after_id}
+            except:
+                pass  # Invalid cursor, ignore
+        
+        # Get total count for metadata
+        total_count = await db.buy_requests.count_documents(query)
+        
+        # Determine sort order
+        sort_field = [("created_at", -1)]  # Default: newest first
+        if sort == "ending_soon":
+            sort_field = [("expires_at", 1)]
+        elif sort == "relevance":
+            # For relevance, we'll score after fetching
+            sort_field = [("created_at", -1)]
+        
+        # Fetch requests
+        cursor = db.buy_requests.find(query).sort(sort_field).limit(limit + 1)
+        requests = await cursor.to_list(length=None)
+        
+        # Check if there are more results
+        has_more = len(requests) > limit
+        if has_more:
+            requests = requests[:limit]
+        
+        # Process results
+        result_items = []
+        for req in requests:
+            # Get offers count
+            offers_count = await db.buy_request_offers.count_documents({"request_id": req["id"]})
+            
+            # Calculate distance if user location provided
+            distance_km = None
+            if user_lat and user_lng and req.get("location", {}).get("coordinates"):
+                req_coords = req["location"]["coordinates"]
+                if len(req_coords) >= 2:
+                    req_lat, req_lng = req_coords[1], req_coords[0]  # GeoJSON format
+                    distance_km = _calculate_distance(user_lat, user_lng, req_lat, req_lng)
+            
+            # Apply distance filter if specified
+            if max_distance_km and distance_km and distance_km > max_distance_km:
+                continue
+            
+            # Build public item
+            item = {
+                "id": req["id"],
+                "title": f"{req.get('breed', '')} {req['species']}".strip() or req['species'],
+                "species": req["species"],
+                "product_type": req["product_type"],
+                "qty": req["qty"],
+                "unit": req["unit"],
+                "province": req["province"],
+                "deadline_at": req["expires_at"].isoformat(),
+                "has_target_price": bool(req.get("target_price") and req.get("target_price") > 0),
+                "offers_count": offers_count,
+                "created_at": req["created_at"].isoformat()
+            }
+            
+            if distance_km is not None:
+                item["distance_km"] = round(distance_km, 1)
+            
+            result_items.append(item)
+        
+        # Apply ML relevance scoring if requested
+        if sort == "relevance" and result_items:
+            result_items = await _apply_relevance_scoring(
+                result_items, user_lat, user_lng
+            )
+        
+        # Generate next cursor
+        next_cursor = None
+        if has_more and result_items:
+            last_item = requests[-1]  # Use the last item from original list
+            next_cursor = str(last_item["_id"])
+        
+        return {
+            "items": result_items,
+            "nextCursor": next_cursor,
+            "hasMore": has_more,
+            "total": total_count,
+            "filters_applied": {
+                "species": species,
+                "product_type": product_type,
+                "province": province,
+                "qty_range": [min_qty, max_qty],
+                "has_target_price": has_target_price,
+                "max_distance_km": max_distance_km
+            },
+            "sort": sort
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting public buy requests: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch buy requests")
+
+@api_router.get("/public/buy-requests/{request_id}")
+async def get_public_buy_request_detail(
+    request_id: str,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    user_lat: Optional[float] = None,
+    user_lng: Optional[float] = None
+):
+    """Get public buy request detail"""
+    try:
+        # Get the buy request
+        request = await db.buy_requests.find_one({"id": request_id})
+        if not request:
+            raise HTTPException(status_code=404, detail="Buy request not found")
+        
+        # Check if request is open and not expired
+        if request["status"] != "open":
+            if current_user and current_user.id == request["buyer_id"]:
+                pass  # Owner can view their own inactive requests
+            else:
+                raise HTTPException(status_code=404, detail="Buy request not available")
+        
+        # Check if request is expired (handle timezone properly)
+        expires_at = request["expires_at"]
+        if not expires_at.tzinfo:
+            # If no timezone info, assume UTC
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        if expires_at <= datetime.now(timezone.utc):
+            if current_user and current_user.id == request["buyer_id"]:
+                pass  # Owner can view their expired requests
+            else:
+                raise HTTPException(status_code=410, detail="Buy request has expired")
+        
+        # Get offers count
+        offers_count = await db.buy_request_offers.count_documents({"request_id": request_id})
+        
+        # Calculate distance if user location provided
+        distance_km = None
+        if user_lat and user_lng and request.get("location", {}).get("coordinates"):
+            req_coords = request["location"]["coordinates"]
+            if len(req_coords) >= 2:
+                req_lat, req_lng = req_coords[1], req_coords[0]
+                distance_km = _calculate_distance(user_lat, user_lng, req_lat, req_lng)
+        
+        # Determine if current user can send offer (seller in range)
+        can_send_offer = False
+        in_range = True
+        compliance_flags = {
+            "kyc": False,
+            "live": request["species"].lower() in ["cattle", "sheep", "goats", "swine"],
+            "disease_zone": False
+        }
+        
+        if current_user and "seller" in (current_user.roles or []):
+            # Check basic eligibility
+            can_send_offer = True
+            
+            # Check if already sent offer
+            existing_offer = await db.buy_request_offers.find_one({
+                "request_id": request_id,
+                "seller_id": current_user.id
+            })
+            if existing_offer:
+                can_send_offer = False
+            
+            # Check range (simplified)
+            if distance_km and distance_km > 500:  # 500km max range
+                in_range = False
+                can_send_offer = False
+            
+            # Check KYC for live animals
+            if compliance_flags["live"]:
+                # Check if seller has KYC
+                if not current_user.kyc_verified:
+                    compliance_flags["kyc"] = True
+                    can_send_offer = False
+        
+        # Prepare notes excerpt (first 200 chars, no PII)
+        notes_excerpt = ""
+        if request.get("notes"):
+            notes_excerpt = request["notes"][:200]
+            if len(request["notes"]) > 200:
+                notes_excerpt += "..."
+        
+        # Build response
+        detail = {
+            "id": request["id"],
+            "species": request["species"],
+            "product_type": request["product_type"],
+            "qty": request["qty"],
+            "unit": request["unit"],
+            "province": request["province"],
+            "deadline_at": request["expires_at"].isoformat(),
+            "notes_excerpt": notes_excerpt,
+            "offers_count": offers_count,
+            "compliance_flags": compliance_flags,
+            "can_send_offer": can_send_offer,
+            "in_range": in_range,
+            "created_at": request["created_at"].isoformat()
+        }
+        
+        # Add optional fields
+        if request.get("breed"):
+            detail["breed"] = request["breed"]
+        if request.get("target_price", 0) > 0:
+            detail["target_price"] = request["target_price"]
+        if distance_km is not None:
+            detail["distance_km"] = round(distance_km, 1)
+        
+        # Add buyer info (limited)
+        buyer = await db.users.find_one({"id": request["buyer_id"]})
+        if buyer:
+            detail["buyer"] = {
+                "name": buyer.get("full_name", "Anonymous"),
+                "province": buyer.get("province", request["province"]),
+                "verified": buyer.get("kyc_verified", False)
+            }
+        
+        return detail
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting buy request detail: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch buy request details")
+
+# (Removed duplicate endpoint - consolidated with existing endpoint above)
+
+# Helper functions
+def _calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Calculate distance between two coordinates in kilometers"""
+    from math import radians, cos, sin, asin, sqrt
+    
+    # Convert to radians
+    lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
+    
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlng/2)**2
+    c = 2 * asin(sqrt(a))
+    r = 6371  # Earth's radius in kilometers
+    
+    return c * r
+
+async def _apply_relevance_scoring(
+    items: List[dict],
+    user_lat: Optional[float] = None,
+    user_lng: Optional[float] = None
+) -> List[dict]:
+    """Apply ML relevance scoring to buy request items"""
+    try:
+        for item in items:
+            score = 0.0
+            
+            # Proximity scoring (40% weight)
+            if user_lat and user_lng and item.get("distance_km"):
+                distance = item["distance_km"]
+                # Inverse distance scoring: closer = higher score
+                proximity_score = max(0, 1 - (distance / 1000))  # Normalize to 1000km max
+                score += proximity_score * 0.4
+            else:
+                score += 0.2  # Default if no location
+            
+            # Freshness scoring (25% weight)
+            created_at = datetime.fromisoformat(item["created_at"].replace('Z', '+00:00'))
+            age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
+            freshness_score = max(0, 1 - (age_hours / (24 * 7)))  # Decay over 1 week
+            score += freshness_score * 0.25
+            
+            # Quantity fit scoring (20% weight) - assume mid-range is optimal
+            qty = item["qty"]
+            if qty >= 10 and qty <= 100:  # Sweet spot
+                qty_score = 1.0
+            elif qty >= 5 and qty <= 200:  # Good range
+                qty_score = 0.8
+            else:
+                qty_score = 0.6
+            score += qty_score * 0.2
+            
+            # Activity scoring (15% weight) - based on offers
+            offers_count = item.get("offers_count", 0)
+            if offers_count == 0:
+                activity_score = 1.0  # New requests get priority
+            elif offers_count <= 3:
+                activity_score = 0.8  # Some competition is good
+            else:
+                activity_score = 0.5  # High competition
+            score += activity_score * 0.15
+            
+            item["relevance_score"] = round(score, 3)
+        
+        # Sort by relevance score (highest first)
+        items.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
+        
+        return items
+        
+    except Exception as e:
+        logger.error(f"Error applying relevance scoring: {e}")
+        return items  # Return unsorted if scoring fails
 
 # SUGGESTION SYSTEM ENDPOINTS
 @api_router.post("/suggestions")
@@ -7044,6 +8431,395 @@ async def emit_test_event(
     except Exception as e:
         logger.error(f"Error emitting test event: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to emit test event")
+
+# ==============================================================================
+# 🛒 ACCEPT OFFER → CHECKOUT FLOW API ENDPOINTS
+# ==============================================================================
+
+class AcceptOfferRequest(BaseModel):
+    qty: int
+    address_id: str
+    delivery_mode: str  # 'seller', 'rfq', 'pickup'
+    abattoir_id: Optional[str] = None
+
+@api_router.post("/buy-requests/{request_id}/offers/{offer_id}/accept")
+async def accept_offer_and_create_order(
+    request_id: str,
+    offer_id: str,
+    data: AcceptOfferRequest,
+    idempotency_key: str = Header(None, alias="Idempotency-Key"),
+    current_user: User = Depends(get_current_user)
+):
+    """Accept offer and create order with race condition handling"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Generate idempotency key if not provided
+        if not idempotency_key:
+            idempotency_key = str(uuid.uuid4())
+        
+        result = await order_management_service.accept_offer_and_create_order(
+            request_id=request_id,
+            offer_id=offer_id,
+            buyer_id=current_user.id,
+            qty=data.qty,
+            address_id=data.address_id,
+            delivery_mode=data.delivery_mode,
+            abattoir_id=data.abattoir_id,
+            idempotency_key=idempotency_key
+        )
+        
+        if result.get("status") == "error":
+            error_code = result.get("error_code", "UNKNOWN_ERROR")
+            message = result.get("message", "An error occurred")
+            
+            # Map error codes to HTTP status codes
+            status_code_map = {
+                "OFFER_EXPIRED": 410,  # Gone
+                "OUT_OF_RANGE": 400,   # Bad Request
+                "DISEASE_BLOCK": 403,  # Forbidden
+                "KYC_REQUIRED": 402,   # Payment Required (used for additional verification)
+                "QTY_CHANGED": 409,    # Conflict
+                "LOCK_EXPIRED": 410    # Gone
+            }
+            
+            status_code = status_code_map.get(error_code, 400)
+            raise HTTPException(status_code=status_code, detail={
+                "error_code": error_code,
+                "message": message
+            })
+        
+        return {
+            "order_group_id": result["order_group_id"],
+            "price_lock_expires_at": result["price_lock_expires_at"],
+            "totals": result["totals"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Accept offer failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to accept offer")
+
+@api_router.post("/orders/{order_group_id}/refresh-lock")
+async def refresh_price_lock(
+    order_group_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Refresh price lock for checkout page"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        result = await order_management_service.refresh_price_lock(
+            order_group_id=order_group_id,
+            buyer_id=current_user.id
+        )
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "Failed to refresh lock"))
+        
+        return {
+            "price_lock_expires_at": result["price_lock_expires_at"],
+            "totals": result["totals"],
+            "status": result["status"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Price lock refresh failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to refresh price lock")
+
+@api_router.get("/orders/{order_group_id}")
+async def get_order_group(
+    order_group_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get order group details"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        order_group = await order_management_service.get_order_group(
+            order_group_id=order_group_id,
+            user_id=current_user.id
+        )
+        
+        if not order_group:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        return order_group
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get order group failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get order")
+
+@api_router.post("/orders/{order_group_id}/cancel")
+async def cancel_order(
+    order_group_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Cancel order and release locks"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        result = await order_management_service.cancel_order(
+            order_group_id=order_group_id,
+            user_id=current_user.id,
+            reason=data.get("reason", "User cancelled")
+        )
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+        return {"message": result["message"]}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Cancel order failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cancel order")
+
+# ==============================================================================
+# 📊 BUY REQUEST DASHBOARD API ENDPOINTS
+# ==============================================================================
+
+@api_router.get("/buy-requests/my")
+async def get_my_buy_requests(
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = None,
+    species: Optional[str] = None,
+    province: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get buyer's own buy requests with filters"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Build query
+        query = {"buyer_id": current_user.id}
+        
+        if status and status != "all":
+            query["status"] = status
+        if species:
+            query["species"] = species
+        if province:
+            query["province"] = province
+        
+        # Get requests with offer counts
+        pipeline = [
+            {"$match": query},
+            {"$lookup": {
+                "from": "buy_request_offers",
+                "localField": "id",
+                "foreignField": "request_id",
+                "as": "offers"
+            }},
+            {"$addFields": {
+                "offers_count": {"$size": "$offers"},
+                "pending_offers": {
+                    "$size": {
+                        "$filter": {
+                            "input": "$offers",
+                            "cond": {"$eq": ["$$this.status", "pending"]}
+                        }
+                    }
+                },
+                "accepted_offers": {
+                    "$size": {
+                        "$filter": {
+                            "input": "$offers",
+                            "cond": {"$eq": ["$$this.status", "accepted"]}
+                        }
+                    }
+                }
+            }},
+            {"$sort": {"created_at": -1}},
+            {"$skip": offset},
+            {"$limit": limit}
+        ]
+        
+        cursor = db.buy_requests.aggregate(pipeline)
+        requests = await cursor.to_list(length=None)
+        
+        # Clean up MongoDB _ids
+        for req in requests:
+            if "_id" in req:
+                del req["_id"]
+            # Remove full offers array to reduce payload
+            if "offers" in req:
+                del req["offers"]
+        
+        # Get total count
+        total_count = await db.buy_requests.count_documents(query)
+        
+        return {
+            "requests": requests,
+            "total_count": total_count,
+            "has_more": (offset + limit) < total_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Get my buy requests failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get buy requests")
+
+@api_router.get("/seller/requests/in-range")
+async def get_in_range_requests_for_seller(
+    current_user: User = Depends(get_current_user),
+    species: Optional[str] = None,
+    province: Optional[str] = None,
+    max_distance_km: Optional[float] = None,
+    min_qty: Optional[int] = None,
+    has_target_price: Optional[bool] = None,
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get buy requests in seller's service range"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        # Get seller service areas
+        seller = await db.users.find_one({"id": current_user.id})
+        service_provinces = seller.get("service_provinces", [])
+        
+        # Build query
+        query = {
+            "status": "open",
+            "moderation_status": {"$in": ["auto_pass", "approved"]}
+        }
+        
+        if service_provinces:
+            query["province"] = {"$in": service_provinces}
+        
+        if species:
+            query["species"] = species
+        if province:
+            query["province"] = province
+        if min_qty:
+            query["qty"] = {"$gte": min_qty}
+        if has_target_price is not None:
+            if has_target_price:
+                query["target_price"] = {"$exists": True, "$ne": None}
+            else:
+                query["target_price"] = {"$exists": False}
+        
+        # Get requests with offer status for this seller
+        pipeline = [
+            {"$match": query},
+            {"$lookup": {
+                "from": "buy_request_offers",
+                "let": {"request_id": "$id"},
+                "pipeline": [
+                    {"$match": {
+                        "$expr": {"$eq": ["$request_id", "$$request_id"]},
+                        "seller_id": current_user.id
+                    }}
+                ],
+                "as": "my_offers"
+            }},
+            {"$addFields": {
+                "my_offer_status": {
+                    "$ifNull": [{"$arrayElemAt": ["$my_offers.status", 0]}, None]
+                },
+                "my_offer_id": {
+                    "$ifNull": [{"$arrayElemAt": ["$my_offers.id", 0]}, None]
+                }
+            }},
+            {"$sort": {"created_at": -1}},
+            {"$skip": offset},
+            {"$limit": limit}
+        ]
+        
+        cursor = db.buy_requests.aggregate(pipeline)
+        requests = await cursor.to_list(length=None)
+        
+        # Clean up response
+        for req in requests:
+            if "_id" in req:
+                del req["_id"]
+            if "my_offers" in req:
+                del req["my_offers"]
+        
+        total_count = await db.buy_requests.count_documents(query)
+        
+        return {
+            "requests": requests,
+            "total_count": total_count,
+            "has_more": (offset + limit) < total_count,
+            "service_provinces": service_provinces
+        }
+        
+    except Exception as e:
+        logger.error(f"Get in-range requests failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get requests")
+
+@api_router.get("/seller/offers")
+async def get_my_offers(
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get seller's offers with request details"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        # Build query
+        query = {"seller_id": current_user.id}
+        
+        if status and status != "all":
+            query["status"] = status
+        
+        # Get offers with request details
+        pipeline = [
+            {"$match": query},
+            {"$lookup": {
+                "from": "buy_requests",
+                "localField": "request_id", 
+                "foreignField": "id",
+                "as": "request"
+            }},
+            {"$unwind": "$request"},
+            {"$sort": {"created_at": -1}},
+            {"$skip": offset},
+            {"$limit": limit}
+        ]
+        
+        cursor = db.buy_request_offers.aggregate(pipeline)
+        offers = await cursor.to_list(length=None)
+        
+        # Clean up response
+        for offer in offers:
+            if "_id" in offer:
+                del offer["_id"]
+            if "request" in offer and "_id" in offer["request"]:
+                del offer["request"]["_id"]
+        
+        total_count = await db.buy_request_offers.count_documents(query)
+        
+        return {
+            "offers": offers,
+            "total_count": total_count,
+            "has_more": (offset + limit) < total_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Get my offers failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get offers")
+
+# ==============================================================================
+# 📱 REAL-TIME EVENTS API ENDPOINTS
+# ==============================================================================
 
 # Include the router in the main app
 app.include_router(api_router)
