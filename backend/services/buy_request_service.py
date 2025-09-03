@@ -41,7 +41,16 @@ class BuyRequestService:
         country: str = "ZA",
         expires_at: datetime = None,
         notes: str = None,
-        org_id: str = None
+        org_id: str = None,
+        # New enhanced fields
+        images: list = None,
+        vet_certificates: list = None,
+        weight_range: dict = None,
+        age_requirements: dict = None,
+        vaccination_requirements: list = None,
+        delivery_preferences: str = "both",
+        inspection_allowed: bool = True,
+        additional_requirements: str = None
     ) -> Dict[str, Any]:
         """Create a new buy request"""
         
