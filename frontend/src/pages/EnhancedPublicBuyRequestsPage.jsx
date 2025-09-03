@@ -490,11 +490,11 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-emerald-900">Buy Requests</h1>
-          <p className="text-gray-600 mt-1">
+      {/* Header - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-emerald-900">Buy Requests</h1>
+          <p className="text-gray-600 mt-1 text-sm md:text-base">
             Browse livestock purchase requests from buyers across South Africa
           </p>
         </div>
@@ -502,7 +502,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         {user && user.roles?.includes('buyer') && (
           <Button 
             onClick={() => navigate('/create-buy-request')}
-            className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
+            className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white min-h-[44px] touch-manipulation"
           >
             + Post Buy Request
           </Button>
@@ -511,14 +511,14 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
 
       {/* Results Summary */}
       <div className="mb-6">
-        <p className="text-gray-600">
+        <p className="text-gray-600 text-sm md:text-base">
           {requests.length} active requests found • Enhanced with images, requirements, and detailed specifications
         </p>
       </div>
 
-      {/* Results Grid */}
+      {/* Results Grid - Mobile Responsive */}
       {requests.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
           {requests.map(request => (
             <EnhancedBuyRequestCard
               key={request.id}
@@ -530,15 +530,15 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         </div>
       ) : (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">🎯</div>
-          <h3 className="text-xl font-semibold mb-2">No buy requests found</h3>
-          <p className="text-gray-600 mb-4">
+          <div className="text-4xl md:text-6xl mb-4">🎯</div>
+          <h3 className="text-lg md:text-xl font-semibold mb-2">No buy requests found</h3>
+          <p className="text-gray-600 mb-4 text-sm md:text-base px-4">
             Be the first to post a comprehensive buy request with images and detailed requirements.
           </p>
           {user && user.roles?.includes('buyer') && (
             <Button 
               onClick={() => navigate('/create-buy-request')}
-              className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
+              className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white min-h-[44px] touch-manipulation"
             >
               Create Your First Request
             </Button>
