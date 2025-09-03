@@ -4784,7 +4784,16 @@ async def create_buy_request(
             province=data.province,
             country=data.country,
             expires_at=expires_at,
-            notes=data.notes
+            notes=data.notes,
+            # Enhanced fields
+            images=data.images or [],
+            vet_certificates=data.vet_certificates or [],
+            weight_range=data.weight_range,
+            age_requirements=data.age_requirements,
+            vaccination_requirements=data.vaccination_requirements or [],
+            delivery_preferences=data.delivery_preferences or "both",
+            inspection_allowed=data.inspection_allowed if data.inspection_allowed is not None else True,
+            additional_requirements=data.additional_requirements
         )
         
         # Notify nearby sellers if auto-approved
