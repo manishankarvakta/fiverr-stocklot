@@ -201,29 +201,29 @@ const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
   );
 };
 
-// Request Detail Modal
+// Request Detail Modal - Mobile Optimized
 const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
   if (!request) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">
+          <DialogTitle className="text-lg md:text-xl line-clamp-2">
             WANTED: {request.title}
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="requirements">Requirements</TabsTrigger>
-            <TabsTrigger value="media">Images & Docs</TabsTrigger>
-            <TabsTrigger value="contact">Contact</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-4">
+            <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
+            <TabsTrigger value="requirements" className="text-xs md:text-sm">Requirements</TabsTrigger>
+            <TabsTrigger value="media" className="text-xs md:text-sm">Images & Docs</TabsTrigger>
+            <TabsTrigger value="contact" className="text-xs md:text-sm">Contact</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="font-semibold mb-3">Basic Information</h3>
                 <div className="space-y-2 text-sm">
@@ -233,12 +233,12 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Product Type:</span>
-                    <span>{request.product_type}</span>
+                    <span className="text-right">{request.product_type}</span>
                   </div>
                   {request.breed && (
                     <div className="flex justify-between">
                       <span className="font-medium">Breed:</span>
-                      <span>{request.breed}</span>
+                      <span className="text-right">{request.breed}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
@@ -251,7 +251,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Deadline:</span>
-                    <span>{new Date(request.deadline_at).toLocaleDateString()}</span>
+                    <span className="text-right">{new Date(request.deadline_at).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
@@ -272,7 +272,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
                   )}
                   <div className="flex justify-between">
                     <span className="font-medium">Delivery:</span>
-                    <span className="capitalize">{request.delivery_preferences}</span>
+                    <span className="capitalize text-right">{request.delivery_preferences}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Inspection:</span>
@@ -293,7 +293,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
           </TabsContent>
 
           <TabsContent value="requirements" className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {request.weight_range && (
                 <div>
                   <h3 className="font-semibold mb-2">Weight Requirements</h3>
@@ -320,7 +320,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
                 <h3 className="font-semibold mb-2">Required Vaccinations</h3>
                 <div className="flex flex-wrap gap-2">
                   {request.vaccination_requirements.map((vaccine, index) => (
-                    <Badge key={index} variant="outline" className="bg-green-50 text-green-700">
+                    <Badge key={index} variant="outline" className="bg-green-50 text-green-700 text-xs">
                       <Shield className="h-3 w-3 mr-1" />
                       {vaccine}
                     </Badge>
@@ -355,12 +355,12 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
             {request.vet_certificates && request.vet_certificates.length > 0 && (
               <div>
                 <h3 className="font-semibold mb-3">Vet Certificates</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {request.vet_certificates.map((cert, index) => (
                     <div key={index} className="border rounded-lg p-3 text-center">
                       <FileText className="h-8 w-8 mx-auto mb-2 text-blue-600" />
                       <p className="text-sm">Certificate {index + 1}</p>
-                      <Button variant="outline" size="sm" className="mt-2">
+                      <Button variant="outline" size="sm" className="mt-2 w-full min-h-[36px] touch-manipulation">
                         View
                       </Button>
                     </div>
@@ -374,12 +374,12 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
             <div className="text-center py-8">
               <div className="bg-emerald-50 rounded-lg p-6">
                 <h3 className="font-semibold mb-2">Ready to Make an Offer?</h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 mb-4 text-sm md:text-base">
                   Contact the buyer with your best offer and delivery details.
                 </p>
                 <Button 
                   onClick={() => onSendOffer(request)}
-                  className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
+                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white min-h-[44px] touch-manipulation"
                 >
                   Send Your Offer
                 </Button>
