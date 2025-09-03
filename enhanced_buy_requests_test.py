@@ -376,11 +376,10 @@ class EnhancedBuyRequestTester:
         
         # Test creating an offer
         offer_data = {
-            "price_per_unit": 14500.0,
-            "quantity_available": 50,
-            "notes": "High-quality Angus cattle from certified farm. All health certificates included.",
-            "delivery_cost": 2000.0,
-            "delivery_days": 7
+            "offer_price": 14500.0,
+            "qty": 50,
+            "message": "High-quality Angus cattle from certified farm. All health certificates included.",
+            "listing_id": None
         }
         
         success1, response1 = self.test_api_endpoint(
