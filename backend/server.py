@@ -607,7 +607,7 @@ async def upload_vet_certificate(
         
         # Upload to Cloudinary with vet certificate specific folder
         result = await media_service.upload_livestock_image(
-            content, cert_id, "certificate", folder="vet_certificates"
+            content, cert_id, "certificate"
         )
         
         if not result.get("success"):
