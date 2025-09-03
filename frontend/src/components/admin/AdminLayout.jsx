@@ -31,6 +31,7 @@ import AdminAnalyticsDashboard from './AdminAnalyticsDashboard';
 import AdminRolesManagement from './AdminRolesManagement';
 import AdminBroadcastMessaging from './AdminBroadcastMessaging';
 import AdminInfluencerPayouts from './AdminInfluencerPayouts';
+import AdminBuyRequestsManagement from './AdminBuyRequestsManagement';
 import AdminSuggestionsManagement from './AdminSuggestionsManagement';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
