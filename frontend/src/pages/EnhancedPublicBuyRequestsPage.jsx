@@ -634,6 +634,13 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         onClose={() => setShowOfferModal(false)}
         onSuccess={handleOfferSuccess}
       />
+
+      {/* Advanced Filters Panel */}
+      <AdvancedFiltersPanel
+        isOpen={showFilters}
+        onClose={() => setShowFilters(false)}
+        onFiltersChange={handleFiltersChange}
+      />
     </div>
   );
 };
