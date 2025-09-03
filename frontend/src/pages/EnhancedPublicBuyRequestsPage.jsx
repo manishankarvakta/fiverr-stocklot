@@ -448,8 +448,16 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
       return;
     }
 
-    // Here you would implement the send offer functionality
-    console.log('Send offer for request:', request.id);
+    // Set the selected request and show the offer modal
+    setSelectedRequest(request);
+    setShowOfferModal(true);
+  };
+
+  const handleOfferSuccess = () => {
+    setShowOfferModal(false);
+    setSelectedRequest(null);
+    // Refresh the requests to update offer counts
+    window.location.reload();
   };
 
   if (loading) {
