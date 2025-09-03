@@ -57,8 +57,10 @@ const ImageGallery = ({ images, alt = "Buy Request Images" }) => {
   );
 };
 
-// Enhanced Buy Request Card
+// Enhanced Buy Request Card with Mobile Optimization
 const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
+  const [imageError, setImageError] = useState(false);
+  
   const timeRemaining = () => {
     const deadline = new Date(request.deadline_at);
     const now = new Date();
@@ -73,15 +75,15 @@ const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
   const remaining = timeRemaining();
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 border-emerald-200">
+    <Card className="hover:shadow-lg transition-all duration-200 border-emerald-200 touch-manipulation">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-semibold text-emerald-900">
+          <div className="flex-1 min-w-0"> {/* Prevent text overflow */}
+            <CardTitle className="text-lg font-semibold text-emerald-900 line-clamp-2">
               WANTED: {request.title}
             </CardTitle>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
                 {request.species}
               </Badge>
               <Badge variant="secondary" className="text-xs">
@@ -89,13 +91,13 @@ const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
               </Badge>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right ml-2 flex-shrink-0">
             {request.has_target_price && (
-              <div className="text-lg font-bold text-emerald-600">
+              <div className="text-base md:text-lg font-bold text-emerald-600">
                 R{request.target_price || 'TBD'}/unit
               </div>
             )}
-            <div className={`text-sm ${remaining.color}`}>
+            <div className={`text-xs md:text-sm ${remaining.color}`}>
               <Clock className="inline h-3 w-3 mr-1" />
               {remaining.text}
             </div>
@@ -104,89 +106,91 @@ const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
       </CardHeader>
       
       <CardContent className="space-y-3">
-        {/* Image Preview */}
-        {request.images && request.images.length > 0 && (
-          <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+        {/* Image Preview - Mobile Optimized */}
+        {request.images && request.images.length > 0 && !imageError && (
+          <div className="w-full h-32 md:h-40 bg-gray-100 rounded-lg overflow-hidden">
             <img 
               src={request.images[0]} 
               alt="Request reference"
               className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
+              loading="lazy"
             />
           </div>
         )}
 
-        {/* Key Details */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center gap-1">
-            <Package className="h-4 w-4 text-emerald-600" />
+        {/* Key Details - Mobile Responsive Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-emerald-600 flex-shrink-0" />
             <span className="font-medium">{request.qty} {request.unit}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <MapPin className="h-4 w-4 text-emerald-600" />
-            <span>{request.province}</span>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+            <span className="truncate">{request.province}</span>
           </div>
         </div>
 
-        {/* Enhanced Features */}
-        <div className="flex flex-wrap gap-2">
+        {/* Enhanced Features - Mobile Scrollable */}
+        <div className="flex flex-wrap gap-1 md:gap-2 overflow-x-auto pb-1">
           {request.weight_range && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs whitespace-nowrap">
               Weight: {request.weight_range.min || '?'}-{request.weight_range.max || '?'} {request.weight_range.unit}
             </Badge>
           )}
           {request.age_requirements && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs whitespace-nowrap">
               Age: {request.age_requirements.min || '?'}-{request.age_requirements.max || '?'} {request.age_requirements.unit}
             </Badge>
           )}
           {request.vaccination_requirements && request.vaccination_requirements.length > 0 && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs whitespace-nowrap">
               <Shield className="h-3 w-3 mr-1" />
               Vaccinations Required
             </Badge>
           )}
           {request.has_vet_certificates && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs whitespace-nowrap">
               <FileText className="h-3 w-3 mr-1" />
               Vet Cert Required
             </Badge>
           )}
           {request.delivery_preferences !== 'both' && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs whitespace-nowrap">
               <Truck className="h-3 w-3 mr-1" />
               {request.delivery_preferences === 'pickup' ? 'Pickup Only' : 'Delivery Only'}
             </Badge>
           )}
           {request.inspection_allowed && (
-            <Badge variant="outline" className="text-xs text-green-600">
+            <Badge variant="outline" className="text-xs text-green-600 whitespace-nowrap">
               <CheckCircle className="h-3 w-3 mr-1" />
               Inspection OK
             </Badge>
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center pt-2 border-t">
-          <div className="flex items-center gap-3 text-sm text-gray-600">
+        {/* Action Buttons - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 pt-2 border-t">
+          <div className="flex items-center gap-3 text-sm text-gray-600 order-2 sm:order-1">
             <div className="flex items-center gap-1">
               <Eye className="h-4 w-4" />
               <span>{request.offers_count} offers</span>
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 order-1 sm:order-2">
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => onViewDetails(request)}
-              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              className="flex-1 sm:flex-none border-emerald-300 text-emerald-700 hover:bg-emerald-50 min-h-[44px] touch-manipulation"
             >
               View Details
             </Button>
             <Button 
               size="sm"
               onClick={() => onSendOffer(request)}
-              className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
+              className="flex-1 sm:flex-none bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white min-h-[44px] touch-manipulation"
             >
               Send Offer
             </Button>
