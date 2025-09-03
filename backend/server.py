@@ -7146,7 +7146,16 @@ async def get_public_buy_request_detail(
             "compliance_flags": compliance_flags,
             "can_send_offer": can_send_offer,
             "in_range": in_range,
-            "created_at": request["created_at"].isoformat()
+            "created_at": request["created_at"].isoformat(),
+            # Enhanced content fields (full detail)
+            "images": request.get("images", []),
+            "vet_certificates": request.get("vet_certificates", []) if current_user else [],  # Only show to authenticated users
+            "weight_range": request.get("weight_range"),
+            "age_requirements": request.get("age_requirements"),
+            "vaccination_requirements": request.get("vaccination_requirements", []),
+            "delivery_preferences": request.get("delivery_preferences", "both"),
+            "inspection_allowed": request.get("inspection_allowed", True),
+            "additional_requirements": request.get("additional_requirements")
         }
         
         # Add optional fields
