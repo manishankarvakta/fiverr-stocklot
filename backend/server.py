@@ -5271,7 +5271,7 @@ async def create_enhanced_offer(
             qty=data.qty,
             message=data.message,
             listing_id=data.listing_id,
-            org_id=current_user.org_id,
+            org_id=getattr(current_user, 'org_id', None),
             enable_ai_matching=True
         )
         
