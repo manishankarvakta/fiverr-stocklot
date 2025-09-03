@@ -4558,33 +4558,21 @@ function CreateBuyRequestPage() {
     );
   }
 
-  const handleRequestCreated = (newRequest) => {
+  const handleRequestCreated = (newRequestId) => {
     // Show success message and redirect
-    alert('Buy request created successfully!');
+    alert('Enhanced buy request created successfully with comprehensive details!');
     navigate('/buy-requests');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-emerald-900 mb-2">Create Buy Request</h1>
-          <p className="text-emerald-700">Post what livestock you're looking to buy</p>
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-emerald-900 mb-2">Create Enhanced Buy Request</h1>
+          <p className="text-emerald-700">Post a comprehensive request with images, requirements, and detailed specifications</p>
         </div>
         
-        <div className="max-w-2xl mx-auto">
-          <Card className="shadow-xl border-emerald-200">
-            <CardHeader>
-              <CardTitle className="text-emerald-900">Tell us what you need</CardTitle>
-              <CardDescription className="text-emerald-600">
-                Sellers in your area will see your request and can make offers
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CreateBuyRequestForm onCreated={handleRequestCreated} />
-            </CardContent>
-          </Card>
-        </div>
+        <EnhancedCreateBuyRequestForm onCreated={handleRequestCreated} />
       </div>
     </div>
   );
