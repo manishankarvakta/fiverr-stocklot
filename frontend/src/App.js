@@ -4527,10 +4527,10 @@ function Contact() {
   );
 }
 
-// Buy Requests Public Page - Enhanced with functional buttons and modals
+// Buy Requests Public Page - Enhanced with images, requirements, and comprehensive details
 function BuyRequestsPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  return <EnhancedPublicBuyRequestsPage user={user} />;
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
