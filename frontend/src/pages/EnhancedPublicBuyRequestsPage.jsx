@@ -394,6 +394,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
   const [error, setError] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
   
   const navigate = useNavigate();
 
