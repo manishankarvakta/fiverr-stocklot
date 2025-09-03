@@ -332,19 +332,19 @@ const EnhancedCreateBuyRequestForm = ({
   return (
     <Card className="max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           <span className="text-2xl">🎯</span>
           Enhanced Buy Request
         </CardTitle>
-        <p className="text-gray-600">Create a comprehensive buy request with images, requirements, and specifications</p>
+        <p className="text-gray-600 text-sm md:text-base">Create a comprehensive buy request with images, requirements, and specifications</p>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="media">Media & Docs</TabsTrigger>
-            <TabsTrigger value="requirements">Requirements</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+            <TabsTrigger value="basic" className="text-xs md:text-sm">Basic Info</TabsTrigger>
+            <TabsTrigger value="media" className="text-xs md:text-sm">Media & Docs</TabsTrigger>
+            <TabsTrigger value="requirements" className="text-xs md:text-sm">Requirements</TabsTrigger>
+            <TabsTrigger value="preferences" className="text-xs md:text-sm">Preferences</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4">
