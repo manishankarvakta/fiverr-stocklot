@@ -636,12 +636,12 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         onSuccess={handleOfferSuccess}
       />
 
-      {/* Advanced Filters Panel */}
-      <AdvancedFiltersPanel
+      {/* Advanced Filters Panel - Temporarily Disabled */}
+      {/* <AdvancedFiltersPanel
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
         onFiltersChange={handleFiltersChange}
-      />
+      /> */}
     </div>
   );
 };
