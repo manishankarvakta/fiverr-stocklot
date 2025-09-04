@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import SendOfferModal from '../components/buyRequests/SendOfferModal';
-import AdvancedFiltersPanel from '../components/buyRequests/AdvancedFiltersPanel';
+// import AdvancedFiltersPanel from '../components/buyRequests/AdvancedFiltersPanel';
 import { 
   MapPin, Clock, Package, Eye, Heart, Shield, FileText, 
   ImageIcon, Truck, CheckCircle, AlertCircle, Filter, Search
