@@ -5101,7 +5101,30 @@ async def create_offer(
             listing_id=data.listing_id
         )
         
-        # TODO: Send email notification to buyer
+        # Send notification to buyer
+        from services.notification_service import NotificationService, NotificationTopic, NotificationChannel
+        notification_service = NotificationService(db)
+        
+        # Get buy request details for notification
+        buy_request = await buy_request_service.get_buy_request_by_id(request_id)
+        if buy_request:
+            seller_name = current_user.full_name or "A seller"
+            request_title = f"{buy_request.get('breed', '')} {buy_request['species']}".strip() or buy_request['species']
+            
+            await notification_service.send_notification(
+                user_id=buy_request["buyer_id"],
+                topic=NotificationTopic.OFFER_RECEIVED,
+                title="New Offer Received!",
+                message=f"{seller_name} has sent you an offer of R{data.offer_price:,.2f} for your {request_title} request.",
+                channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+                action_url=f"/offers-received#{offer['id']}",
+                data={
+                    "offer_id": offer["id"],
+                    "request_id": request_id,
+                    "seller_name": seller_name,
+                    "offer_price": data.offer_price
+                }
+            )
         
         return {"ok": True, "offer_id": offer["id"]}
         
