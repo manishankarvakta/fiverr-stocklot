@@ -5079,6 +5079,165 @@ async def mark_all_notifications_read(
         logger.error(f"Error marking all notifications as read: {e}")
         raise HTTPException(status_code=500, detail="Failed to mark all notifications as read")
 
+# ADMIN BUY REQUESTS MANAGEMENT API
+@api_router.get("/admin/buy-requests")
+async def get_admin_buy_requests(
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = None,
+    moderation_status: Optional[str] = None,
+    species: Optional[str] = None,
+    province: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """Get buy requests for admin management"""
+    if not current_user or "admin" not in (current_user.roles or []):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Build query
+        query = {}
+        
+        if status:
+            query["status"] = status
+        if moderation_status:
+            query["moderation_status"] = moderation_status
+        if species:
+            query["species"] = species
+        if province:
+            query["province"] = province
+        
+        # Get buy requests with pagination
+        cursor = db.buy_requests.find(query).sort("created_at", -1).skip(offset).limit(limit)
+        requests = await cursor.to_list(length=None)
+        
+        # Get total count
+        total = await db.buy_requests.count_documents(query)
+        
+        # Clean up MongoDB _id fields and add additional data
+        for request in requests:
+            if "_id" in request:
+                del request["_id"]
+            
+            # Get offers count
+            offers_count = await db.buy_request_offers.count_documents({"request_id": request["id"]})
+            request["offers_count"] = offers_count
+            
+            # Get buyer info
+            buyer = await db.users.find_one({"id": request["buyer_id"]})
+            if buyer:
+                if "_id" in buyer:
+                    del buyer["_id"]
+                request["buyer_name"] = buyer.get("full_name", "Unknown")
+                request["buyer_email"] = buyer.get("email", "")
+                request["buyer_verified"] = buyer.get("verified", False)
+        
+        return {
+            "buy_requests": requests,
+            "total": total,
+            "page": (offset // limit) + 1,
+            "limit": limit,
+            "pages": (total + limit - 1) // limit
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting admin buy requests: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get buy requests")
+
+@api_router.post("/admin/buy-requests/{request_id}/approve")
+async def approve_buy_request(
+    request_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Approve a buy request"""
+    if not current_user or "admin" not in (current_user.roles or []):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        result = await db.buy_requests.update_one(
+            {"id": request_id},
+            {
+                "$set": {
+                    "moderation_status": "auto_pass",
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Buy request not found")
+        
+        return {"success": True, "message": "Buy request approved"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving buy request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve buy request")
+
+@api_router.post("/admin/buy-requests/{request_id}/reject")
+async def reject_buy_request(
+    request_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Reject a buy request"""
+    if not current_user or "admin" not in (current_user.roles or []):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        result = await db.buy_requests.update_one(
+            {"id": request_id},
+            {
+                "$set": {
+                    "moderation_status": "flagged",
+                    "status": "rejected",
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Buy request not found")
+        
+        return {"success": True, "message": "Buy request rejected"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rejecting buy request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reject buy request")
+
+@api_router.post("/admin/buy-requests/{request_id}/close")
+async def close_buy_request(
+    request_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Close a buy request"""
+    if not current_user or "admin" not in (current_user.roles or []):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        result = await db.buy_requests.update_one(
+            {"id": request_id},
+            {
+                "$set": {
+                    "status": "closed",
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Buy request not found")
+        
+        return {"success": True, "message": "Buy request closed"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error closing buy request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to close buy request")
+
 @api_router.post("/buy-requests/{request_id}/offers")
 async def create_offer(
     request_id: str,
