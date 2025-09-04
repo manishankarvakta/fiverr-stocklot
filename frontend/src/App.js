@@ -5894,4 +5894,10 @@ function BuyerOffersInbox() {
   const { user } = useAuth();
   return <BuyerOffersPage user={user} />;
 }
+
+// Unified Inbox Page - All notifications and messages
+function UnifiedInbox() {
+  const { user } = useAuth();
+  return <UnifiedInboxPage user={user} />;
+}
 export default App;
