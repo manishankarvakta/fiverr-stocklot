@@ -7193,13 +7193,17 @@ async def get_public_buy_requests(
             }
         }
         
-        # Apply filters
+        # Apply basic filters
         if species:
             query["species"] = species
         if product_type:
             query["product_type"] = product_type
+        if breed:
+            query["breed"] = breed
         if province:
             query["province"] = province
+            
+        # Quantity filters
         if min_qty is not None:
             query["qty"] = {"$ne": None, "$gte": min_qty}
         if max_qty is not None:
@@ -7207,6 +7211,13 @@ async def get_public_buy_requests(
                 query["qty"]["$lte"] = max_qty
             else:
                 query["qty"] = {"$ne": None, "$lte": max_qty}
+                
+        # Unit filters
+        if units:
+            unit_list = [u.strip() for u in units.split(',')]
+            query["unit"] = {"$in": unit_list}
+            
+        # Price filters
         if has_target_price is not None:
             if has_target_price:
                 query["target_price"] = {"$ne": None, "$gt": 0}
@@ -7216,6 +7227,98 @@ async def get_public_buy_requests(
                     {"target_price": None},
                     {"target_price": {"$lte": 0}}
                 ]
+        if min_price is not None:
+            query["target_price"] = {"$ne": None, "$gte": min_price}
+        if max_price is not None:
+            if "target_price" in query and isinstance(query["target_price"], dict):
+                query["target_price"]["$lte"] = max_price
+            else:
+                query["target_price"] = {"$ne": None, "$lte": max_price}
+        
+        # Enhanced features filters
+        if has_images is not None:
+            if has_images:
+                query["images"] = {"$exists": True, "$ne": [], "$ne": None}
+            else:
+                query["$or"] = [
+                    {"images": {"$exists": False}},
+                    {"images": None},
+                    {"images": []}
+                ]
+                
+        if has_vet_certificates is not None:
+            if has_vet_certificates:
+                query["vet_certificates"] = {"$exists": True, "$ne": [], "$ne": None}
+            else:
+                query["$or"] = [
+                    {"vet_certificates": {"$exists": False}},
+                    {"vet_certificates": None},
+                    {"vet_certificates": []}
+                ]
+                
+        if has_weight_requirements is not None:
+            if has_weight_requirements:
+                query["weight_range"] = {"$exists": True, "$ne": None}
+            else:
+                query["$or"] = [
+                    {"weight_range": {"$exists": False}},
+                    {"weight_range": None}
+                ]
+                
+        if has_age_requirements is not None:
+            if has_age_requirements:
+                query["age_requirements"] = {"$exists": True, "$ne": None}
+            else:
+                query["$or"] = [
+                    {"age_requirements": {"$exists": False}},
+                    {"age_requirements": None}
+                ]
+                
+        if requires_vaccinations is not None:
+            if requires_vaccinations:
+                query["vaccination_requirements"] = {"$exists": True, "$ne": [], "$ne": None}
+            else:
+                query["$or"] = [
+                    {"vaccination_requirements": {"$exists": False}},
+                    {"vaccination_requirements": None},
+                    {"vaccination_requirements": []}
+                ]
+                
+        if allows_inspection is not None:
+            query["inspection_allowed"] = allows_inspection
+            
+        # Delivery preferences
+        if delivery_preferences:
+            delivery_list = [d.strip() for d in delivery_preferences.split(',')]  
+            query["delivery_preferences"] = {"$in": delivery_list}
+            
+        # Time filters
+        if created_within:
+            time_map = {'1d': 1, '3d': 3, '7d': 7, '14d': 14, '30d': 30}
+            if created_within in time_map:
+                days_ago = datetime.now(timezone.utc) - timedelta(days=time_map[created_within])
+                query["created_at"] = {"$gte": days_ago}
+                
+        if expires_within:
+            time_map = {'1d': 1, '3d': 3, '7d': 7, '14d': 14, '30d': 30}
+            if expires_within in time_map:
+                days_from_now = datetime.now(timezone.utc) + timedelta(days=time_map[expires_within])
+                if "expires_at" in query:
+                    query["expires_at"]["$lte"] = days_from_now
+                else:
+                    query["expires_at"] = {"$ne": None, "$lte": days_from_now}
+        
+        # Search functionality
+        if search:
+            search_regex = {"$regex": search, "$options": "i"}
+            query["$or"] = [
+                {"species": search_regex},
+                {"product_type": search_regex},
+                {"breed": search_regex},
+                {"province": search_regex},
+                {"notes": search_regex},
+                {"additional_requirements": search_regex}
+            ]
         
         # Handle cursor pagination
         if after:
