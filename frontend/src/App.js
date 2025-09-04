@@ -47,6 +47,7 @@ import FAQChatbot from './components/support/FAQChatbot';
 import PublicBuyRequestsPage from './pages/PublicBuyRequestsPage';
 import EnhancedPublicBuyRequestsPage from './pages/EnhancedPublicBuyRequestsPage';
 import EnhancedCreateBuyRequestForm from './components/buyRequests/EnhancedCreateBuyRequestForm';
+import BuyerOffersPage from './pages/BuyerOffersPage';
 import "./App.css";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
