@@ -7154,11 +7154,28 @@ async def admin_refund_escrow(
 async def get_public_buy_requests(
     species: Optional[str] = None,
     product_type: Optional[str] = None,
+    breed: Optional[str] = None,
     province: Optional[str] = None,
     min_qty: Optional[int] = None,
     max_qty: Optional[int] = None,
+    units: Optional[str] = None,  # comma-separated list
     has_target_price: Optional[bool] = None,
-    sort: str = "relevance",  # relevance, newest, ending_soon
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    # Enhanced features filters
+    has_images: Optional[bool] = None,
+    has_vet_certificates: Optional[bool] = None,
+    has_weight_requirements: Optional[bool] = None,
+    has_age_requirements: Optional[bool] = None,
+    requires_vaccinations: Optional[bool] = None,
+    allows_inspection: Optional[bool] = None,
+    delivery_preferences: Optional[str] = None,  # comma-separated list
+    # Time filters
+    created_within: Optional[str] = None,  # 1d, 3d, 7d, 14d, 30d
+    expires_within: Optional[str] = None,
+    # Search
+    search: Optional[str] = None,
+    sort: str = "relevance",  # relevance, newest, ending_soon, price_asc, price_desc
     limit: int = 24,
     after: Optional[str] = None,
     user_lat: Optional[float] = None,
