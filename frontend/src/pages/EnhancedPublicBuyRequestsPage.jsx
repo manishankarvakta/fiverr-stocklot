@@ -554,9 +554,10 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
               variant="outline"
               onClick={() => setShowFilters(true)}
               className="min-w-[120px] justify-center"
+              disabled
             >
               <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters
+              Advanced Filters (Coming Soon)
             </Button>
             <Button
               onClick={handleSearch}
