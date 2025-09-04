@@ -4614,6 +4614,7 @@ function App() {
               <Route path="/referrals" element={<ReferralDashboard />} />
               <Route path="/buy-requests" element={<BuyRequestsPage />} />
               <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
+              <Route path="/inbox" element={<UnifiedInbox />} />
               <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
               <Route path="/contact" element={<Contact />} />
             </Routes>
