@@ -7335,6 +7335,18 @@ async def get_public_buy_requests(
         sort_field = [("created_at", -1)]  # Default: newest first
         if sort == "ending_soon":
             sort_field = [("expires_at", 1)]
+        elif sort == "newest":
+            sort_field = [("created_at", -1)]
+        elif sort == "oldest":
+            sort_field = [("created_at", 1)]
+        elif sort == "price_asc":
+            sort_field = [("target_price", 1), ("created_at", -1)]
+        elif sort == "price_desc":
+            sort_field = [("target_price", -1), ("created_at", -1)]
+        elif sort == "qty_asc":
+            sort_field = [("qty", 1), ("created_at", -1)]
+        elif sort == "qty_desc":
+            sort_field = [("qty", -1), ("created_at", -1)]
         elif sort == "relevance":
             # For relevance, we'll score after fetching
             sort_field = [("created_at", -1)]
