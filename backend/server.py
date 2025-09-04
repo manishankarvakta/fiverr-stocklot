@@ -4903,8 +4903,22 @@ async def accept_offer(
             buyer_id=current_user.id
         )
         
-        # TODO: Send email notification to seller
-        # TODO: Create order/escrow
+        # Send notification to seller
+        from services.notification_service import NotificationService, NotificationTopic, NotificationChannel
+        notification_service = NotificationService(db)
+        
+        # Get offer details for notification
+        offer = result.get("offer")
+        if offer:
+            await notification_service.send_notification(
+                user_id=offer["seller_id"],
+                topic=NotificationTopic.OFFER_ACCEPTED,
+                title="Offer Accepted!",
+                message=f"Your offer of R{offer['offer_price']:,.2f} has been accepted!",
+                channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+                action_url=f"/my-offers#{offer_id}",
+                data={"offer_id": offer_id, "request_id": request_id}
+            )
         
         return {
             "success": True,
