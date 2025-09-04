@@ -377,6 +377,106 @@ class BuyRequestService:
                 del offer["request"]["_id"]
                 
         return offers
+
+    async def get_buyer_offers(
+        self,
+        request_ids: List[str],
+        status: str = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Get all offers for a buyer's requests"""
+        
+        query = {"request_id": {"$in": request_ids}}
+        
+        if status:
+            query["status"] = status
+        
+        # Use aggregation to join with buy_requests and sellers
+        pipeline = [
+            {"$match": query},
+            {
+                "$lookup": {
+                    "from": "buy_requests",
+                    "localField": "request_id",
+                    "foreignField": "id",
+                    "as": "request"
+                }
+            },
+            {"$unwind": "$request"},
+            {
+                "$lookup": {
+                    "from": "users",
+                    "localField": "seller_id",
+                    "foreignField": "id",
+                    "as": "seller"
+                }
+            },
+            {"$unwind": {"path": "$seller", "preserveNullAndEmptyArrays": True}},
+            {"$sort": {"created_at": -1}},
+            {"$limit": limit}
+        ]
+        
+        cursor = self.db.buy_request_offers.aggregate(pipeline)
+        offers = await cursor.to_list(length=None)
+        
+        # Clean up and format data
+        formatted_offers = []
+        for offer in offers:
+            # Remove MongoDB _id fields
+            if "_id" in offer:
+                del offer["_id"]
+            if "request" in offer and "_id" in offer["request"]:
+                del offer["request"]["_id"]
+            if "seller" in offer and "_id" in offer["seller"]:
+                del offer["seller"]["_id"]
+            
+            # Add seller info
+            if offer.get("seller"):
+                offer["seller_name"] = offer["seller"].get("full_name", "Anonymous Seller")
+                offer["seller_verified"] = offer["seller"].get("verified", False)
+                # Remove full seller object for security
+                del offer["seller"]
+            else:
+                offer["seller_name"] = "Unknown Seller"
+                offer["seller_verified"] = False
+            
+            # Add request summary
+            if offer.get("request"):
+                offer["request_title"] = f"{offer['request'].get('breed', '')} {offer['request']['species']}".strip() or offer['request']['species']
+                offer["request_quantity"] = f"{offer['request']['qty']} {offer['request']['unit']}"
+                offer["request_location"] = offer['request'].get('province', 'Unknown')
+                
+            formatted_offers.append(offer)
+                
+        return formatted_offers
+
+    async def get_buy_requests_for_buyer(
+        self,
+        buyer_id: str,
+        status: BuyRequestStatus = None,
+        species: str = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get buy requests created by a buyer"""
+        
+        query = {"buyer_id": buyer_id}
+        
+        if status:
+            query["status"] = status.value
+            
+        if species:
+            query["species"] = species
+        
+        cursor = self.db.buy_requests.find(query).sort("created_at", -1).skip(offset).limit(limit)
+        requests = await cursor.to_list(length=None)
+        
+        # Clean up MongoDB _id fields
+        for request in requests:
+            if "_id" in request:
+                del request["_id"]
+                
+        return requests
     
     async def close_request(self, request_id: str, buyer_id: str) -> bool:
         """Close a buy request"""
