@@ -4941,7 +4941,22 @@ async def decline_offer(
         if not success:
             raise HTTPException(status_code=404, detail="Offer not found or already processed")
         
-        # TODO: Send email notification to seller
+        # Send notification to seller
+        from services.notification_service import NotificationService, NotificationTopic, NotificationChannel
+        notification_service = NotificationService(db)
+        
+        # Get offer details for notification
+        offer = await buy_request_service.get_offer_by_id(offer_id)
+        if offer:
+            await notification_service.send_notification(
+                user_id=offer["seller_id"],
+                topic=NotificationTopic.OFFER_DECLINED,
+                title="Offer Declined",
+                message=f"Your offer for {offer.get('request_title', 'livestock')} has been declined.",
+                channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+                action_url=f"/my-offers#{offer_id}",
+                data={"offer_id": offer_id, "request_id": request_id}
+            )
         
         return {
             "success": True,
@@ -4953,6 +4968,102 @@ async def decline_offer(
     except Exception as e:
         logger.error(f"Error declining offer: {e}")
         raise HTTPException(status_code=500, detail="Failed to decline offer")
+
+# NOTIFICATIONS API
+@api_router.get("/notifications")
+async def get_user_notifications(
+    current_user: User = Depends(get_current_user),
+    unread_only: bool = False,
+    limit: int = 50,
+    offset: int = 0
+):
+    """Get notifications for the current user"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        from services.notification_service import NotificationService
+        notification_service = NotificationService(db)
+        
+        notifications = await notification_service.get_notifications(
+            user_id=current_user.id,
+            unread_only=unread_only,
+            limit=limit,
+            offset=offset
+        )
+        
+        return {
+            "items": notifications,
+            "total": len(notifications)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching notifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch notifications")
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(
+    current_user: User = Depends(get_current_user)
+):
+    """Get count of unread notifications"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        from services.notification_service import NotificationService
+        notification_service = NotificationService(db)
+        
+        count = await notification_service.get_unread_count(current_user.id)
+        
+        return {"count": count}
+        
+    except Exception as e:
+        logger.error(f"Error fetching unread count: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch unread count")
+
+@api_router.post("/notifications/mark-read")
+async def mark_notifications_read(
+    notification_ids: List[str],
+    current_user: User = Depends(get_current_user)
+):
+    """Mark notifications as read"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        from services.notification_service import NotificationService
+        notification_service = NotificationService(db)
+        
+        success = await notification_service.mark_as_read(
+            user_id=current_user.id,
+            notification_ids=notification_ids
+        )
+        
+        return {"success": success}
+        
+    except Exception as e:
+        logger.error(f"Error marking notifications as read: {e}")
+        raise HTTPException(status_code=500, detail="Failed to mark notifications as read")
+
+@api_router.post("/notifications/mark-all-read")
+async def mark_all_notifications_read(
+    current_user: User = Depends(get_current_user)
+):
+    """Mark all notifications as read"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        from services.notification_service import NotificationService
+        notification_service = NotificationService(db)
+        
+        count = await notification_service.mark_all_as_read(current_user.id)
+        
+        return {"marked_count": count}
+        
+    except Exception as e:
+        logger.error(f"Error marking all notifications as read: {e}")
+        raise HTTPException(status_code=500, detail="Failed to mark all notifications as read")
 
 @api_router.post("/buy-requests/{request_id}/offers")
 async def create_offer(
