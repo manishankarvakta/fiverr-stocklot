@@ -47,6 +47,14 @@ class NotificationTopic(str, Enum):
     AUCTION_WON = "auction_won"
     AUCTION_ENDED = "auction_ended"
     
+    # Buy Requests & Offers
+    OFFER_RECEIVED = "offer_received"
+    OFFER_ACCEPTED = "offer_accepted"
+    OFFER_DECLINED = "offer_declined"
+    OFFER_COUNTER = "offer_counter"
+    BUY_REQUEST_CREATED = "buy_request_created"
+    BUY_REQUEST_EXPIRED = "buy_request_expired"
+    
     # Organization & KYC
     ORG_INVITED = "org_invited"
     ORG_APPROVED = "org_approved"
