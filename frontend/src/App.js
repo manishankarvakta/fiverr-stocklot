@@ -5890,7 +5890,8 @@ function ViewOffersModal({ request, user, onClose, onAcceptOffer }) {
 // Buyer Offers Inbox Page - Where buyers see all offers sent to them
 function BuyerOffersInbox() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  return <BuyerOffersPage user={user} />;
+}
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
