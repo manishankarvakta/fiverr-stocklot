@@ -4844,6 +4844,116 @@ async def get_buy_request_offers(request_id: str):
         logger.error(f"Error fetching offers: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch offers")
 
+@api_router.get("/buyers/offers")
+async def get_buyer_offers(
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = None,
+    limit: int = 50
+):
+    """Get all offers for the current buyer's requests"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        buy_request_service = BuyRequestService(db)
+        
+        # Get all buyer's requests first
+        buyer_requests = await buy_request_service.get_buy_requests_for_buyer(
+            buyer_id=current_user.id,
+            limit=1000  # Get all requests
+        )
+        
+        request_ids = [req["id"] for req in buyer_requests]
+        
+        if not request_ids:
+            return {"items": []}
+        
+        # Get all offers for buyer's requests
+        offers = await buy_request_service.get_buyer_offers(
+            request_ids=request_ids,
+            status=status,
+            limit=limit
+        )
+        
+        return {
+            "items": offers,
+            "total": len(offers)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching buyer offers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch buyer offers")
+
+@api_router.post("/buy-requests/{request_id}/offers/{offer_id}/accept")
+async def accept_offer(
+    request_id: str,
+    offer_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Accept an offer on a buy request"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        buy_request_service = BuyRequestService(db)
+        
+        result = await buy_request_service.accept_offer(
+            request_id=request_id,
+            offer_id=offer_id,
+            buyer_id=current_user.id
+        )
+        
+        # TODO: Send email notification to seller
+        # TODO: Create order/escrow
+        
+        return {
+            "success": True,
+            "message": "Offer accepted successfully",
+            "next_step": result.get("next_step"),
+            "offer": result.get("offer")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error accepting offer: {e}")
+        raise HTTPException(status_code=500, detail="Failed to accept offer")
+
+@api_router.post("/buy-requests/{request_id}/offers/{offer_id}/decline")
+async def decline_offer(
+    request_id: str,
+    offer_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Decline an offer on a buy request"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        buy_request_service = BuyRequestService(db)
+        
+        success = await buy_request_service.decline_offer(
+            request_id=request_id,
+            offer_id=offer_id,
+            buyer_id=current_user.id
+        )
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Offer not found or already processed")
+        
+        # TODO: Send email notification to seller
+        
+        return {
+            "success": True,
+            "message": "Offer declined successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error declining offer: {e}")
+        raise HTTPException(status_code=500, detail="Failed to decline offer")
+
 @api_router.post("/buy-requests/{request_id}/offers")
 async def create_offer(
     request_id: str,
