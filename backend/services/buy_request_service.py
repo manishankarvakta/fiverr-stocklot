@@ -298,6 +298,12 @@ class BuyRequestService:
             {"$set": {"status": BuyRequestStatus.FULFILLED.value, "updated_at": datetime.now(timezone.utc)}}
         )
         
+        # Clean up MongoDB _id fields for JSON serialization
+        if "_id" in request:
+            del request["_id"]
+        if "_id" in offer:
+            del offer["_id"]
+        
         return {
             "request": request,
             "offer": offer,
