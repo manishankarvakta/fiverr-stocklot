@@ -406,12 +406,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
   
   const navigate = useNavigate();
 
-  // Load buy requests
-  useEffect(() => {
-    loadBuyRequests();
-  }, [currentFilters]);
-
-  const loadBuyRequests = async () => {
+  const loadBuyRequests = useCallback(async () => {
     try {
       console.log('Loading enhanced buy requests from:', `${BACKEND_URL}/api/public/buy-requests`);
       
@@ -440,7 +435,12 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, currentFilters]);
+
+  // Load buy requests
+  useEffect(() => {
+    loadBuyRequests();
+  }, [loadBuyRequests]);
 
   const handleFiltersChange = (filterParams) => {
     setCurrentFilters(filterParams);
