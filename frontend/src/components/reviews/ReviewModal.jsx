@@ -107,6 +107,13 @@ const ReviewModal = ({
     e.preventDefault();
     
     if (!validateForm()) {
+      // Track validation failure
+      analytics.trackReviewFunnelStep('validation_failed', {
+        direction: direction,
+        rating: formData.rating,
+        has_body: !!formData.body,
+        errors: Object.keys(errors)
+      });
       return;
     }
     
@@ -117,10 +124,34 @@ const ReviewModal = ({
     };
     
     try {
+      // Track review creation attempt
+      analytics.trackReviewFunnelStep('submission_started', {
+        direction: direction,
+        rating: formData.rating,
+        has_photos: formData.photos.length > 0,
+        has_tags: formData.tags.length > 0,
+        body_length: formData.body?.length || 0
+      });
+      
       await onSubmit(reviewData);
+      
+      // Track successful review creation
+      analytics.trackReviewCreated(reviewData);
+      analytics.trackReviewFunnelStep('submission_completed', {
+        direction: direction,
+        rating: formData.rating
+      });
+      
     } catch (error) {
       console.error('Review submission failed:', error);
       setErrors({ general: 'Failed to submit review. Please try again.' });
+      
+      // Track submission error
+      analytics.trackError('review_submission_failed', error.message, 'ReviewModal');
+      analytics.trackReviewFunnelStep('submission_failed', {
+        direction: direction,
+        error: error.message
+      });
     }
   };
   
