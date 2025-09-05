@@ -6006,7 +6006,7 @@ async def generate_auto_description(
         raise HTTPException(status_code=401, detail="Authentication required")
     
     try:
-        description_data = await ai_service.generate_auto_description(
+        description_data = await ai_enhanced_service.generate_auto_description(
             species=data.get('species'),
             product_type=data.get('product_type'),
             breed=data.get('breed'),
