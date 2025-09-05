@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Trash2 } from 'lucide-react';
 import StarInput from './StarInput';
+import analytics from '../../services/analytics';
 
 const ReviewModal = ({ 
   isOpen, 
