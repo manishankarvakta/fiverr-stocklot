@@ -625,9 +625,206 @@ class FarmStockAPITester:
             self.log_result("Create organization listing", False, f"Request failed: {str(e)}")
             return False
 
+    def test_reviews_ratings_system(self):
+        """Test Reviews & Ratings System (Duo Reviews) - COMPREHENSIVE TESTING"""
+        if not self.token:
+            print("\n⚠️  Skipping reviews tests - no authentication token")
+            return False
+            
+        print("\n🌟 Testing Reviews & Ratings System (Duo Reviews)...")
+        
+        # Store original token for later restoration
+        original_token = self.token
+        
+        try:
+            # Test 1: Review Creation - Test both directions
+            print("\n   🔍 Testing Review Creation...")
+            
+            # Create test order group data for testing (simulate completed order)
+            test_order_group_id = f"test_order_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Test BUYER_ON_SELLER review creation
+            buyer_review_data = {
+                "order_group_id": test_order_group_id,
+                "direction": "BUYER_ON_SELLER",
+                "rating": 5,
+                "title": "Excellent livestock quality!",
+                "body": "The cattle were in perfect condition, exactly as described. Great seller!",
+                "tags": ["quality", "professional", "timely"]
+            }
+            
+            success, response = self.test_api_endpoint('POST', '/reviews', 201, buyer_review_data, 
+                                                    "Create BUYER_ON_SELLER review")
+            buyer_review_id = response.get('review_id') if success else None
+            
+            # Test SELLER_ON_BUYER review creation
+            seller_review_data = {
+                "order_group_id": test_order_group_id,
+                "direction": "SELLER_ON_BUYER", 
+                "rating": 4,
+                "title": "Reliable buyer",
+                "body": "Payment was prompt and communication was clear throughout.",
+                "tags": ["reliable", "prompt_payment"]
+            }
+            
+            success2, response2 = self.test_api_endpoint('POST', '/reviews', 201, seller_review_data,
+                                                      "Create SELLER_ON_BUYER review")
+            seller_review_id = response2.get('review_id') if success2 else None
+            
+            # Test 2: Review CRUD Operations
+            print("\n   🔍 Testing Review CRUD Operations...")
+            
+            if buyer_review_id:
+                # Test PATCH /api/reviews/{id} - Update review
+                update_data = {
+                    "rating": 4,
+                    "title": "Updated: Very good livestock quality",
+                    "body": "Updated review: The cattle were in very good condition. Minor delivery delay but overall satisfied."
+                }
+                self.test_api_endpoint('PATCH', f'/reviews/{buyer_review_id}', 200, update_data,
+                                     "Update review within edit window")
+                
+                # Test DELETE /api/reviews/{id} - Delete review (will likely fail due to edit window)
+                self.test_api_endpoint('DELETE', f'/reviews/{buyer_review_id}', 200, description="Delete review")
+            
+            # Test 3: Review Replies
+            print("\n   🔍 Testing Review Replies...")
+            
+            if seller_review_id:
+                reply_data = {
+                    "body": "Thank you for the positive feedback! We appreciate working with professional buyers like you."
+                }
+                self.test_api_endpoint('POST', f'/reviews/{seller_review_id}/reply', 200, reply_data,
+                                     "Add reply to review")
+            
+            # Test 4: Public Review Access
+            print("\n   🔍 Testing Public Review Access...")
+            
+            # Get a test seller ID (use current user or create one)
+            test_seller_id = self.user_data.get('id') if self.user_data else 'test_seller_123'
+            
+            # Test GET /api/public/sellers/{seller_id}/reviews with various parameters
+            review_endpoints = [
+                (f'/public/sellers/{test_seller_id}/reviews', 'Get seller reviews (default)'),
+                (f'/public/sellers/{test_seller_id}/reviews?page=1&limit=10', 'Get seller reviews with pagination'),
+                (f'/public/sellers/{test_seller_id}/reviews?sort=recent', 'Get seller reviews sorted by recent'),
+                (f'/public/sellers/{test_seller_id}/reviews?sort=helpful', 'Get seller reviews sorted by helpful'),
+                (f'/public/sellers/{test_seller_id}/reviews?sort=rating_high', 'Get seller reviews sorted by rating high'),
+                (f'/public/sellers/{test_seller_id}/reviews?sort=rating_low', 'Get seller reviews sorted by rating low')
+            ]
+            
+            for endpoint, description in review_endpoints:
+                self.test_api_endpoint('GET', endpoint, 200, description=description)
+            
+            # Test 5: Buyer Reliability (Seller-only access)
+            print("\n   🔍 Testing Buyer Reliability...")
+            
+            test_buyer_id = self.user_data.get('id') if self.user_data else 'test_buyer_123'
+            self.test_api_endpoint('GET', f'/seller/buyers/{test_buyer_id}/summary', 200,
+                                 description="Get buyer reliability summary (seller access)")
+            
+            # Test 6: Admin Moderation (if admin token available)
+            print("\n   🔍 Testing Admin Moderation...")
+            
+            if hasattr(self, 'admin_token') and self.admin_token:
+                # Switch to admin token
+                self.token = self.admin_token
+                
+                try:
+                    # Test admin review queue
+                    self.test_api_endpoint('GET', '/admin/reviews', 200, description="Admin: Get review moderation queue")
+                    
+                    # Test admin review actions (if we have review IDs)
+                    if buyer_review_id:
+                        # Test approve review
+                        approve_data = {"reason": "Review meets quality standards", "admin_notes": "Approved during testing"}
+                        self.test_api_endpoint('POST', f'/admin/reviews/{buyer_review_id}/approve', 200, approve_data,
+                                             "Admin: Approve review")
+                        
+                        # Test flag review
+                        flag_data = {"reason": "Flagged for testing purposes", "admin_notes": "Test flag action"}
+                        self.test_api_endpoint('POST', f'/admin/reviews/{buyer_review_id}/flag', 200, flag_data,
+                                             "Admin: Flag review")
+                        
+                        # Test reject review
+                        reject_data = {"reason": "Does not meet community standards", "admin_notes": "Test rejection"}
+                        self.test_api_endpoint('POST', f'/admin/reviews/{buyer_review_id}/reject', 200, reject_data,
+                                             "Admin: Reject review")
+                    
+                finally:
+                    # Restore original token
+                    self.token = original_token
+            else:
+                print("   ⚠️  Skipping admin moderation tests - no admin token")
+            
+            # Test 7: Rating Aggregates Recomputation
+            print("\n   🔍 Testing Rating Aggregates...")
+            
+            if hasattr(self, 'admin_token') and self.admin_token:
+                # Switch to admin token for recompute
+                self.token = self.admin_token
+                
+                try:
+                    self.test_api_endpoint('POST', '/admin/ratings/recompute', 200, {},
+                                         "Admin: Recompute rating aggregates")
+                finally:
+                    self.token = original_token
+            else:
+                print("   ⚠️  Skipping rating recompute test - no admin token")
+            
+            # Test 8: Anti-Abuse Measures Testing
+            print("\n   🔍 Testing Anti-Abuse Measures...")
+            
+            # Test duplicate review prevention
+            duplicate_review_data = {
+                "order_group_id": test_order_group_id,
+                "direction": "BUYER_ON_SELLER",
+                "rating": 3,
+                "title": "Duplicate review attempt",
+                "body": "This should be blocked as duplicate"
+            }
+            
+            self.test_api_endpoint('POST', '/reviews', 400, duplicate_review_data,
+                                 "Test duplicate review prevention (should fail)")
+            
+            # Test invalid order group
+            invalid_review_data = {
+                "order_group_id": "non_existent_order_123",
+                "direction": "BUYER_ON_SELLER", 
+                "rating": 5,
+                "title": "Invalid order test",
+                "body": "This should fail due to invalid order"
+            }
+            
+            self.test_api_endpoint('POST', '/reviews', 400, invalid_review_data,
+                                 "Test invalid order group (should fail)")
+            
+            # Test invalid rating values
+            invalid_rating_data = {
+                "order_group_id": test_order_group_id,
+                "direction": "BUYER_ON_SELLER",
+                "rating": 6,  # Invalid - should be 1-5
+                "title": "Invalid rating test",
+                "body": "This should fail due to invalid rating"
+            }
+            
+            self.test_api_endpoint('POST', '/reviews', 422, invalid_rating_data,
+                                 "Test invalid rating value (should fail)")
+            
+            print("\n   ✅ Reviews & Ratings System testing completed!")
+            return True
+            
+        except Exception as e:
+            print(f"\n   ❌ Error during reviews testing: {e}")
+            return False
+        
+        finally:
+            # Always restore original token
+            self.token = original_token
+
     def run_comprehensive_test(self):
         """Run all tests including NEW features"""
-        print("🚀 Starting StockLot API Comprehensive Test - NEW FEATURES FOCUS")
+        print("🚀 Starting StockLot API Comprehensive Test - REVIEWS & RATINGS FOCUS")
         print("=" * 60)
         
         # Test basic connectivity
