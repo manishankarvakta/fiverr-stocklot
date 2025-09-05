@@ -9523,6 +9523,544 @@ async def get_my_offers(
         raise HTTPException(status_code=500, detail="Failed to get offers")
 
 # ==============================================================================
+# 🌟 REVIEWS & RATINGS SYSTEM - DUO REVIEWS
+# ==============================================================================
+
+# Import review models and service
+from models_reviews import (
+    ReviewCreate, ReviewUpdate, ReviewReply, ReviewDirection, 
+    ReviewStatus, ReviewModerationAction
+)
+from services.review_service import ReviewService
+
+# Initialize review service
+review_service = ReviewService(db)
+
+@api_router.post("/reviews")
+async def create_review(
+    review_data: ReviewCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new review (buyer on seller or seller on buyer)"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        result = await review_service.create_review(review_data, current_user.id)
+        
+        if not result["success"]:
+            error_code = result.get("code", "UNKNOWN")
+            
+            if error_code == "NOT_ELIGIBLE":
+                raise HTTPException(status_code=403, detail=result["error"])
+            elif error_code == "DUPLICATE":
+                raise HTTPException(status_code=409, detail=result["error"])
+            else:
+                raise HTTPException(status_code=400, detail=result["error"])
+        
+        return {
+            "success": True,
+            "review_id": result["review_id"],
+            "moderation_status": result["moderation_status"],
+            "blind_until": result["blind_until"],
+            "editable_until": result["editable_until"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Create review failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create review")
+
+@api_router.patch("/reviews/{review_id}")
+async def update_review(
+    review_id: str,
+    review_update: ReviewUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update review within edit window"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        result = await review_service.update_review(review_id, review_update, current_user.id)
+        
+        if not result["success"]:
+            error_code = result.get("code", "UNKNOWN")
+            
+            if error_code == "NOT_FOUND":
+                raise HTTPException(status_code=404, detail=result["error"])
+            elif error_code in ["EDIT_WINDOW_EXPIRED", "COUNTERPARTY_POSTED"]:
+                raise HTTPException(status_code=403, detail=result["error"])
+            else:
+                raise HTTPException(status_code=400, detail=result["error"])
+        
+        return {"success": True, "message": "Review updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update review failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update review")
+
+@api_router.delete("/reviews/{review_id}")
+async def delete_review(
+    review_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete review within allowed window"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        result = await review_service.delete_review(review_id, current_user.id)
+        
+        if not result["success"]:
+            error_code = result.get("code", "UNKNOWN")
+            
+            if error_code == "NOT_FOUND":
+                raise HTTPException(status_code=404, detail=result["error"])
+            elif error_code == "DELETE_WINDOW_EXPIRED":
+                raise HTTPException(status_code=403, detail=result["error"])
+            else:
+                raise HTTPException(status_code=400, detail=result["error"])
+        
+        return {"success": True, "message": "Review deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete review failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete review")
+
+@api_router.post("/reviews/{review_id}/reply")
+async def reply_to_review(
+    review_id: str,
+    reply_data: ReviewReply,
+    current_user: User = Depends(get_current_user)
+):
+    """Add reply to a review (subject user only)"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Get review to verify user can reply
+        review = await db.user_reviews.find_one({
+            "id": review_id,
+            "subject_user_id": current_user.id,
+            "moderation_status": "APPROVED"
+        })
+        
+        if not review:
+            raise HTTPException(status_code=404, detail="Review not found or access denied")
+        
+        # Check if reply already exists
+        if review.get("reply_body"):
+            raise HTTPException(status_code=409, detail="Reply already exists")
+        
+        # Add reply
+        now = datetime.now(timezone.utc)
+        await db.user_reviews.update_one(
+            {"id": review_id},
+            {
+                "$set": {
+                    "reply_body": reply_data.body,
+                    "reply_created_at": now,
+                    "updated_at": now
+                }
+            }
+        )
+        
+        return {"success": True, "message": "Reply added successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Reply to review failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to add reply")
+
+# PUBLIC REVIEW ENDPOINTS
+@api_router.get("/public/sellers/{seller_id}/reviews")
+async def get_seller_reviews(
+    seller_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=50),
+    sort: str = Query("recent", regex="^(recent|helpful|rating_high|rating_low)$")
+):
+    """Get public seller reviews"""
+    try:
+        offset = (page - 1) * limit
+        
+        # Base query - only approved reviews
+        query = {
+            "subject_user_id": seller_id,
+            "direction": ReviewDirection.BUYER_ON_SELLER.value,
+            "moderation_status": ReviewStatus.APPROVED.value
+        }
+        
+        # Only show reviews not in blind window
+        now = datetime.now(timezone.utc)
+        query["$or"] = [
+            {"blind_until": {"$exists": False}},
+            {"blind_until": {"$lte": now}}
+        ]
+        
+        # Sorting
+        sort_options = {
+            "recent": [("created_at", -1)],
+            "helpful": [("helpful_votes", -1), ("created_at", -1)],  # placeholder field
+            "rating_high": [("rating", -1), ("created_at", -1)],
+            "rating_low": [("rating", 1), ("created_at", -1)]
+        }
+        
+        sort_by = sort_options.get(sort, sort_options["recent"])
+        
+        # Get reviews
+        cursor = db.user_reviews.find(query).sort(sort_by).skip(offset).limit(limit)
+        reviews = await cursor.to_list(length=None)
+        
+        # Get total count
+        total_count = await db.user_reviews.count_documents(query)
+        
+        # Clean and format reviews
+        review_responses = []
+        for review in reviews:
+            # Get reviewer info
+            reviewer = await db.users.find_one({"id": review["reviewer_user_id"]})
+            reviewer_name = reviewer.get("full_name", "Anonymous") if reviewer else "Anonymous"
+            reviewer_verified = reviewer.get("is_verified", False) if reviewer else False
+            
+            review_responses.append({
+                "id": review["id"],
+                "rating": review["rating"],
+                "title": review.get("title"),
+                "body": review.get("body"),
+                "tags": review.get("tags", []),
+                "photos": review.get("photos", []),
+                "reviewer_name": reviewer_name,
+                "reviewer_verified": reviewer_verified,
+                "is_verified": review.get("is_verified", True),
+                "reply_body": review.get("reply_body"),
+                "reply_created_at": review.get("reply_created_at"),
+                "created_at": review["created_at"],
+                "is_visible": True
+            })
+        
+        # Get seller rating stats
+        stats_doc = await db.seller_rating_stats.find_one({"seller_id": seller_id})
+        
+        if stats_doc:
+            stats = {
+                "avg_bayes": stats_doc.get("avg_rating_bayes", 0.0),
+                "avg_raw": stats_doc.get("avg_rating_raw", 0.0),
+                "count": stats_doc.get("ratings_count", 0),
+                "stars": {
+                    "1": stats_doc.get("star_1", 0),
+                    "2": stats_doc.get("star_2", 0),
+                    "3": stats_doc.get("star_3", 0),
+                    "4": stats_doc.get("star_4", 0),
+                    "5": stats_doc.get("star_5", 0)
+                },
+                "last_review_at": stats_doc.get("last_review_at")
+            }
+        else:
+            stats = {
+                "avg_bayes": 0.0,
+                "avg_raw": 0.0,
+                "count": 0,
+                "stars": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0},
+                "last_review_at": None
+            }
+        
+        return {
+            "reviews": review_responses,
+            "stats": stats,
+            "pagination": {
+                "current_page": page,
+                "total_pages": math.ceil(total_count / limit),
+                "total_count": total_count,
+                "limit": limit
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Get seller reviews failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get reviews")
+
+@api_router.get("/seller/buyers/{buyer_id}/summary")
+async def get_buyer_reliability_summary(
+    buyer_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get buyer reliability summary (seller-only view)"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        # Get buyer rating stats
+        stats_doc = await db.buyer_rating_stats.find_one({"buyer_id": buyer_id})
+        
+        if not stats_doc:
+            return {
+                "avg_bayes": 0.0,
+                "ratings_count": 0,
+                "reliability_score": 50.0,  # Neutral score for new buyers
+                "last_review_at": None,
+                "last_3_tags": []
+            }
+        
+        # Get recent tags from last 3 reviews
+        recent_reviews = await db.user_reviews.find({
+            "subject_user_id": buyer_id,
+            "direction": ReviewDirection.SELLER_ON_BUYER.value,
+            "moderation_status": ReviewStatus.APPROVED.value
+        }).sort("created_at", -1).limit(3).to_list(length=None)
+        
+        last_3_tags = []
+        for review in recent_reviews:
+            last_3_tags.extend(review.get("tags", []))
+        
+        # Remove duplicates and limit to 5 most recent
+        last_3_tags = list(dict.fromkeys(last_3_tags))[:5]
+        
+        return {
+            "avg_bayes": stats_doc.get("avg_rating_bayes", 0.0),
+            "ratings_count": stats_doc.get("ratings_count", 0),
+            "reliability_score": stats_doc.get("reliability_score", 50.0),
+            "last_review_at": stats_doc.get("last_review_at"),
+            "last_3_tags": last_3_tags
+        }
+        
+    except Exception as e:
+        logger.error(f"Get buyer reliability summary failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get buyer summary")
+
+# ADMIN MODERATION ENDPOINTS
+@api_router.get("/admin/reviews")
+async def get_reviews_moderation_queue(
+    current_user: User = Depends(get_current_user),
+    status: str = Query("PENDING", regex="^(PENDING|FLAGGED|ALL)$"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """Get reviews moderation queue"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        offset = (page - 1) * limit
+        
+        # Build query
+        if status == "ALL":
+            query = {"moderation_status": {"$in": ["PENDING", "FLAGGED", "REJECTED"]}}
+        else:
+            query = {"moderation_status": status}
+        
+        # Get reviews
+        cursor = db.user_reviews.find(query).sort("created_at", -1).skip(offset).limit(limit)
+        reviews = await cursor.to_list(length=None)
+        
+        # Get counts
+        pending_count = await db.user_reviews.count_documents({"moderation_status": "PENDING"})
+        flagged_count = await db.user_reviews.count_documents({"moderation_status": "FLAGGED"})
+        total_count = await db.user_reviews.count_documents(query)
+        
+        # Enrich reviews with user info and order details
+        enriched_reviews = []
+        for review in reviews:
+            # Get reviewer and subject info
+            reviewer = await db.users.find_one({"id": review["reviewer_user_id"]})
+            subject = await db.users.find_one({"id": review["subject_user_id"]})
+            order_group = await db.order_groups.find_one({"id": review["order_group_id"]})
+            
+            enriched_reviews.append({
+                "id": review["id"],
+                "rating": review["rating"],
+                "title": review.get("title"),
+                "body": review.get("body"),
+                "tags": review.get("tags", []),
+                "direction": review["direction"],
+                "moderation_status": review["moderation_status"],
+                "toxicity_score": review.get("toxicity_score"),
+                "created_at": review["created_at"],
+                "reviewer": {
+                    "id": reviewer["id"] if reviewer else None,
+                    "name": reviewer.get("full_name", "Unknown") if reviewer else "Unknown",
+                    "email": reviewer.get("email") if reviewer else None
+                },
+                "subject": {
+                    "id": subject["id"] if subject else None,
+                    "name": subject.get("full_name", "Unknown") if subject else "Unknown",
+                    "email": subject.get("email") if subject else None
+                },
+                "order_info": {
+                    "id": order_group["id"] if order_group else None,
+                    "status": order_group.get("status") if order_group else None,
+                    "total_amount": order_group.get("total_amount") if order_group else None
+                } if order_group else None
+            })
+        
+        return {
+            "reviews": enriched_reviews,
+            "counts": {
+                "pending": pending_count,
+                "flagged": flagged_count,
+                "total": total_count
+            },
+            "pagination": {
+                "current_page": page,
+                "total_pages": math.ceil(total_count / limit),
+                "total_count": total_count,
+                "limit": limit
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Get moderation queue failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get moderation queue")
+
+@api_router.post("/admin/reviews/{review_id}/approve")
+async def approve_review(
+    review_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Approve a pending/flagged review"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Update review status
+        result = await db.user_reviews.update_one(
+            {"id": review_id},
+            {
+                "$set": {
+                    "moderation_status": ReviewStatus.APPROVED.value,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Review not found")
+        
+        # Get review to update aggregates
+        review = await db.user_reviews.find_one({"id": review_id})
+        if review:
+            direction = ReviewDirection(review["direction"])
+            await review_service._update_rating_aggregates(review["subject_user_id"], direction)
+        
+        return {"success": True, "message": "Review approved"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Approve review failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve review")
+
+@api_router.post("/admin/reviews/{review_id}/reject")
+async def reject_review(
+    review_id: str,
+    action_data: ReviewModerationAction,
+    current_user: User = Depends(get_current_user)
+):
+    """Reject a review with reason"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Update review status
+        result = await db.user_reviews.update_one(
+            {"id": review_id},
+            {
+                "$set": {
+                    "moderation_status": ReviewStatus.REJECTED.value,
+                    "admin_notes": action_data.admin_notes,
+                    "rejection_reason": action_data.reason,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Review not found")
+        
+        # Update aggregates (rejected reviews are excluded)
+        review = await db.user_reviews.find_one({"id": review_id})
+        if review:
+            direction = ReviewDirection(review["direction"])
+            await review_service._update_rating_aggregates(review["subject_user_id"], direction)
+        
+        return {"success": True, "message": "Review rejected"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Reject review failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reject review")
+
+@api_router.post("/admin/reviews/{review_id}/flag")
+async def flag_review(
+    review_id: str,
+    action_data: ReviewModerationAction,
+    current_user: User = Depends(get_current_user)
+):
+    """Flag a review for further investigation"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Update review status
+        result = await db.user_reviews.update_one(
+            {"id": review_id},
+            {
+                "$set": {
+                    "moderation_status": ReviewStatus.FLAGGED.value,
+                    "admin_notes": action_data.admin_notes,
+                    "flag_reason": action_data.reason,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Review not found")
+        
+        return {"success": True, "message": "Review flagged"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Flag review failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to flag review")
+
+@api_router.post("/admin/ratings/recompute")
+async def recompute_rating_aggregates(
+    current_user: User = Depends(get_current_user),
+    seller_id: Optional[str] = Query(None),
+    buyer_id: Optional[str] = Query(None)
+):
+    """Recompute rating aggregates for specific users or all users"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        if seller_id:
+            await review_service._update_seller_rating_stats(seller_id)
+            return {"success": True, "message": f"Recomputed seller {seller_id} ratings"}
+        
+        if buyer_id:
+            await review_service._update_buyer_rating_stats(buyer_id)
+            return {"success": True, "message": f"Recomputed buyer {buyer_id} ratings"}
+        
+        # Recompute all
+        await review_service.recompute_all_rating_aggregates()
+        return {"success": True, "message": "Recomputed all rating aggregates"}
+        
+    except Exception as e:
+        logger.error(f"Recompute ratings failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to recompute ratings")
+
+# ==============================================================================
 # 📱 REAL-TIME EVENTS API ENDPOINTS
 # ==============================================================================
 
