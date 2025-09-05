@@ -79,7 +79,7 @@ paystack_service = PaystackService(db)
 
 # Initialize AI & Mapping enhanced services
 enhanced_buy_request_service = EnhancedBuyRequestService(db)
-ai_service = AIEnhancedService()
+ai_enhanced_service = AIEnhancedService()
 mapbox_service = MapboxService()
 order_management_service = OrderManagementService(db)
 ml_faq_service = MLFAQService(db)
