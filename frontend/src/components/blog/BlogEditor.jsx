@@ -361,7 +361,20 @@ const BlogEditor = ({ articleId, onSave, onCancel }) => {
             <CardContent className="space-y-4">
               {/* Title */}
               <div>
-                <Label htmlFor="title">Title *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="title">Title *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAIGeneration('title')}
+                    disabled={aiGenerating}
+                    className="text-xs"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    {aiGenerating ? 'Generating...' : 'AI Generate'}
+                  </Button>
+                </div>
                 <Input
                   id="title"
                   value={article.title}
