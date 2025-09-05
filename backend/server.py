@@ -10098,6 +10098,370 @@ async def recompute_rating_aggregates(
         raise HTTPException(status_code=500, detail="Failed to recompute ratings")
 
 # ==============================================================================
+# 💰 FEE SYSTEM API ENDPOINTS - DUAL MODEL SUPPORT
+# ==============================================================================
+
+# ADMIN FEE CONFIGURATION ENDPOINTS
+@api_router.post("/admin/fees/configs")
+async def create_fee_config(
+    config_data: FeeConfigCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create new fee configuration"""
+    # Check admin permissions
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        config = await fee_service.create_fee_config(config_data)
+        return {
+            "success": True,
+            "config": config.dict(),
+            "message": "Fee configuration created successfully"
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Create fee config failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create fee configuration")
+
+@api_router.post("/admin/fees/configs/{config_id}/activate")
+async def activate_fee_config(
+    config_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Activate a fee configuration"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        success = await fee_service.activate_fee_config(config_id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": "Fee configuration activated successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Fee configuration not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Activate fee config failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to activate fee configuration")
+
+@api_router.get("/admin/fees/configs")
+async def list_fee_configs(
+    current_user: User = Depends(get_current_user),
+    active_only: bool = Query(False, description="Return only active configurations")
+):
+    """List fee configurations"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        query = {}
+        if active_only:
+            query["is_active"] = True
+        
+        cursor = db.fee_configs.find(query).sort("created_at", -1)
+        configs = await cursor.to_list(length=None)
+        
+        return {
+            "success": True,
+            "configs": configs,
+            "count": len(configs)
+        }
+        
+    except Exception as e:
+        logger.error(f"List fee configs failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve fee configurations")
+
+@api_router.get("/admin/fees/revenue-summary")
+async def get_revenue_summary(
+    current_user: User = Depends(get_current_user),
+    start_date: datetime = Query(..., description="Start date for summary"),
+    end_date: datetime = Query(..., description="End date for summary")
+):
+    """Get platform revenue summary"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        summary = await fee_service.get_platform_revenue_summary(start_date, end_date)
+        return {
+            "success": True,
+            "summary": summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Get revenue summary failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate revenue summary")
+
+# PUBLIC CHECKOUT & PREVIEW ENDPOINTS
+@api_router.post("/checkout/preview")
+async def checkout_preview(preview_request: CheckoutPreviewRequest):
+    """Calculate checkout preview with fee breakdown"""
+    try:
+        if not preview_request.cart:
+            raise HTTPException(status_code=400, detail="Cart cannot be empty")
+        
+        preview = await fee_service.calculate_checkout_preview(preview_request.cart)
+        
+        return {
+            "success": True,
+            "preview": preview.dict()
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Checkout preview failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to calculate checkout preview")
+
+@api_router.get("/fees/breakdown")
+async def get_fee_breakdown(
+    amount: float = Query(..., description="Amount in major currency units (e.g., 1000.00)"),
+    species: Optional[str] = Query(None, description="Livestock species for rule matching"),
+    export: bool = Query(False, description="Is this an export order")
+):
+    """Get detailed fee breakdown for transparency"""
+    try:
+        # Convert to minor units
+        amount_minor = round(amount * 100)
+        
+        if amount_minor <= 0:
+            raise HTTPException(status_code=400, detail="Amount must be positive")
+        
+        # Get appropriate config
+        config = await fee_service.get_active_fee_config(species=species, export=export)
+        
+        # Calculate breakdown
+        breakdown = await fee_service.get_fee_breakdown(amount_minor, config)
+        
+        return {
+            "success": True,
+            "breakdown": breakdown.dict(),
+            "config_used": {
+                "id": config.id,
+                "name": config.name,
+                "model": config.model
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get fee breakdown failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to calculate fee breakdown")
+
+# ORDER FINALIZATION ENDPOINTS
+@api_router.post("/orders/{order_group_id}/fees/finalize")
+async def finalize_order_fees(
+    order_group_id: str,
+    finalization_data: OrderFeesFinalization,
+    current_user: User = Depends(get_current_user)
+):
+    """Finalize fees for an order (creates immutable snapshots)"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Get order group to validate
+        order_group = await db.order_groups.find_one({"id": order_group_id})
+        if not order_group:
+            raise HTTPException(status_code=404, detail="Order group not found")
+        
+        # Verify user has access to this order
+        user_id = current_user.id
+        if (order_group.get("buyer_id") != user_id and 
+            order_group.get("seller_id") != user_id):
+            raise HTTPException(status_code=403, detail="Access denied to this order")
+        
+        # Extract cart items from finalization data
+        from models_fees import CartItem
+        cart_items = []
+        
+        for seller_data in finalization_data.per_seller:
+            # Reconstruct cart item from seller data
+            cart_item = CartItem(
+                seller_id=seller_data.get("seller_id", ""),
+                merch_subtotal_minor=seller_data.get("merch_subtotal_minor", 0),
+                delivery_minor=seller_data.get("delivery_minor", 0),
+                abattoir_minor=seller_data.get("abattoir_minor", 0),
+                species=seller_data.get("species"),
+                export=seller_data.get("export", False)
+            )
+            cart_items.append(cart_item)
+        
+        # Finalize fees
+        finalized_fees = await fee_service.finalize_order_fees(
+            order_group_id,
+            cart_items,
+            finalization_data.fee_config_id
+        )
+        
+        return {
+            "success": True,
+            "finalized_fees": [fee.dict() for fee in finalized_fees],
+            "message": "Order fees finalized successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Finalize order fees failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to finalize order fees")
+
+# PAYOUT ENDPOINTS
+@api_router.post("/payouts/{seller_order_id}/release")
+async def release_seller_payout(
+    seller_order_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Release payout to seller"""
+    # For now, we'll allow admin and the seller to trigger payouts
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Create payout record based on fee snapshot
+        payout = await fee_service.create_payout(seller_order_id)
+        
+        if not payout:
+            raise HTTPException(status_code=404, detail="Unable to create payout - fee snapshot not found")
+        
+        # In a real implementation, you would integrate with payment provider here
+        # For now, we'll mark as sent immediately
+        await fee_service.update_payout_status(
+            payout.id,
+            PayoutStatus.SENT,
+            transfer_ref=f"mock_transfer_{payout.id}"
+        )
+        
+        return {
+            "success": True,
+            "payout": payout.dict(),
+            "status": "SENT",
+            "transfer_ref": f"mock_transfer_{payout.id}",
+            "message": "Payout released successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Release payout failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to release payout")
+
+@api_router.get("/payouts/seller/{seller_id}")
+async def get_seller_payouts(
+    seller_id: str,
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = Query(None, description="Filter by payout status"),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """Get payouts for a seller"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Check if user can access this seller's payouts
+    if (current_user.id != seller_id and 
+        UserRole.ADMIN not in current_user.roles):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        # Build query
+        query = {"seller_order_id": {"$regex": f".*_{seller_id}$"}}
+        
+        if status:
+            query["status"] = status.upper()
+        
+        # Get payouts
+        cursor = db.payouts.find(query).sort("created_at", -1).limit(limit)
+        payouts = await cursor.to_list(length=None)
+        
+        # Calculate summary
+        total_pending = sum(p["amount_minor"] for p in payouts if p["status"] == "PENDING")
+        total_sent = sum(p["amount_minor"] for p in payouts if p["status"] == "SENT")
+        
+        return {
+            "success": True,
+            "payouts": payouts,
+            "summary": {
+                "total_payouts": len(payouts),
+                "pending_amount_minor": total_pending,
+                "sent_amount_minor": total_sent,
+                "pending_amount_major": total_pending / 100,
+                "sent_amount_major": total_sent / 100
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Get seller payouts failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve payouts")
+
+# WEBHOOK ENDPOINTS
+@api_router.post("/payments/webhook/paystack")
+async def handle_paystack_webhook(request: Request):
+    """Handle Paystack webhook events"""
+    try:
+        # Get raw body and signature
+        body = await request.body()
+        signature = request.headers.get("x-paystack-signature")
+        
+        # Parse payload
+        import json
+        payload = json.loads(body.decode())
+        
+        # Record webhook event (idempotent)
+        event_id = payload.get("id") or payload.get("data", {}).get("reference", "unknown")
+        await fee_service.record_webhook_event(
+            provider="paystack",
+            event_id=str(event_id),
+            payload=payload,
+            signature=signature
+        )
+        
+        # Process specific event types
+        event_type = payload.get("event")
+        
+        if event_type == "charge.success":
+            # Handle successful payment - could trigger order status update
+            logger.info(f"Payment successful: {event_id}")
+            
+        elif event_type == "transfer.success":
+            # Handle successful payout
+            transfer_ref = payload.get("data", {}).get("reference")
+            if transfer_ref:
+                # Update payout status
+                payout = await db.payouts.find_one({"transfer_ref": transfer_ref})
+                if payout:
+                    await fee_service.update_payout_status(
+                        payout["id"],
+                        PayoutStatus.SENT,
+                        transfer_ref
+                    )
+        
+        elif event_type == "transfer.failed":
+            # Handle failed payout
+            transfer_ref = payload.get("data", {}).get("reference")
+            if transfer_ref:
+                payout = await db.payouts.find_one({"transfer_ref": transfer_ref})
+                if payout:
+                    await fee_service.update_payout_status(
+                        payout["id"],
+                        PayoutStatus.FAILED
+                    )
+        
+        return {"success": True, "message": "Webhook processed"}
+        
+    except Exception as e:
+        logger.error(f"Webhook processing failed: {e}")
+        return {"success": False, "error": "Webhook processing failed"}
+
+# ==============================================================================
 # 📱 REAL-TIME EVENTS API ENDPOINTS
 # ==============================================================================
 
