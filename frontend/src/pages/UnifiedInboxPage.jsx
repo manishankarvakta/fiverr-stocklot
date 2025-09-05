@@ -372,6 +372,7 @@ const UnifiedInboxPage = ({ user }) => {
                 onClick={() => markAsRead(selectedNotifications)}
                 disabled={actionLoading}
               >
+                <Check className="w-4 h-4 mr-1" />
                 Mark as Read
               </Button>
               <Button
