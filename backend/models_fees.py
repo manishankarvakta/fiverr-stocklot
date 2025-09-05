@@ -216,7 +216,7 @@ class FeeBreakdown(BaseModel):
 class MoneyAmount(BaseModel):
     """Helper for money validation"""
     amount_minor: int = Field(..., ge=0)
-    currency: str = Field(default="ZAR", regex="^[A-Z]{3}$")
+    currency: str = Field(default="ZAR", pattern="^[A-Z]{3}$")
     
     @property
     def amount_major(self) -> float:
