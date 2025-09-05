@@ -711,6 +711,83 @@ class MLEngineService:
                 "error": str(e)
             }
     
+    async def _generate_pricing_recommendation(
+        self, 
+        listing_data: Dict[str, Any], 
+        features: Dict[str, float], 
+        ai_insights: Dict[str, Any], 
+        ml_price: float, 
+        competitive_analysis: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate final pricing recommendation combining all analyses"""
+        try:
+            # Base price from features
+            base_price = 1500  # Default livestock price per unit
+            
+            # Apply feature-based adjustments
+            species_factor = features.get("species_encoded", 1.0)
+            location_factor = features.get("location_premium", 1.0)
+            seasonal_factor = features.get("seasonal_factor", 1.0)
+            
+            calculated_price = base_price * species_factor * location_factor * seasonal_factor
+            
+            # Incorporate ML prediction if available
+            if ml_price > 0:
+                # Weighted average: 60% calculated, 40% ML prediction
+                final_price = (calculated_price * 0.6) + (ml_price * 0.4)
+            else:
+                final_price = calculated_price
+            
+            # Adjust for competitive landscape
+            competitor_avg = competitive_analysis.get("average_competitor_price", 0)
+            if competitor_avg > 0:
+                # Stay competitive but maintain margin
+                competitive_adjustment = min(1.1, max(0.9, competitor_avg / final_price))
+                final_price *= competitive_adjustment
+            
+            # Generate price range (±10%)
+            price_range = {
+                "min": final_price * 0.9,
+                "max": final_price * 1.1,
+                "suggested": final_price
+            }
+            
+            # Calculate confidence score
+            confidence = 0.7  # Base confidence
+            if ml_price > 0:
+                confidence += 0.2  # ML model adds confidence
+            if competitive_analysis.get("competitor_count", 0) > 3:
+                confidence += 0.1  # More competition data adds confidence
+            
+            confidence = min(1.0, confidence)
+            
+            return {
+                "suggested_price_per_unit": round(final_price, 2),
+                "price_range": {
+                    "min": round(price_range["min"], 2),
+                    "max": round(price_range["max"], 2)
+                },
+                "confidence_score": round(confidence, 2),
+                "market_trend": "stable",  # Could be enhanced with trend analysis
+                "competitive_position": competitive_analysis.get("market_position", "unknown"),
+                "factors_considered": [
+                    "species_type", "location_premium", "seasonal_factors", 
+                    "competitive_landscape", "market_demand"
+                ]
+            }
+            
+        except Exception as e:
+            # Return safe default recommendation
+            return {
+                "suggested_price_per_unit": 1500.0,
+                "price_range": {"min": 1350.0, "max": 1650.0},
+                "confidence_score": 0.3,
+                "market_trend": "unknown",
+                "competitive_position": "unknown",
+                "factors_considered": ["default_fallback"],
+                "error": str(e)
+            }
+    
     async def _predict_optimal_price(self, features: Dict[str, Any]) -> Tuple[float, float]:
         """Predict optimal price using ML model"""
         try:
