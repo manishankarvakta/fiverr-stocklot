@@ -486,7 +486,7 @@ class MLEngineService:
             'sheep': {9: 1.3, 10: 1.2, 12: 1.1},  # Spring and holiday demand
         }
         
-        pattern = seasonal_patterns.get(species.lower(), {})
+        pattern = seasonal_patterns.get(species.lower() if species else '', {})
         return pattern.get(month, 1.0)
     
     def _is_holiday_season(self, date: datetime) -> int:
