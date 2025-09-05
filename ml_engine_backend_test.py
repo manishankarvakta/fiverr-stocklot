@@ -412,12 +412,12 @@ class MLEnginePhotoIntelligenceTester:
         logger.info("\n🧪 Testing ML Engine & Photo Intelligence Endpoint Accessibility...")
         
         endpoints_to_test = [
-            ("/ml/pricing/analyze", "ML Pricing Endpoint"),
-            ("/ml/demand/forecast", "ML Demand Endpoint"),
-            ("/ml/market/analyze", "ML Market Endpoint"),
-            ("/ml/content/optimize", "ML Content Endpoint"),
-            ("/photo/analyze", "Photo Single Analysis Endpoint"),
-            ("/photo/analyze-bulk", "Photo Bulk Analysis Endpoint")
+            ("/ml/engine/smart-pricing", "ML Pricing Endpoint"),
+            ("/ml/engine/demand-forecast", "ML Demand Endpoint"),
+            ("/ml/engine/market-intelligence", "ML Market Endpoint"),
+            ("/ml/engine/content-optimization", "ML Content Endpoint"),
+            ("/ml/photo/analyze", "Photo Single Analysis Endpoint"),
+            ("/ml/photo/bulk-analyze", "Photo Bulk Analysis Endpoint")
         ]
         
         for endpoint, name in endpoints_to_test:
