@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
 class EnhancedBuyRequestTester:
-    def __init__(self, base_url="https://trustscores.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://stocklot-repair.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.user_data = None
