@@ -572,6 +572,7 @@ backend:
 
 test_plan:
   current_focus:
+    - "Reviews & Ratings System - Duo Reviews"
     - "ML Analytics Dashboard Component"
     - "Enhanced Create Buy Request Form"
     - "Interactive Map View Component"
@@ -587,7 +588,7 @@ test_plan:
     - "ML FAQ Service"
     - "ML Matching Service"
   test_all: false
-  test_priority: "stuck_first"
+  test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
