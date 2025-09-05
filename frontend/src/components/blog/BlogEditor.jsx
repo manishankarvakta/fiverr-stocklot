@@ -212,6 +212,93 @@ const BlogEditor = ({ articleId, onSave, onCancel }) => {
     handleInputChange('content', newContent);
   };
 
+  // AI Content Generation Functions
+  const generateAIContent = async (type, prompt) => {
+    setAiGenerating(true);
+    try {
+      const response = await fetch(`${API}/ai/generate-blog-content`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ 
+          type, 
+          prompt,
+          category: article.category,
+          context: {
+            title: article.title,
+            excerpt: article.excerpt,
+            existing_content: article.content
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.content;
+      } else {
+        throw new Error('Failed to generate AI content');
+      }
+    } catch (error) {
+      console.error('AI generation error:', error);
+      alert('Failed to generate AI content. Please try again.');
+      return null;
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleAIGeneration = async (type) => {
+    if (type === 'custom') {
+      setShowAiDialog(true);
+      return;
+    }
+
+    let prompt = '';
+    let targetField = '';
+
+    switch (type) {
+      case 'title':
+        prompt = `Generate a compelling blog post title about ${article.category || 'livestock farming'} that would attract readers interested in agriculture and livestock.`;
+        targetField = 'title';
+        break;
+      case 'excerpt':
+        prompt = `Generate a brief, engaging excerpt (2-3 sentences) for a blog post titled "${article.title}" about ${article.category || 'livestock farming'}.`;
+        targetField = 'excerpt';
+        break;
+      case 'content':
+        prompt = `Write a comprehensive blog post about "${article.title}" for livestock farmers. Include practical advice, industry insights, and actionable tips. Make it informative yet engaging.`;
+        targetField = 'content';
+        break;
+      case 'seo_description':
+        prompt = `Generate an SEO-optimized meta description (150-160 characters) for a blog post titled "${article.title}" about ${article.category || 'livestock farming'}.`;
+        targetField = 'seo_description';
+        break;
+    }
+
+    const generatedContent = await generateAIContent(type, prompt);
+    if (generatedContent) {
+      handleInputChange(targetField, generatedContent);
+    }
+  };
+
+  const handleCustomAIGeneration = async () => {
+    if (!aiPrompt.trim()) {
+      alert('Please enter a prompt for AI generation');
+      return;
+    }
+
+    const generatedContent = await generateAIContent('custom', aiPrompt);
+    if (generatedContent) {
+      // Append to existing content
+      const newContent = article.content + '\n\n' + generatedContent;
+      handleInputChange('content', newContent);
+      setShowAiDialog(false);
+      setAiPrompt('');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
