@@ -546,6 +546,18 @@ backend:
           agent: "testing"
           comment: "COMPREHENSIVE ENHANCED BUY REQUESTS TESTING COMPLETED - Conducted extensive testing of enhanced buy requests backend functionality as requested in review. RESULTS: ✅ Enhanced Buy Request Creation (POST /api/buy-requests/enhanced): FULLY FUNCTIONAL with all new fields (images, vet_certificates, weight_range, age_requirements, vaccination_requirements, delivery_preferences, inspection_allowed, additional_requirements). Successfully created 3 test requests with realistic livestock data (Cattle, Chickens, Goats) with AI enhancements applied. ✅ Public API Enhancement (GET /api/public/buy-requests): WORKING with enhanced fields displayed in response including images, has_vet_certificates, weight_range, age_requirements, vaccination_requirements, delivery_preferences, inspection_allowed. All 7 filter tests passed (species, province, quantity range, target price, sorting). ✅ Send Offer Functionality (POST /api/buy-requests/{id}/offers): WORKING correctly with proper authentication and validation. Successfully created offers and retrieved offer lists. ❌ Minor Issues Found: 1) Image upload endpoints failing due to media service configuration (folder parameter issue). 2) Public buy request detail endpoint has timezone comparison bug. 3) Enhanced offer creation has user.org_id attribute error. 4) Some relevance scoring datetime issues. OVERALL SUCCESS RATE: 75% (15/20 tests passed). CONCLUSION: Core enhanced buy requests functionality is FULLY OPERATIONAL with AI integration, enhanced fields, public API, and offer system working correctly. The new enhanced fields are properly stored, retrieved, and displayed. Minor issues are configuration-related, not functionality-breaking."
 
+  - task: "Reviews & Ratings System - Duo Reviews"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "COMPREHENSIVE DUO REVIEW SYSTEM IMPLEMENTED - Successfully implemented complete seller/buyer review system with: 1) Backend Services: ReviewService with full anti-abuse measures (eligibility checks, 90-day window, dispute gating, KYC validation, double-blind 7-day window, 72h edit window), ModerationProvider with OpenAI/Emergent integration for toxicity screening, ReviewCronService for background jobs (unblinding, aggregate recomputation, cleanup). 2) Database: MongoDB collections (user_reviews, seller_rating_stats, buyer_rating_stats) with comprehensive indexes for performance. 3) API Endpoints: 10+ endpoints covering CRUD operations (create, update, delete, reply), public access (seller reviews, buyer reliability), admin moderation (approve, reject, flag, recompute). 4) Business Logic: Bayesian rating calculations with marketplace mean smoothing, buyer reliability scoring (0-100), star distribution tracking, blind window management. 5) Frontend Components: RatingBadge, StarInput, ReviewModal, ReviewCard, SellerReviewsSection, PostOrderReviewPrompt. 6) Background Jobs: Automated unblinding, nightly aggregate recomputation, weekly cleanup. 7) Anti-Abuse: Content moderation with configurable toxicity threshold, duplicate prevention, edit window enforcement, dispute state validation. Ready for comprehensive testing."
+
   - task: "Buyer Offers Workflow API Endpoints"
     implemented: true
     working: true
