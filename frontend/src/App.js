@@ -49,6 +49,7 @@ import EnhancedPublicBuyRequestsPage from './pages/EnhancedPublicBuyRequestsPage
 import EnhancedCreateBuyRequestForm from './components/buyRequests/EnhancedCreateBuyRequestForm';
 import BuyerOffersPage from './pages/BuyerOffersPage';
 import UnifiedInboxPage from './pages/UnifiedInboxPage';
+import ReviewsTestPage from './pages/ReviewsTestPage';
 import "./App.css";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
