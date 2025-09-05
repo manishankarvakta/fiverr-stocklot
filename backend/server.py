@@ -9562,8 +9562,16 @@ from models_reviews import (
 )
 from services.review_service import ReviewService
 
-# Initialize review service
+# Import fee models and service
+from models_fees import (
+    FeeConfigCreate, FeeConfigUpdate, FeeConfigActivation, CheckoutPreviewRequest,
+    OrderFeesFinalization, PayoutCreate, MoneyAmount, FeeModel
+)
+from services.fee_service import FeeService
+
+# Initialize services
 review_service = ReviewService(db)
+fee_service = FeeService(db)
 
 @api_router.post("/reviews")
 async def create_review(
