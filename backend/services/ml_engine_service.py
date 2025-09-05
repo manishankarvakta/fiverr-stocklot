@@ -448,7 +448,7 @@ class MLEngineService:
     
     def _calculate_breed_premium(self, species: str, breed: str) -> float:
         """Calculate breed premium factor"""
-        if not breed:
+        if not breed or not species:
             return 1.0
         
         # Premium breeds mapping
@@ -459,7 +459,7 @@ class MLEngineService:
             'goats': ['boer', 'angora', 'saanen']
         }
         
-        species_breeds = premium_breeds.get(species.lower(), [])
+        species_breeds = premium_breeds.get(species.lower() if species else '', [])
         return 1.3 if any(b in breed.lower() for b in species_breeds) else 1.0
     
     def _calculate_age_factor(self, age: Optional[int]) -> float:
