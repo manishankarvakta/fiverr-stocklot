@@ -291,9 +291,9 @@ class FeeSystemTester:
         for i, test_case in enumerate(test_cases):
             try:
                 params = {
-                    "amount": test_case["amount"],
+                    "amount": str(test_case["amount"]),
                     "species": test_case["species"],
-                    "export": test_case["export"]
+                    "export": "true" if test_case["export"] else "false"
                 }
                 
                 async with self.session.get(
