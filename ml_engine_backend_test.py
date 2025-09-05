@@ -80,14 +80,16 @@ class MLEnginePhotoIntelligenceTester:
         
         # Test with realistic livestock data
         pricing_data = {
-            "species": "cattle",
-            "breed": "angus",
-            "quantity": 50,
-            "location": "Gauteng",
-            "age_months": 18,
-            "weight_kg": 450,
-            "quality_grade": "A",
-            "market_conditions": {
+            "listing_data": {
+                "species": "cattle",
+                "breed": "angus",
+                "quantity": 50,
+                "location": "Gauteng",
+                "age_months": 18,
+                "weight_kg": 450,
+                "quality_grade": "A"
+            },
+            "market_context": {
                 "season": "winter",
                 "demand_level": "high"
             }
