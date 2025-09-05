@@ -444,7 +444,7 @@ class MLEngineService:
             'goats': 0.7, 'swine': 0.9, 'fish': 0.5,
             'commercial broilers': 0.6, 'broiler': 0.6, 'chicken': 0.6
         }
-        return species_values.get(species.lower(), 0.7)
+        return species_values.get(species.lower() if species else '', 0.7)
     
     def _calculate_breed_premium(self, species: str, breed: str) -> float:
         """Calculate breed premium factor"""
