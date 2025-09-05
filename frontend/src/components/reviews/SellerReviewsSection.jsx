@@ -19,7 +19,7 @@ const SellerReviewsSection = ({
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState(initialSort);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [filters, setFilters] = useState({
     rating: null,
     hasPhotos: false,
