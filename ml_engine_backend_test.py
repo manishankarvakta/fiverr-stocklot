@@ -321,13 +321,20 @@ class MLEnginePhotoIntelligenceTester:
         test_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jU77mgAAAABJRU5ErkJggg=="
         
         bulk_data = {
-            "images": [
-                {"image": test_image_base64, "id": "img1"},
-                {"image": test_image_base64, "id": "img2"},
-                {"image": test_image_base64, "id": "img3"}
-            ],
-            "analysis_type": "livestock_batch_assessment",
-            "species_hint": "sheep"
+            "photos": [
+                {
+                    "image_data": test_image_base64, 
+                    "listing_context": {"id": "img1", "species_hint": "sheep"}
+                },
+                {
+                    "image_data": test_image_base64, 
+                    "listing_context": {"id": "img2", "species_hint": "sheep"}
+                },
+                {
+                    "image_data": test_image_base64, 
+                    "listing_context": {"id": "img3", "species_hint": "sheep"}
+                }
+            ]
         }
         
         try:
