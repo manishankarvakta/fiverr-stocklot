@@ -4440,6 +4440,77 @@ async def generate_blog_post(
         logger.error(f"Error generating blog post: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate blog post")
 
+@api_router.post("/ai/generate-blog-content")
+async def generate_ai_blog_content(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate AI content for blog posts"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Check if user has admin or content creator role
+    if not any(role in current_user.roles for role in [UserRole.ADMIN, UserRole.SELLER]):
+        raise HTTPException(status_code=403, detail="Content creation access required")
+    
+    try:
+        content_type = data.get('type', 'content')
+        prompt = data.get('prompt', '')
+        category = data.get('category', 'livestock farming')
+        context = data.get('context', {})
+        
+        if not prompt:
+            raise HTTPException(status_code=400, detail="Prompt is required")
+        
+        # Create system prompt for livestock farming blog
+        system_prompt = f"""You are an expert agricultural writer specializing in livestock farming, animal husbandry, and agricultural business. 
+        Create professional, informative, and engaging content for StockLot, South Africa's livestock marketplace.
+        
+        Focus on practical advice, industry insights, and actionable information for farmers, buyers, and sellers.
+        Use a professional but accessible tone. Include relevant South African context when appropriate.
+        Category: {category}"""
+        
+        # Enhanced prompt based on context
+        enhanced_prompt = prompt
+        if context.get('title'):
+            enhanced_prompt += f"\n\nBlog title: {context['title']}"
+        if context.get('excerpt'):
+            enhanced_prompt += f"\nExisting excerpt: {context['excerpt']}"
+        if context.get('existing_content'):
+            enhanced_prompt += f"\nExisting content to build upon: {context['existing_content'][:500]}..."
+        
+        # Generate content using OpenAI
+        response = ai_service.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": enhanced_prompt}
+            ],
+            max_tokens=1000 if content_type == 'content' else 200,
+            temperature=0.7
+        )
+        
+        generated_content = response.choices[0].message.content.strip()
+        
+        return {
+            "content": generated_content,
+            "type": content_type,
+            "model": "gpt-4o-mini",
+            "generated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating AI blog content: {e}")
+        # Return fallback content instead of error
+        fallback_content = f"Content about {category} - please write your own content or try again with a different prompt."
+        return {
+            "content": fallback_content,
+            "type": content_type,
+            "model": "fallback",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "error": str(e)
+        }
+
 @api_router.post("/admin/blog/posts")
 async def create_blog_post(
     data: BlogPostCreate,
