@@ -328,7 +328,7 @@ class MLEnginePhotoIntelligenceTester:
         
         try:
             async with self.session.post(
-                f"{self.api_url}/photo/analyze-bulk",
+                f"{self.api_url}/ml/photo/bulk-analyze",
                 json=bulk_data,
                 headers=self.get_headers()
             ) as response:
