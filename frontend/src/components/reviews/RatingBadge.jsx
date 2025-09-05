@@ -2,6 +2,7 @@
 // Reusable rating display component for seller ratings
 
 import React from 'react';
+import analytics from '../../services/analytics';
 
 const RatingBadge = ({ value, count, size = 'sm', showCount = true }) => {
   const displayValue = value ? value.toFixed(1) : "—";
