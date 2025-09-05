@@ -142,7 +142,7 @@ class MLEnginePhotoIntelligenceTester:
         
         try:
             async with self.session.post(
-                f"{self.api_url}/ml/demand/forecast",
+                f"{self.api_url}/ml/engine/demand-forecast",
                 json=forecast_data,
                 headers=self.get_headers()
             ) as response:
