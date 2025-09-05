@@ -1335,6 +1335,16 @@ async def initialize_database():
             logger.error(f"Review system database setup failed: {e}")
             print(f"⚠️  Review system database setup failed: {e}")
         
+        # Initialize Fee System Database
+        try:
+            print("💰 Setting up fee system database...")
+            from services.fee_db_setup import setup_fee_database
+            await setup_fee_database(db)
+            print("✅ Fee system database setup completed")
+        except Exception as e:
+            logger.error(f"Fee system database setup failed: {e}")
+            print(f"⚠️  Fee system database setup failed: {e}")
+        
         # Start Review System Background Jobs
         try:
             global review_cron_service
