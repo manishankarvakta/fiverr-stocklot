@@ -37,18 +37,17 @@ def main():
     print("🔍 Testing AI Enhanced Service Endpoints")
     print("=" * 50)
     
-    # Test endpoints
+    # Test endpoints with correct URLs
     endpoints_to_test = [
-        ("GET", "/api/ai/price-suggestions", {"species": "cattle", "product_type": "commercial", "province": "Gauteng"}),
-        ("POST", "/api/ai/auto-description", {
+        ("GET", "/api/buy-requests/price-suggestions", {"species": "cattle", "product_type": "commercial", "province": "Gauteng"}),
+        ("POST", "/api/buy-requests/auto-description", {
             "species": "cattle",
             "product_type": "commercial", 
             "breed": "Angus",
             "quantity": 10,
             "unit": "head",
-            "location": "Gauteng"
+            "province": "Gauteng"
         }),
-        ("GET", "/api/ai/market-analytics", {"species": "cattle"}),
         ("POST", "/api/ml/faq/ask", {"question": "How do I buy cattle?"}),
         ("GET", "/api/ml/matching/find-matches", {"request_id": "test-123"}),
     ]
