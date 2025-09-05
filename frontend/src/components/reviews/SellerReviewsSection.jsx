@@ -94,11 +94,15 @@ const SellerReviewsSection = ({
         throw new Error('Failed to add reply');
       }
       
+      // Track successful reply
+      analytics.trackReviewReply(reviewId, replyText.length);
+      
       // Refresh reviews to show the new reply
       fetchReviews(currentPage, sortBy);
       
     } catch (err) {
       console.error('Error adding reply:', err);
+      analytics.trackError('review_reply_failed', err.message, 'SellerReviewsSection');
       throw err; // Re-throw to let ReviewCard handle the error
     }
   };
