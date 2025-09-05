@@ -5030,6 +5030,78 @@ async def get_my_offers(
         logger.error(f"Error getting my offers: {e}")
         raise HTTPException(status_code=500, detail="Failed to get offers")
 
+# ============================================================================
+# AI ENHANCED ENDPOINTS (MUST BE BEFORE GENERIC {request_id} ROUTES)
+# ============================================================================
+
+@api_router.get("/buy-requests/price-suggestions")
+async def get_price_suggestions(
+    species: str,
+    product_type: str,
+    breed: Optional[str] = None,
+    province: Optional[str] = None,
+    quantity: Optional[int] = None,
+    unit: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI-powered price suggestions"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Get recent market data
+        recent_data = await enhanced_buy_request_service._get_recent_market_data(
+            species=species,
+            product_type=product_type,
+            province=province
+        )
+        
+        suggestions = await ai_enhanced_service.generate_price_suggestions(
+            species=species,
+            product_type=product_type,
+            breed=breed,
+            location=province,
+            quantity=quantity,
+            unit=unit,
+            market_data=recent_data
+        )
+        
+        return {
+            "suggestions": suggestions,
+            "market_data_points": len(recent_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting price suggestions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get price suggestions: {str(e)}")
+
+@api_router.post("/buy-requests/auto-description")
+async def generate_auto_description(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate AI-powered description for buy request"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        description_data = await ai_enhanced_service.generate_auto_description(
+            species=data.get('species'),
+            product_type=data.get('product_type'),
+            breed=data.get('breed'),
+            quantity=data.get('quantity'),
+            unit=data.get('unit'),
+            location=data.get('province'),
+            target_price=data.get('target_price'),
+            basic_notes=data.get('notes')
+        )
+        
+        return description_data
+        
+    except Exception as e:
+        logger.error(f"Error generating auto description: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate description: {str(e)}")
+
 @api_router.get("/buy-requests/{request_id}")
 async def get_buy_request(request_id: str):
     """Get buy request details"""
