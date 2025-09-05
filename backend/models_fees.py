@@ -123,7 +123,7 @@ class SellerOrderFees(BaseModel):
 class PayoutCreate(BaseModel):
     seller_order_id: str
     amount_minor: int = Field(..., ge=0)
-    currency: str = Field(default="ZAR", regex="^[A-Z]{3}$")
+    currency: str = Field(default="ZAR", pattern="^[A-Z]{3}$")
 
 class Payout(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
