@@ -9575,7 +9575,7 @@ from services.review_service import ReviewService
 # Import fee models and service
 from models_fees import (
     FeeConfigCreate, FeeConfigUpdate, FeeConfigActivation, CheckoutPreviewRequest,
-    OrderFeesFinalization, PayoutCreate, MoneyAmount, FeeModel
+    OrderFeesFinalization, PayoutCreate, MoneyAmount, FeeModel, PayoutStatus
 )
 from services.fee_service import FeeService
 
