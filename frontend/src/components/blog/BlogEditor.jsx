@@ -499,6 +499,32 @@ const BlogEditor = ({ articleId, onSave, onCancel }) => {
                   >
                     <Image className="h-4 w-4" />
                   </Button>
+                  
+                  {/* AI Generation Buttons */}
+                  <div className="border-l pl-2 ml-2 flex gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleAIGeneration('content')}
+                      disabled={aiGenerating || !article.title}
+                      className="text-purple-600 border border-purple-200 hover:bg-purple-50"
+                      title="Generate full article content"
+                    >
+                      <Wand2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleAIGeneration('custom')}
+                      disabled={aiGenerating}
+                      className="text-purple-600 border border-purple-200 hover:bg-purple-50"
+                      title="Custom AI generation"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <Textarea
                   name="content"
