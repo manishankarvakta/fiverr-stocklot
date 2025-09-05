@@ -279,7 +279,7 @@ class MLEnginePhotoIntelligenceTester:
         
         try:
             async with self.session.post(
-                f"{self.api_url}/photo/analyze",
+                f"{self.api_url}/ml/photo/analyze",
                 json=photo_data,
                 headers=self.get_headers()
             ) as response:
