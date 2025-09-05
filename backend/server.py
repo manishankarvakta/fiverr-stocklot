@@ -4480,7 +4480,7 @@ async def generate_ai_blog_content(
             enhanced_prompt += f"\nExisting content to build upon: {context['existing_content'][:500]}..."
         
         # Generate content using OpenAI
-        response = ai_service.client.chat.completions.create(
+        response = await ai_service.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
