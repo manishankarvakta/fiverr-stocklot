@@ -5977,7 +5977,7 @@ async def get_price_suggestions(
             province=province
         )
         
-        suggestions = await ai_service.generate_price_suggestions(
+        suggestions = await ai_enhanced_service.generate_price_suggestions(
             species=species,
             product_type=product_type,
             breed=breed,
