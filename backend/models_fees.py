@@ -55,7 +55,7 @@ class CartItem(BaseModel):
 
 class CheckoutPreviewRequest(BaseModel):
     cart: List[CartItem]
-    currency: str = Field(default="ZAR", regex="^[A-Z]{3}$")
+    currency: str = Field(default="ZAR", pattern="^[A-Z]{3}$")
 
 class FeeLineItems(BaseModel):
     merch_subtotal_minor: int
