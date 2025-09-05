@@ -274,9 +274,11 @@ class MLEnginePhotoIntelligenceTester:
         test_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jU77mgAAAABJRU5ErkJggg=="
         
         photo_data = {
-            "image": test_image_base64,
-            "analysis_type": "livestock_assessment",
-            "species_hint": "cattle"
+            "image_data": test_image_base64,
+            "listing_context": {
+                "analysis_type": "livestock_assessment",
+                "species_hint": "cattle"
+            }
         }
         
         try:
