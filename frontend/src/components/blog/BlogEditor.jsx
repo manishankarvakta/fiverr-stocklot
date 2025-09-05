@@ -772,6 +772,86 @@ const BlogEditor = ({ articleId, onSave, onCancel }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Generation Dialog */}
+      <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              AI Content Generation
+            </DialogTitle>
+            <DialogDescription>
+              Describe what content you'd like to generate and AI will create it for you.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="ai-prompt">Your prompt</Label>
+              <Textarea
+                id="ai-prompt"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="E.g., 'Write about cattle breeding techniques in South Africa' or 'Explain livestock nutrition for beginners'"
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              <h4 className="font-medium mb-2">Quick suggestions:</h4>
+              <div className="grid grid-cols-1 gap-1">
+                {[
+                  "Explain cattle breeding best practices in South Africa",
+                  "Write about livestock disease prevention and management", 
+                  "Discuss seasonal feeding strategies for different livestock",
+                  "Cover the basics of livestock market pricing",
+                  "Explain sustainable livestock farming techniques"
+                ].map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setAiPrompt(suggestion)}
+                    className="text-left text-purple-600 hover:text-purple-800 hover:underline text-xs p-1 rounded hover:bg-purple-50"
+                  >
+                    • {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAiDialog(false);
+                setAiPrompt('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCustomAIGeneration}
+              disabled={aiGenerating || !aiPrompt.trim()}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {aiGenerating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Generate Content
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
