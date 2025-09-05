@@ -40,6 +40,9 @@ const BlogEditor = ({ articleId, onSave, onCancel }) => {
   const [showMediaDialog, setShowMediaDialog] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [showAiDialog, setShowAiDialog] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
 
   // Available categories
   const categories = [
