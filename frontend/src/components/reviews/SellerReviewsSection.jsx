@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, Filter, Star } from 'lucide-react';
 import RatingBadge from './RatingBadge';
 import ReviewCard from './ReviewCard';
+import analytics from '../../services/analytics';
 
 const SellerReviewsSection = ({ 
   sellerId, 
