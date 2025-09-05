@@ -16,7 +16,7 @@ const PublicBuyRequestsPage = ({ user, onLogin }) => {
       try {
         console.log('Loading buy requests from:', `${BACKEND_URL}/api/public/buy-requests`);
         
-        const response = await fetch(`${BACKEND_URL}/api/public/buy-requests?limit=10`);
+        const response = await fetch(`${BACKEND_URL}/public/buy-requests?limit=10`);
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
