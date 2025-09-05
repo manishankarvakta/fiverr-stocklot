@@ -107,9 +107,9 @@ user_problem_statement: "Implement ALL AI and mapping enhanced features for buy 
 backend:
   - task: "AI Enhanced Service Implementation"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/services/ai_enhanced_service.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
@@ -119,6 +119,9 @@ backend:
         - working: false
           agent: "testing"
           comment: "TESTED: AI Enhanced Service has critical issues. ❌ Auto-description generation fails with 'AIService' object has no attribute 'generate_auto_description' error. ❌ Price suggestions endpoint returns 404 'Buy request not found'. ❌ Market analytics endpoint returns 404. The service exists but method names don't match endpoint expectations or routing is incorrect."
+        - working: true
+          agent: "main"
+          comment: "CRITICAL SERVICE INSTANTIATION ISSUE RESOLVED: Fixed conflict between AIService and AIEnhancedService instances. Root cause: server.py was importing 'ai_service' from ai_service.py (line 419) which overrode the AIEnhancedService instance (line 82). Fixed by renaming to ai_enhanced_service and updating all endpoint references. Also fixed FastAPI route ordering - moved AI endpoints BEFORE generic {request_id} route to prevent path interception. All 3 AI endpoints now working: ✅ Price Suggestions (200 OK with AI-generated pricing) ✅ Auto Description (200 OK with AI-generated descriptions) ✅ Market Analytics (200 OK with market data). AI Enhanced Service is now fully operational."
 
   - task: "Mapbox Integration Service"
     implemented: true
