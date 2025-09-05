@@ -553,7 +553,7 @@ class MLEngineService:
             'north west': 1.1
         }
         
-        return transport_factors.get(province.lower(), 1.1)
+        return transport_factors.get(province.lower() if province else '', 1.1)
     
     async def _get_seller_metrics(self, seller_id: str) -> Dict[str, Any]:
         """Get seller performance metrics"""
