@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { 
   Bell, MessageSquare, Package, DollarSign, CheckCircle, 
-  XCircle, Clock, User, Mail, Trash2, MarkAsRead, 
+  XCircle, Clock, User, Mail, Trash2, Check, 
   Filter, Search, RefreshCw, Loader2, AlertCircle,
   Eye, ArrowRight, Star, Archive
 } from 'lucide-react';
