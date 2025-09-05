@@ -4,9 +4,15 @@
 import React from 'react';
 import analytics from '../../services/analytics';
 
-const RatingBadge = ({ value, count, size = 'sm', showCount = true }) => {
+const RatingBadge = ({ value, count, size = 'sm', showCount = true, sellerId, clickLocation }) => {
   const displayValue = value ? value.toFixed(1) : "—";
   const displayCount = count || 0;
+  
+  const handleClick = () => {
+    if (sellerId && value) {
+      analytics.trackRatingBadgeClick(sellerId, value, clickLocation || 'unknown');
+    }
+  };
   
   // Size variants
   const sizeClasses = {
