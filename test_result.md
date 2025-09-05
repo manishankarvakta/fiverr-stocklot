@@ -497,6 +497,9 @@ backend:
         - working: false
           agent: "testing"
           comment: "CRITICAL FIXES VALIDATION: ML Engine has user context issues. ❌ Smart pricing fails with 'NoneType' object has no attribute 'id' - current_user is None in ML service calls. ❌ Demand forecasting fails with 'NoneType' object has no attribute 'province' - user context not passed properly. ❌ Content optimization fails with 'NoneType' object has no attribute 'id'. ✅ Market intelligence actually works (200 OK in logs). Root cause: User authentication context not being passed to ML Engine services correctly."
+        - working: false
+          agent: "testing"
+          comment: "COMPREHENSIVE ML ENGINE TESTING COMPLETED: Tested all 4 ML Engine endpoints with correct paths (/ml/engine/*). RESULTS: ✅ 2/4 endpoints working (Demand Forecasting, Content Optimization). ❌ Smart Pricing fails with 'NoneType' object has no attribute 'lower' - data validation error. ❌ Market Intelligence fails with generic error. ❌ Authentication context issues confirmed - user context not passed properly to ML services. All endpoints are accessible (not 404) but have implementation issues. 78.6% overall success rate including Photo Intelligence endpoints."
 
   - task: "Photo Intelligence API Endpoints"
     implemented: true
