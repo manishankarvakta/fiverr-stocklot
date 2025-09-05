@@ -95,7 +95,7 @@ class MLEnginePhotoIntelligenceTester:
         
         try:
             async with self.session.post(
-                f"{self.api_url}/ml/pricing/analyze",
+                f"{self.api_url}/ml/engine/smart-pricing",
                 json=pricing_data,
                 headers=self.get_headers()
             ) as response:
