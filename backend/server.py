@@ -448,7 +448,7 @@ async def ai_faq_chat(
         if current_user:
             user_context = {
                 "user_type": "registered_user",
-                "location": current_user.province or "South Africa",
+                "location": "South Africa",  # Default location since province field doesn't exist
                 "user_roles": current_user.roles or []
             }
         else:
