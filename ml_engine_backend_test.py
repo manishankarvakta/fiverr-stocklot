@@ -364,7 +364,7 @@ class MLEnginePhotoIntelligenceTester:
         # Test without authentication first
         try:
             async with self.session.post(
-                f"{self.api_url}/ml/pricing/analyze",
+                f"{self.api_url}/ml/engine/smart-pricing",
                 json={"species": "cattle", "quantity": 10},
                 headers={"Content-Type": "application/json"}  # No auth header
             ) as response:
