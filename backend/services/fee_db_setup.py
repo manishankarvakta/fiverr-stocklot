@@ -57,7 +57,6 @@ class FeeSystemDatabaseSetup:
                 IndexModel(
                     [("is_active", ASCENDING)],
                     unique=True,
-                    sparse=True,
                     partialFilterExpression={"is_active": True},
                     name="active_fee_config_unique"
                 ),
