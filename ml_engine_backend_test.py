@@ -387,7 +387,7 @@ class MLEnginePhotoIntelligenceTester:
         # Test with authentication
         try:
             async with self.session.post(
-                f"{self.api_url}/ml/pricing/analyze",
+                f"{self.api_url}/ml/engine/smart-pricing",
                 json={"species": "cattle", "quantity": 10},
                 headers=self.get_headers()
             ) as response:
