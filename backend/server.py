@@ -1326,6 +1326,27 @@ async def initialize_database():
             else:
                 print("✅ All species have breeds")
             
+        # Initialize Review System Database
+        try:
+            print("🌟 Setting up review system database...")
+            await setup_review_database(db)
+            print("✅ Review system database setup completed")
+        except Exception as e:
+            logger.error(f"Review system database setup failed: {e}")
+            print(f"⚠️  Review system database setup failed: {e}")
+        
+        # Start Review System Background Jobs
+        try:
+            global review_cron_service
+            review_cron_service = get_review_cron_service(db)
+            
+            # Start background jobs in a separate task to avoid blocking startup
+            asyncio.create_task(review_cron_service.start_background_jobs())
+            print("✅ Review system background jobs started")
+        except Exception as e:
+            logger.error(f"Review system background jobs failed to start: {e}")
+            print(f"⚠️  Review system background jobs failed to start: {e}")
+            
         logger.info("Database initialization completed successfully")
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
