@@ -87,6 +87,13 @@ ml_matching_service = MLMatchingService(db)
 ml_engine_service = MLEngineService(db)
 photo_intelligence_service = PhotoIntelligenceService(db)
 
+# Initialize Review System services
+from services.review_cron_service import get_review_cron_service
+from services.review_db_setup import setup_review_database
+
+# Global review cron service
+review_cron_service = None
+
 # Paystack configuration
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY") 
