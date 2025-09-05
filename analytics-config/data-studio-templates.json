@@ -1,0 +1,405 @@
+{
+  "data_studio_dashboards": [
+    {
+      "name": "StockLot Executive Summary Dashboard",
+      "description": "High-level KPIs and business metrics overview",
+      "pages": [
+        {
+          "name": "Overview",
+          "components": [
+            {
+              "type": "scorecard",
+              "title": "Total Users (30 days)",
+              "metric": "totalUsers",
+              "comparison": "previous_period",
+              "size": "medium"
+            },
+            {
+              "type": "scorecard", 
+              "title": "Total Revenue (30 days)",
+              "metric": "totalRevenue",
+              "format": "currency_ZAR",
+              "comparison": "previous_period",
+              "size": "medium"
+            },
+            {
+              "type": "scorecard",
+              "title": "Conversion Rate",
+              "metric": "conversionRate",
+              "format": "percentage",
+              "comparison": "previous_period", 
+              "size": "medium"
+            },
+            {
+              "type": "scorecard",
+              "title": "Active Sellers",
+              "metric": "totalUsers",
+              "filter": "user_type=seller",
+              "comparison": "previous_period",
+              "size": "medium"
+            },
+            {
+              "type": "time_series",
+              "title": "Daily Revenue Trend",
+              "metrics": ["totalRevenue"],
+              "dimensions": ["date"],
+              "date_range": "30_days",
+              "size": "large"
+            },
+            {
+              "type": "bar_chart",
+              "title": "Revenue by Livestock Category",
+              "metric": "totalRevenue", 
+              "dimension": "livestock_category",
+              "sort": "descending",
+              "size": "medium"
+            },
+            {
+              "type": "geo_map",
+              "title": "User Distribution - South Africa",
+              "metric": "totalUsers",
+              "dimension": "region",
+              "filter": "country=South Africa",
+              "size": "medium"
+            },
+            {
+              "type": "table",
+              "title": "Top Performing Sellers",
+              "metrics": ["totalRevenue", "eventCount", "seller_rating"],
+              "dimensions": ["seller_id", "seller_name"],
+              "sort": "totalRevenue_desc",
+              "max_rows": 10,
+              "size": "medium"
+            }
+          ]
+        },
+        {
+          "name": "User Acquisition",
+          "components": [
+            {
+              "type": "funnel",
+              "title": "User Registration Funnel",
+              "steps": [
+                {
+                  "name": "Visitors",
+                  "metric": "totalUsers"
+                },
+                {
+                  "name": "Registration Started",
+                  "event": "registration_started"
+                },
+                {
+                  "name": "Registration Completed", 
+                  "event": "sign_up"
+                },
+                {
+                  "name": "First Purchase",
+                  "event": "purchase"
+                }
+              ],
+              "size": "large"
+            },
+            {
+              "type": "pie_chart",
+              "title": "Registration Methods",
+              "metric": "eventCount",
+              "dimension": "registration_method",
+              "filter": "event_name=sign_up",
+              "size": "medium"
+            },
+            {
+              "type": "time_series",
+              "title": "User Acquisition Trends",
+              "metrics": ["newUsers", "totalUsers"],
+              "dimensions": ["date"],
+              "date_range": "90_days",
+              "size": "large"
+            }
+          ]
+        }
+      ],
+      "filters": [
+        {
+          "name": "Date Range",
+          "type": "date_range",
+          "default": "30_days"
+        },
+        {
+          "name": "User Type",
+          "type": "dropdown",
+          "dimension": "user_type",
+          "options": ["All", "Buyer", "Seller", "Both"]
+        },
+        {
+          "name": "Livestock Category",
+          "type": "dropdown", 
+          "dimension": "livestock_category",
+          "options": ["All", "Cattle", "Sheep", "Goats", "Pigs", "Poultry", "Other"]
+        }
+      ]
+    },
+    {
+      "name": "Reviews & Ratings Performance Dashboard",
+      "description": "Comprehensive review system analytics and insights",
+      "pages": [
+        {
+          "name": "Review Overview",
+          "components": [
+            {
+              "type": "scorecard",
+              "title": "Total Reviews (30 days)",
+              "metric": "eventCount",
+              "filter": "event_name=review_created",
+              "comparison": "previous_period",
+              "size": "medium"
+            },
+            {
+              "type": "scorecard",
+              "title": "Average Review Rating",
+              "metric": "averageValue",
+              "dimension": "review_rating",
+              "filter": "event_name=review_created",
+              "format": "decimal_1",
+              "comparison": "previous_period",
+              "size": "medium"
+            },
+            {
+              "type": "scorecard",
+              "title": "Review Conversion Rate",
+              "calculation": "review_created / purchase * 100",
+              "format": "percentage",
+              "comparison": "previous_period",
+              "size": "medium"
+            },
+            {
+              "type": "scorecard",
+              "title": "Seller Reply Rate",
+              "calculation": "review_reply_created / review_created * 100",
+              "format": "percentage",
+              "comparison": "previous_period",
+              "size": "medium"
+            },
+            {
+              "type": "funnel",
+              "title": "Review Creation Funnel",
+              "steps": [
+                {
+                  "name": "Orders Completed",
+                  "event": "purchase"
+                },
+                {
+                  "name": "Review Prompt Shown",
+                  "event": "review_prompt_shown"
+                },
+                {
+                  "name": "Review Modal Opened",
+                  "event": "review_modal_opened"
+                },
+                {
+                  "name": "Review Form Started",
+                  "event": "review_form_started"
+                },
+                {
+                  "name": "Review Submitted",
+                  "event": "review_created"
+                }
+              ],
+              "size": "large"
+            },
+            {
+              "type": "bar_chart",
+              "title": "Rating Distribution",
+              "metric": "eventCount",
+              "dimension": "review_rating",
+              "filter": "event_name=review_created",
+              "sort": "dimension_asc",
+              "size": "medium"
+            }
+          ]
+        },
+        {
+          "name": "Review Quality",
+          "components": [
+            {
+              "type": "time_series",
+              "title": "Daily Review Submissions",
+              "metrics": ["eventCount"],
+              "dimensions": ["date"],
+              "filter": "event_name=review_created",
+              "date_range": "30_days",
+              "size": "large"
+            },
+            {
+              "type": "stacked_bar",
+              "title": "Reviews by Direction",
+              "metric": "eventCount",
+              "dimensions": ["date", "review_direction"],
+              "filter": "event_name=review_created",
+              "size": "large"
+            },
+            {
+              "type": "scatter_plot",
+              "title": "Review Length vs Rating",
+              "x_axis": "review_length",
+              "y_axis": "review_rating",
+              "size_metric": "eventCount",
+              "filter": "event_name=review_created",
+              "size": "medium"
+            },
+            {
+              "type": "table",
+              "title": "Review Quality Metrics",
+              "metrics": [
+                "eventCount",
+                "averageValue:review_rating",
+                "averageValue:review_length",
+                "percentage_with_photos"
+              ],
+              "dimensions": ["review_direction", "livestock_category"],
+              "sort": "eventCount_desc",
+              "size": "medium"
+            }
+          ]
+        },
+        {
+          "name": "Seller Engagement",
+          "components": [
+            {
+              "type": "table",
+              "title": "Top Sellers by Review Performance",
+              "metrics": [
+                "review_count",
+                "average_rating",
+                "reply_rate",
+                "avg_reply_time"
+              ],
+              "dimensions": ["seller_id", "seller_name"],
+              "sort": "average_rating_desc",
+              "max_rows": 20,
+              "size": "large"
+            },
+            {
+              "type": "histogram",
+              "title": "Seller Reply Time Distribution",
+              "metric": "reply_time_minutes",
+              "bins": 20,
+              "size": "medium"
+            },
+            {
+              "type": "correlation_chart",
+              "title": "Reply Rate vs Seller Rating",
+              "x_axis": "reply_rate",
+              "y_axis": "average_seller_rating",
+              "size": "medium"
+            }
+          ]
+        }
+      ],
+      "filters": [
+        {
+          "name": "Date Range",
+          "type": "date_range",
+          "default": "30_days"
+        },
+        {
+          "name": "Review Direction",
+          "type": "dropdown",
+          "dimension": "review_direction",
+          "options": ["All", "BUYER_ON_SELLER", "SELLER_ON_BUYER"]
+        },
+        {
+          "name": "Rating Filter",
+          "type": "slider",
+          "dimension": "review_rating", 
+          "min": 1,
+          "max": 5
+        }
+      ]
+    },
+    {
+      "name": "Marketplace Health Dashboard",
+      "description": "Trust, safety, and platform quality metrics",
+      "pages": [
+        {
+          "name": "Trust Metrics",
+          "components": [
+            {
+              "type": "gauge",
+              "title": "Platform Trust Score",
+              "calculation": "weighted_average_seller_rating",
+              "min": 0,
+              "max": 5,
+              "target": 4.5,
+              "size": "medium"
+            },
+            {
+              "type": "scorecard",
+              "title": "Dispute Rate",
+              "calculation": "disputes / total_orders * 100",
+              "format": "percentage",
+              "comparison": "previous_period",
+              "target": "< 2%",
+              "size": "medium"
+            },
+            {
+              "type": "scorecard",
+              "title": "KYC Completion Rate", 
+              "calculation": "kyc_completed / sign_up * 100",
+              "format": "percentage",
+              "comparison": "previous_period",
+              "target": "> 75%",
+              "size": "medium"
+            },
+            {
+              "type": "time_series",
+              "title": "Trust Score Evolution",
+              "metrics": ["platform_trust_score"],
+              "dimensions": ["date"],
+              "date_range": "90_days",
+              "trend_line": true,
+              "size": "large"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "calculated_fields": [
+    {
+      "name": "Review Conversion Rate",
+      "formula": "COUNT(CASE WHEN Event Name = 'review_created' THEN Event Name END) / COUNT(CASE WHEN Event Name = 'purchase' THEN Event Name END) * 100"
+    },
+    {
+      "name": "Seller Reply Rate", 
+      "formula": "COUNT(CASE WHEN Event Name = 'review_reply_created' THEN Event Name END) / COUNT(CASE WHEN Event Name = 'review_created' AND Review Direction = 'BUYER_ON_SELLER' THEN Event Name END) * 100"
+    },
+    {
+      "name": "Average Review Rating",
+      "formula": "AVG(CASE WHEN Event Name = 'review_created' THEN CAST(Review Rating AS NUMERIC) END)"
+    },
+    {
+      "name": "Platform Trust Score",
+      "formula": "AVG(CASE WHEN Event Name = 'review_created' AND Review Direction = 'BUYER_ON_SELLER' THEN CAST(Review Rating AS NUMERIC) END)"
+    },
+    {
+      "name": "Revenue per User",
+      "formula": "SUM(Total Revenue) / COUNT(DISTINCT User Pseudo ID)"
+    },
+    {
+      "name": "Reviews with Photos Rate",
+      "formula": "COUNT(CASE WHEN Event Name = 'review_created' AND Has Photos = 'true' THEN Event Name END) / COUNT(CASE WHEN Event Name = 'review_created' THEN Event Name END) * 100"
+    }
+  ],
+  "data_sources": [
+    {
+      "name": "Google Analytics 4",
+      "connector": "GA4",
+      "account_id": "G-1CB5KGJKK4",
+      "tables": [
+        "events",
+        "users",
+        "conversions"
+      ]
+    }
+  ]
+}
