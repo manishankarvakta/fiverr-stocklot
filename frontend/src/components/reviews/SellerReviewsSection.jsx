@@ -176,12 +176,12 @@ const SellerReviewsSection = ({
           
           {showFilters && (
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setShowFiltersPanel(!showFiltersPanel)}
               className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
             >
               <Filter className="w-4 h-4" />
               Filters
-              <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 transition-transform ${showFiltersPanel ? 'rotate-180' : ''}`} />
             </button>
           )}
         </div>
