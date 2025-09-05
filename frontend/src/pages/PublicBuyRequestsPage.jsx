@@ -14,7 +14,7 @@ const PublicBuyRequestsPage = ({ user, onLogin }) => {
   useEffect(() => {
     const loadBuyRequests = async () => {
       try {
-        console.log('Loading buy requests from:', `${BACKEND_URL}/api/public/buy-requests`);
+        console.log('Loading buy requests from:', `${BACKEND_URL}/public/buy-requests`);
         
         const response = await fetch(`${BACKEND_URL}/public/buy-requests?limit=10`);
         
