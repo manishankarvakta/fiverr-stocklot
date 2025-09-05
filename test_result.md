@@ -211,7 +211,7 @@ backend:
     implemented: true
     working: true
     file: "/app/backend/server.py"
-    stuck_count: 3
+    stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
@@ -226,7 +226,10 @@ backend:
           comment: "FINAL TEST: All dashboard APIs still failing with 404 'Buy request not found' errors despite successful buy request creation. ❌ /buy-requests/my-requests ❌ /buy-requests/seller-inbox ❌ /buy-requests/my-offers. Issue appears to be in query logic or data access patterns, not endpoint routing. Endpoints exist and are accessible but return incorrect 404 responses."
         - working: false
           agent: "testing"
-          comment: "CRITICAL FIXES VALIDATION: Dashboard endpoints still failing with 404 errors. ❌ All 3 endpoints return 'Buy request not found' despite successful buy request creation. Issue confirmed to be in query logic - endpoints exist and are accessible but database queries are not finding the created buy requests. This suggests a mismatch between how buy requests stored vs how dashboard queries search for them."
+          comment: "CRITICAL FIXES VALIDATION: Dashboard endpoints still failing with 404 errors. ❌ All 3 endpoints return 'Buy request not found' despite successful buy request creation. Issue confirmed to be in query logic - endpoints exist and are accessible but database queries are not finding the created buy requests. This suggests a mismatch between how buy requests are stored vs how dashboard queries search for them."
+        - working: true
+          agent: "testing"
+          comment: "CRITICAL ISSUE RESOLVED: Fixed FastAPI route ordering problem that was causing 404 errors. Moved dashboard endpoints BEFORE generic /buy-requests/{request_id} route to prevent route interception. All 3 endpoints now working perfectly: ✅ GET /buy-requests/my-requests ✅ GET /buy-requests/seller-inbox ✅ GET /buy-requests/my-offers. Authentication, authorization, and database queries all functioning correctly. Dashboard functionality fully restored."
         - working: true
           agent: "testing"
           comment: "CRITICAL ISSUE RESOLVED! ✅ Fixed FastAPI route ordering issue - dashboard endpoints were being intercepted by generic /buy-requests/{request_id} route. Moved dashboard routes BEFORE generic route in server.py. All 3 endpoints now working: ✅ GET /buy-requests/my-requests (200 OK) ✅ GET /buy-requests/seller-inbox (200 OK) ✅ GET /buy-requests/my-offers (200 OK). Endpoints correctly handle authentication, authorization, database queries, pagination, and filtering. Root cause was route precedence in FastAPI - specific routes must be defined before parameterized routes."
