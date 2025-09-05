@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 def test_buyer_offers_basic():
     """Test basic buyer offers functionality"""
-    base_url = "https://procurement-hub-10.preview.emergentagent.com/api"
+    base_url = "https://trustscores.preview.emergentagent.com/api"
     
     print("🔍 Testing Basic Buyer Offers Functionality...")
     

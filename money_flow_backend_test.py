@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 class MoneyFlowTester:
-    def __init__(self, base_url="https://procurement-hub-10.preview.emergentagent.com"):
+    def __init__(self, base_url="https://trustscores.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.admin_token = None

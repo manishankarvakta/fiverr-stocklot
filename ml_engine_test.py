@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Tuple
 
 class MLEngineAPITester:
-    def __init__(self, base_url="https://procurement-hub-10.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://trustscores.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.buyer_token = None
         self.seller_token = None

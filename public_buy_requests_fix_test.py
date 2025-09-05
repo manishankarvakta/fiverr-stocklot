@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 class PublicBuyRequestsFixTester:
-    def __init__(self, base_url="https://procurement-hub-10.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://trustscores.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.seller_token = None

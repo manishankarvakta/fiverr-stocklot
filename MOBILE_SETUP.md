@@ -114,7 +114,7 @@ cap build android
 ## Platform Owner Admin Access
 
 ### Desktop
-1. Navigate to `https://procurement-hub-10.preview.emergentagent.com/admin`
+1. Navigate to `https://trustscores.preview.emergentagent.com/admin`
 2. Login with admin credentials
 3. Full desktop admin interface with all tabs
 
