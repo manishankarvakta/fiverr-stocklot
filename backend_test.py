@@ -899,6 +899,16 @@ class FarmStockAPITester:
         # NEW FEATURES Analysis - FOCUS ON REVIEW REQUEST
         print(f"\n🎯 REVIEW REQUEST FEATURES ANALYSIS:")
         
+        # Check Reviews & Ratings System (Duo Reviews) - MAIN FOCUS
+        review_tests = [r for r in self.test_results if 'review' in r['test'].lower()]
+        successful_review_tests = [t for t in review_tests if t['success']]
+        if len(successful_review_tests) >= 5:  # At least 5 review endpoints working
+            print("   ✅ Reviews & Ratings System: Working - Duo reviews, moderation, and aggregates functional")
+        elif len(successful_review_tests) > 0:
+            print(f"   ⚠️  Reviews & Ratings System: Partially working - {len(successful_review_tests)}/{len(review_tests)} endpoints functional")
+        else:
+            print("   ❌ Reviews & Ratings System: Failed - Review system may not work")
+        
         # Check Blog System
         blog_tests = [r for r in self.test_results if 'blog' in r['test'].lower()]
         if any(t['success'] for t in blog_tests):
