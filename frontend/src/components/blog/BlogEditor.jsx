@@ -8,7 +8,7 @@ import {
 import { 
   Save, Eye, Calendar, Image, Tag, Settings, Upload, Link2, 
   Bold, Italic, List, Quote, Code, Heading1, Heading2, Heading3,
-  Undo, Redo, FileText, Globe, Clock, User
+  Undo, Redo, FileText, Globe, Clock, User, Sparkles, Wand2
 } from 'lucide-react';
 
 // Import auth context
