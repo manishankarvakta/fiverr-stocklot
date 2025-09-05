@@ -849,6 +849,9 @@ class FarmStockAPITester:
         
         # Test NEW SYSTEMS if authenticated - FOCUS ON REVIEW REQUEST FEATURES
         if auth_success or enhanced_auth_success:
+            # Test NEW: Reviews & Ratings System (Duo Reviews) - MAIN FOCUS
+            self.test_reviews_ratings_system()
+            
             # Test NEW: Blog system (main focus)
             self.test_blog_system()
             
