@@ -4617,6 +4617,7 @@ function App() {
               <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
               <Route path="/inbox" element={<UnifiedInbox />} />
               <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
+              <Route path="/reviews-test" element={<ReviewsTestPage />} />
               <Route path="/contact" element={<Contact />} />
             </Routes>
           </main>
