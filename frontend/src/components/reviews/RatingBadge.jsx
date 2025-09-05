@@ -30,7 +30,10 @@ const RatingBadge = ({ value, count, size = 'sm', showCount = true, sellerId, cl
   };
 
   return (
-    <div className={`flex items-center ${sizeClasses[size]}`}>
+    <div 
+      className={`flex items-center ${sizeClasses[size]} ${sellerId ? 'cursor-pointer hover:opacity-80' : ''}`}
+      onClick={handleClick}
+    >
       <div className="flex items-center gap-1">
         <svg 
           className={`${starSizes[size]} text-yellow-500 fill-current`}
