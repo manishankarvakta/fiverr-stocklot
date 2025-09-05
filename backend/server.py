@@ -10098,4 +10098,9 @@ app.include_router(api_router)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    # Stop review system background jobs
+    global review_cron_service
+    if review_cron_service:
+        await review_cron_service.stop_background_jobs()
+    
     client.close()
