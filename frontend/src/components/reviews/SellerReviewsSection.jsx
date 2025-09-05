@@ -61,6 +61,8 @@ const SellerReviewsSection = ({
   useEffect(() => {
     if (sellerId) {
       fetchReviews(1, sortBy);
+      // Track review section view
+      analytics.trackReviewSectionView(sellerId, 'full_page');
     }
   }, [sellerId, sortBy]);
   
