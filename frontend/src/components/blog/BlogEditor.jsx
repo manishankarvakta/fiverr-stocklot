@@ -400,7 +400,20 @@ const BlogEditor = ({ articleId, onSave, onCancel }) => {
 
               {/* Excerpt */}
               <div>
-                <Label htmlFor="excerpt">Excerpt</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="excerpt">Excerpt</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAIGeneration('excerpt')}
+                    disabled={aiGenerating || !article.title}
+                    className="text-xs"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    {aiGenerating ? 'Generating...' : 'AI Generate'}
+                  </Button>
+                </div>
                 <Textarea
                   id="excerpt"
                   value={article.excerpt}
