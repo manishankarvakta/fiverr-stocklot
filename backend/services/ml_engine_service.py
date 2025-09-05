@@ -651,6 +651,66 @@ class MLEngineService:
                 "price_trend": 0.0
             }
     
+    async def _analyze_competition(self, listing_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze competitive landscape for pricing"""
+        try:
+            species = listing_data.get("species", "")
+            location = listing_data.get("location", "")
+            quantity = listing_data.get("quantity", 0)
+            
+            # Find similar listings in the market
+            query = {"species": species, "status": "active"}
+            if location:
+                query["province"] = location
+            
+            cursor = self.db.listings.find(query).limit(20)
+            similar_listings = await cursor.to_list(length=None)
+            
+            if not similar_listings:
+                return {
+                    "competitive_price_range": {"min": 0, "max": 0},
+                    "market_position": "no_competition",
+                    "competitor_count": 0,
+                    "price_advantage": 0.0
+                }
+            
+            # Extract competitor prices
+            competitor_prices = []
+            for listing in similar_listings:
+                price = listing.get("unit_price", 0)
+                if price > 0:
+                    competitor_prices.append(price)
+            
+            if competitor_prices:
+                min_price = min(competitor_prices)
+                max_price = max(competitor_prices)
+                avg_price = sum(competitor_prices) / len(competitor_prices)
+                
+                return {
+                    "competitive_price_range": {"min": min_price, "max": max_price},
+                    "average_competitor_price": avg_price,
+                    "market_position": "competitive" if len(competitor_prices) > 3 else "limited_competition",
+                    "competitor_count": len(competitor_prices),
+                    "price_advantage": 0.0  # Will be calculated against our suggested price
+                }
+            
+            return {
+                "competitive_price_range": {"min": 0, "max": 0},
+                "market_position": "no_competition",
+                "competitor_count": 0,
+                "price_advantage": 0.0
+            }
+            
+        except Exception as e:
+            # Return safe default values
+            return {
+                "competitive_price_range": {"min": 0, "max": 0},
+                "market_position": "unknown",
+                "competitor_count": 0,
+                "price_advantage": 0.0,
+                "error": str(e)
+            }
+    
     async def _predict_optimal_price(self, features: Dict[str, Any]) -> Tuple[float, float]:
         """Predict optimal price using ML model"""
         try:
