@@ -10177,7 +10177,18 @@ async def list_fee_configs(
             query["is_active"] = True
         
         cursor = db.fee_configs.find(query).sort("created_at", -1)
-        configs = await cursor.to_list(length=None)
+        configs_raw = await cursor.to_list(length=None)
+        
+        # Clean configs to remove ObjectId fields
+        configs = []
+        for config in configs_raw:
+            if "_id" in config:
+                del config["_id"]
+            # Convert datetime objects to ISO strings
+            for field in ["created_at", "updated_at", "effective_from", "effective_to"]:
+                if field in config and hasattr(config[field], 'isoformat'):
+                    config[field] = config[field].isoformat()
+            configs.append(config)
         
         return {
             "success": True,
