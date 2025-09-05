@@ -536,7 +536,7 @@ class MLEngineService:
             'kwazulu-natal': 1.1
         }
         
-        return premium_locations.get(province.lower(), 1.0)
+        return premium_locations.get(province.lower() if province else '', 1.0)
     
     async def _estimate_transport_costs(self, province: str) -> float:
         """Estimate transport cost factor"""
