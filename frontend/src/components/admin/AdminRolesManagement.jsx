@@ -205,7 +205,7 @@ export default function AdminRolesManagement() {
     {
       id: 'admin_1',
       full_name: 'System Administrator',
-      email: 'admin@stocklot.co.za',
+      email: 'admin@stocklot.farm',
       roles: ['Super Admin'],
       status: 'active',
       last_login: '2025-08-29T15:30:00Z',
