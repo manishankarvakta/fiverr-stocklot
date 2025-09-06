@@ -204,7 +204,7 @@ class CriticalFixesTester:
                         
                         if post_status in [200, 201]:
                             self.test_results.append({
-                                "test": "Admin Settings POST",
+                                "test": "Admin Settings PUT",
                                 "status": "✅ PASS",
                                 "details": f"Admin settings updated successfully",
                                 "response_code": post_status
@@ -213,7 +213,7 @@ class CriticalFixesTester:
                             return True
                         else:
                             self.test_results.append({
-                                "test": "Admin Settings POST",
+                                "test": "Admin Settings PUT",
                                 "status": "❌ FAIL",
                                 "details": f"Admin settings update failed with status {post_status}: {post_data}",
                                 "response_code": post_status
