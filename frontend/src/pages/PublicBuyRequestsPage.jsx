@@ -105,13 +105,72 @@ const PublicBuyRequestsPage = ({ user, onLogin }) => {
                 </span>
               </div>
               
-              <div className="flex flex-wrap gap-2 text-sm text-gray-600 mb-4">
-                <span>📦 {request.qty} {request.unit}</span>
-                <span>📍 {request.province}</span>
-                <span>👁️ {request.offers_count} offers</span>
+              {/* Species and Product Type Tags */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                  request.species === 'cattle' ? 'bg-amber-100 text-amber-800' :
+                  request.species === 'poultry' ? 'bg-yellow-100 text-yellow-800' :
+                  request.species === 'sheep' ? 'bg-blue-100 text-blue-800' :
+                  request.species === 'goats' ? 'bg-green-100 text-green-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {request.species}
+                </span>
+                <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 font-medium">
+                  {request.product_type}
+                </span>
               </div>
               
-              <div className="flex justify-between items-center">
+              {/* Main Details */}
+              <div className="space-y-2 text-sm text-gray-600 mb-4">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1">
+                    <span className="font-medium">📦</span> {request.qty} {request.unit}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="font-medium">📍</span> {request.province}
+                  </span>
+                </div>
+                
+                {request.weight_range && (
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">⚖️</span> 
+                    Weight: {request.weight_range.min}-{request.weight_range.max} kg
+                  </div>
+                )}
+                
+                {request.age_requirements && (
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">🎂</span> 
+                    Age: {request.age_requirements.min}-{request.age_requirements.max} months
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <span className="font-medium">💰</span> 
+                    {request.offers_count} offers received
+                  </span>
+                  
+                  {request.inspection_allowed && (
+                    <span className="text-green-600 text-xs font-medium">
+                      ✓ Inspection OK
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Vaccination & Certificates */}
+              {(request.vaccination_requirements?.length > 0 || request.has_vet_certificates) && (
+                <div className="text-xs text-blue-600 mb-3">
+                  {request.has_vet_certificates && <span>✓ Vet certificates required </span>}
+                  {request.vaccination_requirements?.length > 0 && 
+                    <span>✓ Vaccinations: {request.vaccination_requirements.join(', ')}</span>
+                  }
+                </div>
+              )}
+              
+              <div className="flex justify-between items-center pt-3 border-t">
                 <span className="text-sm text-orange-600">
                   ⏰ Deadline: {new Date(request.deadline_at).toLocaleDateString()}
                 </span>
