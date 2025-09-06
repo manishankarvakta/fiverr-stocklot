@@ -550,13 +550,14 @@ function Footer() {
         if (response.ok) {
           const config = await response.json();
           const settings = config.settings || {};
+          const socialMedia = settings.social_media || {};
           console.log('Loaded social settings:', settings); // Debug log
           setSocialSettings({
-            facebookUrl: settings.facebookUrl || '',
-            twitterUrl: settings.twitterUrl || '',
-            instagramUrl: settings.instagramUrl || '',
-            youtubeUrl: settings.youtubeUrl || '',
-            linkedinUrl: settings.linkedinUrl || ''
+            facebookUrl: socialMedia.facebook_url || '',
+            twitterUrl: socialMedia.x_url || '',  // Note: using x_url for Twitter/X
+            instagramUrl: socialMedia.instagram_url || '',
+            youtubeUrl: socialMedia.youtube_url || '',
+            linkedinUrl: socialMedia.linkedin_url || ''
           });
         }
       } catch (error) {
