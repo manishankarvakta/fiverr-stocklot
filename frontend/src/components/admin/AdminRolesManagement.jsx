@@ -21,6 +21,13 @@ export default function AdminRolesManagement() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newRole, setNewRole] = useState({
+    name: '',
+    slug: '', 
+    description: '',
+    permissions: [],
+    level: 5
+  });
 
   useEffect(() => {
     fetchRoles();
