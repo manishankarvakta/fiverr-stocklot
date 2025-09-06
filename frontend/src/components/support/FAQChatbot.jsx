@@ -385,11 +385,7 @@ export default function FAQChatbot() {
               <div className="flex items-center justify-center mt-2 space-x-4 text-xs text-gray-500">
                 <div className="flex items-center">
                   <Mail className="h-3 w-3 mr-1" />
-                  support@stocklot.co.za
-                </div>
-                <div className="flex items-center">
-                  <Phone className="h-3 w-3 mr-1" />
-                  +27 11 123 4567
+                  hello@stocklot.co.za
                 </div>
               </div>
             </div>
