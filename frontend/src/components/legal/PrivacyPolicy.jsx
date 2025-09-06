@@ -426,8 +426,7 @@ const PrivacyPolicy = () => {
                 <p>
                   <strong>Information Regulator South Africa</strong><br />
                   Website: www.justice.gov.za/inforeg/<br />
-                  Email: inforeg@justice.gov.za<br />
-                  Phone: +27 12 406 4818
+                  Email: inforeg@justice.gov.za
                 </p>
               </div>
             </CardContent>
