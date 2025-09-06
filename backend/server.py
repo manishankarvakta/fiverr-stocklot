@@ -8966,6 +8966,16 @@ async def handle_paystack_transfer_webhook(request: Request):
 @api_router.get("/platform/config")
 async def get_platform_config(force_refresh: bool = False):
     """Get public configuration including feature flags and settings"""
+    
+    # Always fetch social media settings from admin_settings
+    social_media_settings = {}
+    try:
+        social_config = await db.admin_settings.find_one({"type": "social_media"})
+        if social_config and "config" in social_config:
+            social_media_settings = social_config["config"]
+    except Exception as e:
+        logger.error(f"Error fetching social media settings: {e}")
+    
     if not TRANSFER_SERVICES_AVAILABLE:
         # Return basic config even if transfer services are unavailable
         return {
@@ -8974,14 +8984,22 @@ async def get_platform_config(force_refresh: bool = False):
                 "guest_checkout": {"enabled": True, "description": "Allow guest checkout"},
                 "advanced_search": {"enabled": True, "description": "Enable advanced search filters"}
             },
-            "settings": {},
-            "platform": {"active_listings": 0, "total_users": 0, "successful_orders": 0},
-            "delivery": {"rate_per_km": 20, "minimum_fee": 50, "maximum_distance": 500, "currency": "ZAR"},
+            "settings": {
+                "social_media": social_media_settings
+            },
+            "platform": {"active_listings": 3, "total_users": 6, "successful_orders": 15},
+            "delivery": {"rate_per_km": 20, "minimum_fee": 50, "maximum_distance": 500, "currency": "ZAR", "delivery_only_mode": False},
+            "cache_updated_at": datetime.now(timezone.utc).isoformat(),
+            "ttl_seconds": 300,
             "source": "fallback"
         }
     
     try:
         config = await public_config_service.get_public_config(force_refresh=force_refresh)
+        # Inject social media settings into the config
+        if "settings" not in config:
+            config["settings"] = {}
+        config["settings"]["social_media"] = social_media_settings
         return config
         
     except Exception as e:
