@@ -8,8 +8,7 @@ Tests the 4 recently fixed admin components:
 4. DiseaseZoneManager - Verify "Create Disease Zone" functionality
 """
 
-import asyncio
-import aiohttp
+import requests
 import json
 import os
 import sys
@@ -25,7 +24,7 @@ ADMIN_PASSWORD = "admin123"
 
 class AdminComponentsTester:
     def __init__(self):
-        self.session = None
+        self.session = requests.Session()
         self.admin_token = None
         self.test_results = {
             'webhooks': {'tested': False, 'working': False, 'details': []},
@@ -34,18 +33,7 @@ class AdminComponentsTester:
             'disease_zones': {'tested': False, 'working': False, 'details': []}
         }
 
-    async def setup_session(self):
-        """Initialize HTTP session"""
-        self.session = aiohttp.ClientSession()
-        print("✅ HTTP session initialized")
-
-    async def cleanup_session(self):
-        """Cleanup HTTP session"""
-        if self.session:
-            await self.session.close()
-            print("✅ HTTP session closed")
-
-    async def admin_login(self):
+    def admin_login(self):
         """Login as admin user"""
         try:
             login_data = {
@@ -53,16 +41,15 @@ class AdminComponentsTester:
                 "password": ADMIN_PASSWORD
             }
             
-            async with self.session.post(f"{API_BASE}/auth/login", json=login_data) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    self.admin_token = data.get('access_token') or data.get('token') or ADMIN_EMAIL
-                    print(f"✅ Admin login successful")
-                    return True
-                else:
-                    error_text = await response.text()
-                    print(f"❌ Admin login failed: {response.status} - {error_text}")
-                    return False
+            response = self.session.post(f"{API_BASE}/auth/login", json=login_data)
+            if response.status_code == 200:
+                data = response.json()
+                self.admin_token = data.get('access_token') or data.get('token') or ADMIN_EMAIL
+                print(f"✅ Admin login successful")
+                return True
+            else:
+                print(f"❌ Admin login failed: {response.status_code} - {response.text}")
+                return False
                     
         except Exception as e:
             print(f"❌ Admin login error: {e}")
@@ -75,7 +62,7 @@ class AdminComponentsTester:
             'Content-Type': 'application/json'
         }
 
-    async def test_webhooks_management(self):
+    def test_webhooks_management(self):
         """Test AdminWebhooksManagement component"""
         print("\n🔗 Testing Webhooks Management...")
         component = 'webhooks'
@@ -84,19 +71,18 @@ class AdminComponentsTester:
         try:
             # Test 1: GET /admin/webhooks
             print("  📋 Testing GET /admin/webhooks...")
-            async with self.session.get(
+            response = self.session.get(
                 f"{API_BASE}/admin/webhooks",
                 headers=self.get_auth_headers()
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"    ✅ GET webhooks successful: {len(data.get('webhooks', []))} webhooks found")
-                    self.test_results[component]['details'].append("GET /admin/webhooks: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ GET webhooks failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"GET /admin/webhooks: ❌ {response.status}")
-                    return
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"    ✅ GET webhooks successful: {len(data.get('webhooks', []))} webhooks found")
+                self.test_results[component]['details'].append("GET /admin/webhooks: ✅ Working")
+            else:
+                print(f"    ❌ GET webhooks failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"GET /admin/webhooks: ❌ {response.status_code}")
+                return
 
             # Test 2: POST /admin/webhooks (Create webhook)
             print("  ➕ Testing POST /admin/webhooks (Create webhook)...")
@@ -108,52 +94,49 @@ class AdminComponentsTester:
                 "description": "Test webhook created via admin panel for testing purposes"
             }
             
-            async with self.session.post(
+            response = self.session.post(
                 f"{API_BASE}/admin/webhooks",
                 headers=self.get_auth_headers(),
                 json=webhook_data
-            ) as response:
-                if response.status in [200, 201]:
-                    webhook = await response.json()
-                    webhook_id = webhook.get('id')
-                    print(f"    ✅ Create webhook successful: ID {webhook_id}")
-                    self.test_results[component]['details'].append("POST /admin/webhooks: ✅ Working")
-                    
-                    # Test 3: DELETE /admin/webhooks/{id} (Delete webhook)
-                    if webhook_id:
-                        print(f"  🗑️ Testing DELETE /admin/webhooks/{webhook_id}...")
-                        async with self.session.delete(
-                            f"{API_BASE}/admin/webhooks/{webhook_id}",
-                            headers=self.get_auth_headers()
-                        ) as delete_response:
-                            if delete_response.status in [200, 204]:
-                                print(f"    ✅ Delete webhook successful")
-                                self.test_results[component]['details'].append("DELETE /admin/webhooks/{id}: ✅ Working")
-                            else:
-                                error_text = await delete_response.text()
-                                print(f"    ❌ Delete webhook failed: {delete_response.status} - {error_text}")
-                                self.test_results[component]['details'].append(f"DELETE /admin/webhooks/{{id}}: ❌ {delete_response.status}")
-                    
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ Create webhook failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"POST /admin/webhooks: ❌ {response.status}")
-                    return
+            )
+            if response.status_code in [200, 201]:
+                webhook = response.json()
+                webhook_id = webhook.get('id')
+                print(f"    ✅ Create webhook successful: ID {webhook_id}")
+                self.test_results[component]['details'].append("POST /admin/webhooks: ✅ Working")
+                
+                # Test 3: DELETE /admin/webhooks/{id} (Delete webhook)
+                if webhook_id:
+                    print(f"  🗑️ Testing DELETE /admin/webhooks/{webhook_id}...")
+                    delete_response = self.session.delete(
+                        f"{API_BASE}/admin/webhooks/{webhook_id}",
+                        headers=self.get_auth_headers()
+                    )
+                    if delete_response.status_code in [200, 204]:
+                        print(f"    ✅ Delete webhook successful")
+                        self.test_results[component]['details'].append("DELETE /admin/webhooks/{id}: ✅ Working")
+                    else:
+                        print(f"    ❌ Delete webhook failed: {delete_response.status_code} - {delete_response.text}")
+                        self.test_results[component]['details'].append(f"DELETE /admin/webhooks/{{id}}: ❌ {delete_response.status_code}")
+                
+            else:
+                print(f"    ❌ Create webhook failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"POST /admin/webhooks: ❌ {response.status_code}")
+                return
 
             # Test 4: GET /admin/webhook-logs
             print("  📊 Testing GET /admin/webhook-logs...")
-            async with self.session.get(
+            response = self.session.get(
                 f"{API_BASE}/admin/webhook-logs?limit=10",
                 headers=self.get_auth_headers()
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"    ✅ GET webhook logs successful: {len(data.get('logs', []))} logs found")
-                    self.test_results[component]['details'].append("GET /admin/webhook-logs: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ GET webhook logs failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"GET /admin/webhook-logs: ❌ {response.status}")
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"    ✅ GET webhook logs successful: {len(data.get('logs', []))} logs found")
+                self.test_results[component]['details'].append("GET /admin/webhook-logs: ✅ Working")
+            else:
+                print(f"    ❌ GET webhook logs failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"GET /admin/webhook-logs: ❌ {response.status_code}")
 
             self.test_results[component]['working'] = True
             print("  🎉 Webhooks Management: FULLY FUNCTIONAL")
@@ -162,7 +145,7 @@ class AdminComponentsTester:
             print(f"  ❌ Webhooks Management error: {e}")
             self.test_results[component]['details'].append(f"Error: {str(e)}")
 
-    async def test_logistics_management(self):
+    def test_logistics_management(self):
         """Test AdminLogisticsManagement component"""
         print("\n🚛 Testing Logistics Management...")
         component = 'logistics'
@@ -171,33 +154,31 @@ class AdminComponentsTester:
         try:
             # Test 1: GET /admin/transporters
             print("  📋 Testing GET /admin/transporters...")
-            async with self.session.get(
+            response = self.session.get(
                 f"{API_BASE}/admin/transporters",
                 headers=self.get_auth_headers()
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"    ✅ GET transporters successful: {len(data.get('transporters', []))} transporters found")
-                    self.test_results[component]['details'].append("GET /admin/transporters: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ GET transporters failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"GET /admin/transporters: ❌ {response.status}")
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"    ✅ GET transporters successful: {len(data.get('transporters', []))} transporters found")
+                self.test_results[component]['details'].append("GET /admin/transporters: ✅ Working")
+            else:
+                print(f"    ❌ GET transporters failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"GET /admin/transporters: ❌ {response.status_code}")
 
             # Test 2: GET /admin/abattoirs
             print("  📋 Testing GET /admin/abattoirs...")
-            async with self.session.get(
+            response = self.session.get(
                 f"{API_BASE}/admin/abattoirs",
                 headers=self.get_auth_headers()
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"    ✅ GET abattoirs successful: {len(data.get('abattoirs', []))} abattoirs found")
-                    self.test_results[component]['details'].append("GET /admin/abattoirs: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ GET abattoirs failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"GET /admin/abattoirs: ❌ {response.status}")
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"    ✅ GET abattoirs successful: {len(data.get('abattoirs', []))} abattoirs found")
+                self.test_results[component]['details'].append("GET /admin/abattoirs: ✅ Working")
+            else:
+                print(f"    ❌ GET abattoirs failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"GET /admin/abattoirs: ❌ {response.status_code}")
 
             # Test 3: POST /admin/transporters (Create transporter)
             print("  ➕ Testing POST /admin/transporters (Create transporter)...")
@@ -213,38 +194,36 @@ class AdminComponentsTester:
                 "type": "transporter"
             }
             
-            async with self.session.post(
+            response = self.session.post(
                 f"{API_BASE}/admin/transporters",
                 headers=self.get_auth_headers(),
                 json=transporter_data
-            ) as response:
-                if response.status in [200, 201]:
-                    transporter = await response.json()
-                    transporter_id = transporter.get('id')
-                    print(f"    ✅ Create transporter successful: ID {transporter_id}")
-                    self.test_results[component]['details'].append("POST /admin/transporters: ✅ Working")
-                    
-                    # Test status update if transporter was created
-                    if transporter_id:
-                        print(f"  🔄 Testing PUT /admin/transporters/{transporter_id}/status...")
-                        status_data = {"status": "active"}
-                        async with self.session.put(
-                            f"{API_BASE}/admin/transporters/{transporter_id}/status",
-                            headers=self.get_auth_headers(),
-                            json=status_data
-                        ) as status_response:
-                            if status_response.status == 200:
-                                print(f"    ✅ Update transporter status successful")
-                                self.test_results[component]['details'].append("PUT /admin/transporters/{id}/status: ✅ Working")
-                            else:
-                                error_text = await status_response.text()
-                                print(f"    ❌ Update transporter status failed: {status_response.status} - {error_text}")
-                                self.test_results[component]['details'].append(f"PUT /admin/transporters/{{id}}/status: ❌ {status_response.status}")
-                    
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ Create transporter failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"POST /admin/transporters: ❌ {response.status}")
+            )
+            if response.status_code in [200, 201]:
+                transporter = response.json()
+                transporter_id = transporter.get('id')
+                print(f"    ✅ Create transporter successful: ID {transporter_id}")
+                self.test_results[component]['details'].append("POST /admin/transporters: ✅ Working")
+                
+                # Test status update if transporter was created
+                if transporter_id:
+                    print(f"  🔄 Testing PUT /admin/transporters/{transporter_id}/status...")
+                    status_data = {"status": "active"}
+                    status_response = self.session.put(
+                        f"{API_BASE}/admin/transporters/{transporter_id}/status",
+                        headers=self.get_auth_headers(),
+                        json=status_data
+                    )
+                    if status_response.status_code == 200:
+                        print(f"    ✅ Update transporter status successful")
+                        self.test_results[component]['details'].append("PUT /admin/transporters/{id}/status: ✅ Working")
+                    else:
+                        print(f"    ❌ Update transporter status failed: {status_response.status_code} - {status_response.text}")
+                        self.test_results[component]['details'].append(f"PUT /admin/transporters/{{id}}/status: ❌ {status_response.status_code}")
+                
+            else:
+                print(f"    ❌ Create transporter failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"POST /admin/transporters: ❌ {response.status_code}")
 
             # Test 4: POST /admin/abattoirs (Create abattoir)
             print("  ➕ Testing POST /admin/abattoirs (Create abattoir)...")
@@ -260,20 +239,19 @@ class AdminComponentsTester:
                 "type": "abattoir"
             }
             
-            async with self.session.post(
+            response = self.session.post(
                 f"{API_BASE}/admin/abattoirs",
                 headers=self.get_auth_headers(),
                 json=abattoir_data
-            ) as response:
-                if response.status in [200, 201]:
-                    abattoir = await response.json()
-                    abattoir_id = abattoir.get('id')
-                    print(f"    ✅ Create abattoir successful: ID {abattoir_id}")
-                    self.test_results[component]['details'].append("POST /admin/abattoirs: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ Create abattoir failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"POST /admin/abattoirs: ❌ {response.status}")
+            )
+            if response.status_code in [200, 201]:
+                abattoir = response.json()
+                abattoir_id = abattoir.get('id')
+                print(f"    ✅ Create abattoir successful: ID {abattoir_id}")
+                self.test_results[component]['details'].append("POST /admin/abattoirs: ✅ Working")
+            else:
+                print(f"    ❌ Create abattoir failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"POST /admin/abattoirs: ❌ {response.status_code}")
 
             # Check if any endpoints worked
             working_endpoints = [detail for detail in self.test_results[component]['details'] if '✅' in detail]
@@ -287,7 +265,7 @@ class AdminComponentsTester:
             print(f"  ❌ Logistics Management error: {e}")
             self.test_results[component]['details'].append(f"Error: {str(e)}")
 
-    async def test_auctions_management(self):
+    def test_auctions_management(self):
         """Test AdminAuctionsManagement component"""
         print("\n🔨 Testing Auctions Management...")
         component = 'auctions'
@@ -296,33 +274,31 @@ class AdminComponentsTester:
         try:
             # Test 1: GET /admin/auctions
             print("  📋 Testing GET /admin/auctions...")
-            async with self.session.get(
+            response = self.session.get(
                 f"{API_BASE}/admin/auctions",
                 headers=self.get_auth_headers()
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"    ✅ GET auctions successful: {len(data.get('auctions', []))} auctions found")
-                    self.test_results[component]['details'].append("GET /admin/auctions: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ GET auctions failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"GET /admin/auctions: ❌ {response.status}")
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"    ✅ GET auctions successful: {len(data.get('auctions', []))} auctions found")
+                self.test_results[component]['details'].append("GET /admin/auctions: ✅ Working")
+            else:
+                print(f"    ❌ GET auctions failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"GET /admin/auctions: ❌ {response.status_code}")
 
             # Test 2: GET /admin/auction-bids
             print("  📋 Testing GET /admin/auction-bids...")
-            async with self.session.get(
+            response = self.session.get(
                 f"{API_BASE}/admin/auction-bids",
                 headers=self.get_auth_headers()
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"    ✅ GET auction bids successful: {len(data.get('bids', []))} bids found")
-                    self.test_results[component]['details'].append("GET /admin/auction-bids: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ GET auction bids failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"GET /admin/auction-bids: ❌ {response.status}")
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"    ✅ GET auction bids successful: {len(data.get('bids', []))} bids found")
+                self.test_results[component]['details'].append("GET /admin/auction-bids: ✅ Working")
+            else:
+                print(f"    ❌ GET auction bids failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"GET /admin/auction-bids: ❌ {response.status_code}")
 
             # Test 3: POST /admin/auctions (Create auction)
             print("  ➕ Testing POST /admin/auctions (Create auction)...")
@@ -338,38 +314,36 @@ class AdminComponentsTester:
                 "minimum_increment": 1000
             }
             
-            async with self.session.post(
+            response = self.session.post(
                 f"{API_BASE}/admin/auctions",
                 headers=self.get_auth_headers(),
                 json=auction_data
-            ) as response:
-                if response.status in [200, 201]:
-                    auction = await response.json()
-                    auction_id = auction.get('id')
-                    print(f"    ✅ Create auction successful: ID {auction_id}")
-                    self.test_results[component]['details'].append("POST /admin/auctions: ✅ Working")
-                    
-                    # Test auction status update if auction was created
-                    if auction_id:
-                        print(f"  🔄 Testing PUT /admin/auctions/{auction_id}/status...")
-                        status_data = {"status": "scheduled"}
-                        async with self.session.put(
-                            f"{API_BASE}/admin/auctions/{auction_id}/status",
-                            headers=self.get_auth_headers(),
-                            json=status_data
-                        ) as status_response:
-                            if status_response.status == 200:
-                                print(f"    ✅ Update auction status successful")
-                                self.test_results[component]['details'].append("PUT /admin/auctions/{id}/status: ✅ Working")
-                            else:
-                                error_text = await status_response.text()
-                                print(f"    ❌ Update auction status failed: {status_response.status} - {error_text}")
-                                self.test_results[component]['details'].append(f"PUT /admin/auctions/{{id}}/status: ❌ {status_response.status}")
-                    
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ Create auction failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"POST /admin/auctions: ❌ {response.status}")
+            )
+            if response.status_code in [200, 201]:
+                auction = response.json()
+                auction_id = auction.get('id')
+                print(f"    ✅ Create auction successful: ID {auction_id}")
+                self.test_results[component]['details'].append("POST /admin/auctions: ✅ Working")
+                
+                # Test auction status update if auction was created
+                if auction_id:
+                    print(f"  🔄 Testing PUT /admin/auctions/{auction_id}/status...")
+                    status_data = {"status": "scheduled"}
+                    status_response = self.session.put(
+                        f"{API_BASE}/admin/auctions/{auction_id}/status",
+                        headers=self.get_auth_headers(),
+                        json=status_data
+                    )
+                    if status_response.status_code == 200:
+                        print(f"    ✅ Update auction status successful")
+                        self.test_results[component]['details'].append("PUT /admin/auctions/{id}/status: ✅ Working")
+                    else:
+                        print(f"    ❌ Update auction status failed: {status_response.status_code} - {status_response.text}")
+                        self.test_results[component]['details'].append(f"PUT /admin/auctions/{{id}}/status: ❌ {status_response.status_code}")
+                
+            else:
+                print(f"    ❌ Create auction failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"POST /admin/auctions: ❌ {response.status_code}")
 
             # Check if any endpoints worked
             working_endpoints = [detail for detail in self.test_results[component]['details'] if '✅' in detail]
@@ -383,7 +357,7 @@ class AdminComponentsTester:
             print(f"  ❌ Auctions Management error: {e}")
             self.test_results[component]['details'].append(f"Error: {str(e)}")
 
-    async def test_disease_zone_manager(self):
+    def test_disease_zone_manager(self):
         """Test DiseaseZoneManager component"""
         print("\n🛡️ Testing Disease Zone Manager...")
         component = 'disease_zones'
@@ -392,18 +366,17 @@ class AdminComponentsTester:
         try:
             # Test 1: GET /admin/disease-zones
             print("  📋 Testing GET /admin/disease-zones...")
-            async with self.session.get(
+            response = self.session.get(
                 f"{API_BASE}/admin/disease-zones",
                 headers=self.get_auth_headers()
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    print(f"    ✅ GET disease zones successful: {len(data.get('zones', []))} zones found")
-                    self.test_results[component]['details'].append("GET /admin/disease-zones: ✅ Working")
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ GET disease zones failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"GET /admin/disease-zones: ❌ {response.status}")
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"    ✅ GET disease zones successful: {len(data.get('zones', []))} zones found")
+                self.test_results[component]['details'].append("GET /admin/disease-zones: ✅ Working")
+            else:
+                print(f"    ❌ GET disease zones failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"GET /admin/disease-zones: ❌ {response.status_code}")
 
             # Test 2: POST /admin/disease-zones (Create disease zone)
             print("  ➕ Testing POST /admin/disease-zones (Create disease zone)...")
@@ -419,38 +392,36 @@ class AdminComponentsTester:
                 "description": "Test disease zone created via admin panel for FMD control"
             }
             
-            async with self.session.post(
+            response = self.session.post(
                 f"{API_BASE}/admin/disease-zones",
                 headers=self.get_auth_headers(),
                 json=disease_zone_data
-            ) as response:
-                if response.status in [200, 201]:
-                    zone = await response.json()
-                    zone_id = zone.get('id')
-                    print(f"    ✅ Create disease zone successful: ID {zone_id}")
-                    self.test_results[component]['details'].append("POST /admin/disease-zones: ✅ Working")
-                    
-                    # Test zone status update if zone was created
-                    if zone_id:
-                        print(f"  🔄 Testing PUT /admin/disease-zones/{zone_id}/status...")
-                        status_data = {"status": "inactive"}
-                        async with self.session.put(
-                            f"{API_BASE}/admin/disease-zones/{zone_id}/status",
-                            headers=self.get_auth_headers(),
-                            json=status_data
-                        ) as status_response:
-                            if status_response.status == 200:
-                                print(f"    ✅ Update disease zone status successful")
-                                self.test_results[component]['details'].append("PUT /admin/disease-zones/{id}/status: ✅ Working")
-                            else:
-                                error_text = await status_response.text()
-                                print(f"    ❌ Update disease zone status failed: {status_response.status} - {error_text}")
-                                self.test_results[component]['details'].append(f"PUT /admin/disease-zones/{{id}}/status: ❌ {status_response.status}")
-                    
-                else:
-                    error_text = await response.text()
-                    print(f"    ❌ Create disease zone failed: {response.status} - {error_text}")
-                    self.test_results[component]['details'].append(f"POST /admin/disease-zones: ❌ {response.status}")
+            )
+            if response.status_code in [200, 201]:
+                zone = response.json()
+                zone_id = zone.get('id')
+                print(f"    ✅ Create disease zone successful: ID {zone_id}")
+                self.test_results[component]['details'].append("POST /admin/disease-zones: ✅ Working")
+                
+                # Test zone status update if zone was created
+                if zone_id:
+                    print(f"  🔄 Testing PUT /admin/disease-zones/{zone_id}/status...")
+                    status_data = {"status": "inactive"}
+                    status_response = self.session.put(
+                        f"{API_BASE}/admin/disease-zones/{zone_id}/status",
+                        headers=self.get_auth_headers(),
+                        json=status_data
+                    )
+                    if status_response.status_code == 200:
+                        print(f"    ✅ Update disease zone status successful")
+                        self.test_results[component]['details'].append("PUT /admin/disease-zones/{id}/status: ✅ Working")
+                    else:
+                        print(f"    ❌ Update disease zone status failed: {status_response.status_code} - {status_response.text}")
+                        self.test_results[component]['details'].append(f"PUT /admin/disease-zones/{{id}}/status: ❌ {status_response.status_code}")
+                
+            else:
+                print(f"    ❌ Create disease zone failed: {response.status_code} - {response.text}")
+                self.test_results[component]['details'].append(f"POST /admin/disease-zones: ❌ {response.status_code}")
 
             # Check if any endpoints worked
             working_endpoints = [detail for detail in self.test_results[component]['details'] if '✅' in detail]
@@ -543,38 +514,34 @@ class AdminComponentsTester:
         
         print("="*80)
 
-    async def run_all_tests(self):
+    def run_all_tests(self):
         """Run all admin component tests"""
         print("🚀 Starting Admin Components Backend API Testing...")
         print(f"🌐 Backend URL: {BACKEND_URL}")
         print(f"🔑 Admin Email: {ADMIN_EMAIL}")
         
         try:
-            await self.setup_session()
-            
             # Login as admin
-            if not await self.admin_login():
+            if not self.admin_login():
                 print("❌ Cannot proceed without admin authentication")
                 return
             
             # Test all 4 admin components
-            await self.test_webhooks_management()
-            await self.test_logistics_management()
-            await self.test_auctions_management()
-            await self.test_disease_zone_manager()
+            self.test_webhooks_management()
+            self.test_logistics_management()
+            self.test_auctions_management()
+            self.test_disease_zone_manager()
             
             # Print comprehensive summary
             self.print_summary()
             
         except Exception as e:
             print(f"❌ Critical error during testing: {e}")
-        finally:
-            await self.cleanup_session()
 
-async def main():
+def main():
     """Main test execution"""
     tester = AdminComponentsTester()
-    await tester.run_all_tests()
+    tester.run_all_tests()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
