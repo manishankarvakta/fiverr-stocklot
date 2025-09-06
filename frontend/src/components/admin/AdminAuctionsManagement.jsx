@@ -19,6 +19,16 @@ export default function AdminAuctionsManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedAuction, setSelectedAuction] = useState(null);
   const [showAuctionDialog, setShowAuctionDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [newAuction, setNewAuction] = useState({
+    title: '',
+    listing_id: '',
+    starting_price: '',
+    reserve_price: '',
+    duration_hours: 48,
+    description: ''
+  });
 
   useEffect(() => {
     fetchAuctions();
