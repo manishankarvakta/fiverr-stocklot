@@ -533,6 +533,31 @@ function Header() {
 
 // Footer component
 function Footer() {
+  const [socialSettings, setSocialSettings] = useState({
+    facebookUrl: '',
+    twitterUrl: '',
+    instagramUrl: '',
+    youtubeUrl: '',
+    linkedinUrl: ''
+  });
+
+  // Load social media settings from admin configuration
+  useEffect(() => {
+    // In a real app, this would fetch from the admin settings API
+    // For now, we'll use localStorage or default values
+    const savedSettings = localStorage.getItem('platformSettings');
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings);
+      setSocialSettings({
+        facebookUrl: settings.facebookUrl || '',
+        twitterUrl: settings.twitterUrl || '',
+        instagramUrl: settings.instagramUrl || '',
+        youtubeUrl: settings.youtubeUrl || '',
+        linkedinUrl: settings.linkedinUrl || ''
+      });
+    }
+  }, []);
+
   return (
     <footer className="bg-emerald-900 text-white">
       <div className="container mx-auto px-4 py-12">
@@ -548,16 +573,83 @@ function Footer() {
             <p className="text-emerald-200 text-sm leading-relaxed">
               South Africa's premier livestock marketplace, connecting farmers and buyers nationwide with secure escrow payments and comprehensive animal taxonomy.
             </p>
+            
+            {/* Social Media Buttons */}
             <div className="flex space-x-3">
-              <Button size="sm" variant="outline" className="border-emerald-400 text-emerald-300 hover:bg-emerald-800">
-                <Globe className="h-4 w-4" />
-              </Button>
-              <Button size="sm" variant="outline" className="border-emerald-400 text-emerald-300 hover:bg-emerald-800">
-                <Mail className="h-4 w-4" />
-              </Button>
-              <Button size="sm" variant="outline" className="border-emerald-400 text-emerald-300 hover:bg-emerald-800">
-                <Phone className="h-4 w-4" />
-              </Button>
+              {socialSettings.facebookUrl && (
+                <a 
+                  href={socialSettings.facebookUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors"
+                >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </a>
+              )}
+              
+              {socialSettings.twitterUrl && (
+                <a 
+                  href={socialSettings.twitterUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors"
+                >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                </a>
+              )}
+              
+              {socialSettings.instagramUrl && (
+                <a 
+                  href={socialSettings.instagramUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors"
+                >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.637.001 12.017.001zM8.449 16.988c-1.297 0-2.448-.611-3.185-1.559-.737-.948-1.034-2.163-.822-3.362.212-1.199.925-2.286 1.973-3.008 1.048-.722 2.35-.962 3.604-.665 1.254.297 2.37 1.133 3.092 2.314.722 1.181.937 2.593.594 3.905-.343 1.312-1.25 2.454-2.511 3.16-1.261.706-2.785.862-4.218.507-.516-.128-.984-.353-1.378-.683-.394-.33-.696-.757-.87-1.244-.174-.487-.21-1.016-.108-1.542.102-.526.335-1.026.681-1.46.346-.434.803-.787 1.335-.999 1.064-.424 2.27-.248 3.159.461.889.709 1.375 1.804 1.273 2.865-.102 1.061-.691 2.042-1.542 2.568-.851.526-1.907.556-2.763.078-.856-.478-1.423-1.351-1.485-2.286-.062-.935.387-1.844 1.174-2.379.787-.535 1.806-.644 2.666-.286.86.358 1.514 1.108 1.71 1.962.196.854-.042 1.751-.623 2.345-.581.594-1.423.857-2.202.688-.779-.169-1.467-.693-1.8-1.371-.333-.678-.289-1.475.115-2.113.404-.638 1.09-1.071 1.795-1.133.705-.062 1.405.228 1.83.758.425.53.534 1.246.286 1.873-.248.627-.781 1.123-1.394 1.297-.613.174-1.279.022-1.742-.397-.463-.419-.695-1.049-.607-1.651.088-.602.459-1.147 0971-1.476.512-.329 1.173-.423 1.729-.246.556.177 1.043.603 1.275 1.113.232.51.196 1.106-.094 1.561-.29.455-.792.755-1.313.784-.521.029-1.042-.199-1.36-.596-.318-.397-.406-.926-.231-1.383.175-.457.544-.82.966-.949.422-.129.879-.015 1.197.298.318.313.476.765.414 1.182-.062.417-.334.795-.714 0988-.38.193-.841.203-1.206.026-.365-.177-.637-.529-.712-.921-.075-.392.013-.804.23-1.076.217-.272.541-.42.847-.387.306.033.581.211.718.465.137.254.126.565-.028.806-.154.241-.423.394-.703.399-.28.005-.555-.138-.719-.374-.164-.236-.206-.551-.11-.82.096-.269.306-.488.549-.571.243-.083.518-.027.718.146.2.173.306.443.277.693-.029.25-.171.479-.372.598-.201.119-.456.121-.657.005-.201-.116-.339-.334-.36-.579-.021-.245.088-.488.285-.631.197-.143.462-.171.694-.072.232.099.399.314.435.559.036.245-.061.492-.253.644-.192.152-.46.189-.699.097-.239-.092-.421-.299-.474-.539-.053-.24.025-.488.204-.652.179-.164.434-.229.666-.169.232.06.431.238.518.464.087.226.057.476-.078.658-.135.182-.364.284-.598.266-.234-.018-.445-.145-.550-.332-.105-.187-.096-.421.024-.598.12-.177.327-.287.541-.287.214 0 .421.11.541.287.12.177.129.411.024.598-.105.187-.316.314-.55.332-.234.018-.463-.084-.598-.266-.135-.182-.165-.432-.078-.658.087-.226.286-.404.518-.464.232-.06.487.005.666.169.179.164.257.412.204.652-.053.24-.235.447-.474.539-.239.092-.507.055-.699-.097-.192-.152-.289-.399-.253-.644.036-.245.203-.46.435-.559.232-.099.497-.071.694.072z"/>
+                  </svg>
+                </a>
+              )}
+              
+              {socialSettings.youtubeUrl && (
+                <a 
+                  href={socialSettings.youtubeUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors"
+                >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                </a>
+              )}
+              
+              {socialSettings.linkedinUrl && (
+                <a 
+                  href={socialSettings.linkedinUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors"
+                >
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                </a>
+              )}
+              
+              {/* Default email contact if no social media is configured */}
+              {!socialSettings.facebookUrl && !socialSettings.twitterUrl && !socialSettings.instagramUrl && !socialSettings.youtubeUrl && !socialSettings.linkedinUrl && (
+                <a 
+                  href="mailto:hello@stocklot.co.za"
+                  className="p-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors"
+                >
+                  <Mail className="h-5 w-5" />
+                </a>
+              )}
             </div>
           </div>
 
