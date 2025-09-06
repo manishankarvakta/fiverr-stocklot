@@ -585,13 +585,6 @@ function Footer() {
             
             {/* Social Media Buttons */}
             <div className="flex space-x-2">
-              {/* Debug: Show what we loaded */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="text-xs text-emerald-300 mb-2">
-                  Debug: FB={socialSettings.facebookUrl ? 'yes' : 'no'}, 
-                  TW={socialSettings.twitterUrl ? 'yes' : 'no'}
-                </div>
-              )}
               
               {socialSettings.facebookUrl && (
                 <a 
