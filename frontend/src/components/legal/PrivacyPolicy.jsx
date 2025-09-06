@@ -355,7 +355,7 @@ const PrivacyPolicy = () => {
               </p>
               <p>
                 Parents or guardians who believe their child has provided personal 
-                information should contact us immediately at privacy@stocklot.co.za.
+                information should contact us immediately at privacy@stocklot.farm.
               </p>
             </CardContent>
           </Card>
