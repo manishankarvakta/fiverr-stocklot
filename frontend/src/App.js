@@ -545,7 +545,7 @@ function Footer() {
   useEffect(() => {
     const loadSocialSettings = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/public/config`);
+        const response = await fetch(`${BACKEND_URL}/platform/config`);
         if (response.ok) {
           const config = await response.json();
           const settings = config.settings || {};
