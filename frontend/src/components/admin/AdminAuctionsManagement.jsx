@@ -614,14 +614,26 @@ export default function AdminAuctionsManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {setSelectedAuction(auction); setShowAuctionDialog(true);}}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleUpdateAuctionStatus(auction.id, 'paused')}
+                          >
                             <Pause className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleUpdateAuctionStatus(auction.id, 'cancelled')}
+                          >
                             <Square className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            Extend
                           </Button>
                         </div>
                       </TableCell>
