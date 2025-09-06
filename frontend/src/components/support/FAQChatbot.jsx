@@ -199,7 +199,7 @@ export default function FAQChatbot() {
         botResponse = {
           id: Date.now() + 1,
           type: 'bot',
-          content: "I don't have a specific answer for that question, but our support team can help! You can:\n\n📧 Email: hello@stocklot.co.za\n💬 Or browse the FAQ suggestions below for common questions.",
+          content: "I don't have a specific answer for that question, but our support team can help! You can:\n\n📧 Email: hello@stocklot.farm\n💬 Or browse the FAQ suggestions below for common questions.",
           source: 'fallback',
           timestamp: new Date()
         };
