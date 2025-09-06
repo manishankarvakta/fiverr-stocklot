@@ -651,7 +651,7 @@ function Footer() {
               {/* Default email contact if no social media is configured */}
               {!socialSettings.facebookUrl && !socialSettings.twitterUrl && !socialSettings.instagramUrl && !socialSettings.youtubeUrl && !socialSettings.linkedinUrl && (
                 <a 
-                  href="mailto:hello@stocklot.co.za"
+                  href="mailto:hello@stocklot.farm"
                   className="p-2 bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors"
                 >
                   <Mail className="h-5 w-5" />
