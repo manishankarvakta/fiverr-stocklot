@@ -423,10 +423,18 @@ export default function AdminRolesManagement() {
                           </Button>
                           {!role.is_system_role && (
                             <>
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => console.log('Edit role:', role.id)}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleDeleteRole(role.id)}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </>
