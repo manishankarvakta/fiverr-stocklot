@@ -1,46 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Card, CardContent, CardHeader, CardTitle, Button, Badge,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  Input, Label, Alert, AlertDescription, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Tabs, TabsContent, TabsList, TabsTrigger
-} from '../ui';
+  Card, CardContent, CardHeader, CardTitle,
+  Button, Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Alert, AlertDescription
+} from '@/components/ui';
 import { 
-  Award, DollarSign, TrendingUp, Users, Calendar, Eye, Edit, Send,
-  Star, Gift, RefreshCw, Plus, BarChart3, CheckCircle, Clock
+  Users, Plus, Star, DollarSign, TrendingUp, Eye, Edit, Trash2, CheckCircle, XCircle,
+  UserPlus, Award, Target, BarChart3, Calendar
 } from 'lucide-react';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = process.env.REACT_APP_BACKEND_URL || 'https://stocklot-repair.preview.emergentagent.com/api';
 
 export default function AdminInfluencerPayouts() {
   const [influencers, setInfluencers] = useState([]);
   const [payouts, setPayouts] = useState([]);
-  const [referralStats, setReferralStats] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [showAddInfluencer, setShowAddInfluencer] = useState(false);
+  const [showEditInfluencer, setShowEditInfluencer] = useState(false);
+  const [showPayoutDialog, setShowPayoutDialog] = useState(false);
   const [selectedInfluencer, setSelectedInfluencer] = useState(null);
-  const [showInfluencerDialog, setShowInfluencerDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [newInfluencer, setNewInfluencer] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    platform: '',
+    handle: '',
+    follower_count: 0,
+    commission_rate: 5,
+    payment_method: 'bank_transfer',
+    bank_details: '',
+    status: 'active'
+  });
 
   useEffect(() => {
     fetchInfluencers();
     fetchPayouts();
-    fetchReferralStats();
   }, []);
 
   const fetchInfluencers = async () => {
-    setLoading(true);
     try {
       const response = await fetch(`${API}/admin/influencers`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
+      
       if (response.ok) {
         const data = await response.json();
         setInfluencers(data.influencers || []);
       }
     } catch (error) {
       console.error('Error fetching influencers:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -49,6 +59,7 @@ export default function AdminInfluencerPayouts() {
       const response = await fetch(`${API}/admin/influencer-payouts`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
+      
       if (response.ok) {
         const data = await response.json();
         setPayouts(data.payouts || []);
@@ -58,693 +69,555 @@ export default function AdminInfluencerPayouts() {
     }
   };
 
-  const fetchReferralStats = async () => {
+  const handleAddInfluencer = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`${API}/admin/referral-stats`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const influencerData = {
+        ...newInfluencer,
+        follower_count: parseInt(newInfluencer.follower_count) || 0,
+        commission_rate: parseFloat(newInfluencer.commission_rate) || 5
+      };
+
+      const response = await fetch(`${API}/admin/influencers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(influencerData)
       });
+
       if (response.ok) {
-        const data = await response.json();
-        setReferralStats(data.stats || {});
+        setShowAddInfluencer(false);
+        setNewInfluencer({
+          name: '', email: '', phone: '', platform: '', handle: '',
+          follower_count: 0, commission_rate: 5, payment_method: 'bank_transfer',
+          bank_details: '', status: 'active'
+        });
+        fetchInfluencers();
+        alert('Influencer added successfully!');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add influencer');
       }
     } catch (error) {
-      console.error('Error fetching referral stats:', error);
+      console.error('Error adding influencer:', error);
+      alert('Failed to add influencer: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getTierColor = (tier) => {
-    switch (tier.toLowerCase()) {
-      case 'diamond': return 'bg-purple-100 text-purple-800';
-      case 'platinum': return 'bg-gray-100 text-gray-800';
-      case 'gold': return 'bg-yellow-100 text-yellow-800';
-      case 'silver': return 'bg-blue-100 text-blue-800';
-      case 'bronze': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-green-100 text-green-800';
+  const handleEditInfluencer = async () => {
+    setLoading(true);
+    try {
+      const influencerData = {
+        ...selectedInfluencer,
+        follower_count: parseInt(selectedInfluencer.follower_count) || 0,
+        commission_rate: parseFloat(selectedInfluencer.commission_rate) || 5
+      };
+
+      const response = await fetch(`${API}/admin/influencers/${selectedInfluencer.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(influencerData)
+      });
+
+      if (response.ok) {
+        setShowEditInfluencer(false);
+        setSelectedInfluencer(null);
+        fetchInfluencers();
+        alert('Influencer updated successfully!');
+      } else {
+        throw new Error('Failed to update influencer');
+      }
+    } catch (error) {
+      console.error('Error updating influencer:', error);
+      alert('Failed to update influencer');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleDeleteInfluencer = async (influencerId) => {
+    if (window.confirm('Are you sure you want to delete this influencer?')) {
+      try {
+        const response = await fetch(`${API}/admin/influencers/${influencerId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (response.ok) {
+          fetchInfluencers();
+          alert('Influencer deleted successfully!');
+        } else {
+          throw new Error('Failed to delete influencer');
+        }
+      } catch (error) {
+        console.error('Error deleting influencer:', error);
+        alert('Failed to delete influencer');
+      }
+    }
+  };
+
+  const handleProcessPayout = async (influencerId, amount, period) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API}/admin/influencer-payouts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          influencer_id: influencerId,
+          amount: parseFloat(amount),
+          period: period,
+          status: 'pending'
+        })
+      });
+
+      if (response.ok) {
+        setShowPayoutDialog(false);
+        fetchPayouts();
+        alert('Payout processed successfully!');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to process payout');
+      }
+    } catch (error) {
+      console.error('Error processing payout:', error);
+      alert('Failed to process payout: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleInfluencerStatus = async (influencerId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    try {
+      const response = await fetch(`${API}/admin/influencers/${influencerId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        fetchInfluencers();
+        alert(`Influencer ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      } else {
+        throw new Error('Failed to update influencer status');
+      }
+    } catch (error) {
+      console.error('Error updating influencer status:', error);
+      alert('Failed to update influencer status');
+    }
+  };
+
+  const openEditDialog = (influencer) => {
+    setSelectedInfluencer({ ...influencer });
+    setShowEditInfluencer(true);
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-red-100 text-red-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'suspended': return 'bg-red-100 text-red-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // Mock data
-  const mockInfluencers = [
-    {
-      id: 'inf_1',
-      user_id: 'user_123',
-      name: 'Johan van der Merwe',
-      email: 'johan@farminfluencer.co.za',
-      referral_code: 'JOHAN2025',
-      tier: 'Gold',
-      total_referrals: 156,
-      successful_referrals: 89,
-      total_commission: 47560.00,
-      pending_commission: 8750.00,
-      paid_commission: 38810.00,
-      commission_rate: 0.15,
-      status: 'active',
-      joined_date: '2024-11-15T10:00:00Z',
-      last_payout: '2025-08-25T14:30:00Z',
-      bank_details: {
-        account_holder: 'Johan van der Merwe',
-        bank: 'FNB',
-        account_number: '****1234',
-        verified: true
-      },
-      social_media: {
-        youtube: '@FarmingWithJohan',
-        facebook: 'Johan Farming',
-        instagram: '@johan_livestock'
-      }
-    },
-    {
-      id: 'inf_2',
-      user_id: 'user_456',
-      name: 'Sarah Williams',
-      email: 'sarah@agriinfluence.co.za',
-      referral_code: 'SARAH2025',
-      tier: 'Platinum',
-      total_referrals: 234,
-      successful_referrals: 178,
-      total_commission: 89340.00,
-      pending_commission: 12450.00,
-      paid_commission: 76890.00,
-      commission_rate: 0.20,
-      status: 'active',
-      joined_date: '2024-09-20T12:30:00Z',
-      last_payout: '2025-08-28T11:15:00Z',
-      bank_details: {
-        account_holder: 'Sarah Williams',
-        bank: 'Standard Bank',
-        account_number: '****5678',
-        verified: true
-      },
-      social_media: {
-        youtube: '@SarahAgri',
-        tiktok: '@sarah_livestock',
-        instagram: '@sarahfarms'
-      }
-    },
-    {
-      id: 'inf_3',
-      user_id: 'user_789',
-      name: 'Thabo Mthembu',
-      email: 'thabo@livestockexpert.co.za',
-      referral_code: 'THABO2025',
-      tier: 'Silver',
-      total_referrals: 67,
-      successful_referrals: 45,
-      total_commission: 18920.00,
-      pending_commission: 3250.00,
-      paid_commission: 15670.00,
-      commission_rate: 0.12,
-      status: 'active',
-      joined_date: '2025-01-10T09:45:00Z',
-      last_payout: '2025-08-20T16:20:00Z',
-      bank_details: {
-        account_holder: 'Thabo Mthembu',
-        bank: 'ABSA',
-        account_number: '****9012',
-        verified: false
-      },
-      social_media: {
-        facebook: 'Thabo Livestock',
-        whatsapp: '+27 82 555 0123'
-      }
+  const getPlatformIcon = (platform) => {
+    switch (platform?.toLowerCase()) {
+      case 'instagram': return '📷';
+      case 'tiktok': return '🎵';
+      case 'youtube': return '📺';
+      case 'twitter': return '🐦';
+      case 'facebook': return '📘';
+      default: return '👤';
     }
-  ];
-
-  const mockPayouts = [
-    {
-      id: 'payout_1',
-      influencer_id: 'inf_1',
-      influencer_name: 'Johan van der Merwe',
-      amount: 8750.00,
-      commission_period_start: '2025-08-01T00:00:00Z',
-      commission_period_end: '2025-08-31T23:59:59Z',
-      referrals_count: 12,
-      status: 'pending',
-      created_at: '2025-08-29T10:00:00Z',
-      details: {
-        new_user_referrals: 8,
-        transaction_commissions: 4,
-        bonus_payments: 0
-      }
-    },
-    {
-      id: 'payout_2',
-      influencer_id: 'inf_2',
-      influencer_name: 'Sarah Williams',
-      amount: 12450.00,
-      commission_period_start: '2025-08-01T00:00:00Z',
-      commission_period_end: '2025-08-31T23:59:59Z',
-      referrals_count: 18,
-      status: 'completed',
-      created_at: '2025-08-28T11:15:00Z',
-      paid_at: '2025-08-28T15:30:00Z',
-      transaction_id: 'TXN_INF_123456',
-      details: {
-        new_user_referrals: 15,
-        transaction_commissions: 3,
-        bonus_payments: 1250.00
-      }
-    },
-    {
-      id: 'payout_3',
-      influencer_id: 'inf_3',
-      influencer_name: 'Thabo Mthembu',
-      amount: 3250.00,
-      commission_period_start: '2025-08-01T00:00:00Z',
-      commission_period_end: '2025-08-31T23:59:59Z',
-      referrals_count: 5,
-      status: 'pending',
-      created_at: '2025-08-29T14:20:00Z',
-      details: {
-        new_user_referrals: 4,
-        transaction_commissions: 1,
-        bonus_payments: 0
-      }
-    }
-  ];
-
-  const mockReferralStats = {
-    total_influencers: 15,
-    active_influencers: 12,
-    total_referrals: 1247,
-    successful_referrals: 892,
-    total_commission_paid: 156780.00,
-    pending_commission: 34580.00,
-    monthly_growth: 24.5
   };
 
-  const displayInfluencers = influencers.length > 0 ? influencers : mockInfluencers;
-  const displayPayouts = payouts.length > 0 ? payouts : mockPayouts;
-  const displayStats = Object.keys(referralStats).length > 0 ? referralStats : mockReferralStats;
+  const formatFollowers = (count) => {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
+  };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Influencer & Referral Payouts</h2>
-        </div>
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="text-gray-500 mt-2">Loading influencer data...</p>
-        </div>
-      </div>
-    );
-  }
+  const activeInfluencers = influencers.filter(i => i.status === 'active').length;
+  const totalPayouts = payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Influencer & Referral Payouts</h2>
-          <p className="text-gray-600">Manage influencer partnerships and referral commissions</p>
+          <h1 className="text-2xl font-bold">Influencer Payouts</h1>
+          <div className="flex gap-2 mt-2">
+            <Badge className="bg-blue-100 text-blue-800">
+              {activeInfluencers} Active Influencers
+            </Badge>
+            <Badge className="bg-green-100 text-green-800">
+              R{totalPayouts.toFixed(2)} Total Payouts
+            </Badge>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => {fetchInfluencers(); fetchPayouts();}}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Influencer
-          </Button>
-        </div>
+        <Button onClick={() => setShowAddInfluencer(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Influencer
+        </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Active Influencers</p>
-                <p className="text-2xl font-bold text-blue-600">{displayStats.active_influencers}</p>
+                <p className="text-sm text-gray-600">Active Influencers</p>
+                <p className="text-2xl font-bold text-blue-600">{activeInfluencers}</p>
               </div>
-              <Star className="h-8 w-8 text-yellow-500" />
+              <Users className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Referrals</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {displayStats.successful_referrals?.toLocaleString()}
-                </p>
+                <p className="text-sm text-gray-600">Total Payouts</p>
+                <p className="text-2xl font-bold text-green-600">R{totalPayouts.toFixed(2)}</p>
               </div>
-              <Users className="h-8 w-8 text-green-600" />
+              <DollarSign className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Pending Payouts</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  R{displayStats.pending_commission?.toLocaleString()}
+                <p className="text-sm text-gray-600">Pending Payouts</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {payouts.filter(p => p.status === 'pending').length}
                 </p>
               </div>
-              <Clock className="h-8 w-8 text-orange-600" />
+              <Clock className="h-8 w-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Paid</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  R{displayStats.total_commission_paid?.toLocaleString()}
+                <p className="text-sm text-gray-600">Avg Commission</p>
+                <p className="text-2xl font-bold">
+                  {influencers.length > 0 
+                    ? `${(influencers.reduce((sum, i) => sum + (i.commission_rate || 0), 0) / influencers.length).toFixed(1)}%`
+                    : '0%'
+                  }
                 </p>
               </div>
-              <DollarSign className="h-8 w-8 text-purple-600" />
+              <TrendingUp className="h-8 w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="influencers" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="influencers">Influencers</TabsTrigger>
-          <TabsTrigger value="payouts">Payouts</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="tiers">Tier Management</TabsTrigger>
-        </TabsList>
+      {/* Influencers Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Influencers ({influencers.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Influencer</TableHead>
+                <TableHead>Platform</TableHead>
+                <TableHead>Followers</TableHead>
+                <TableHead>Commission Rate</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total Earned</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {influencers.map((influencer) => {
+                const totalEarned = payouts
+                  .filter(p => p.influencer_id === influencer.id && p.status === 'completed')
+                  .reduce((sum, p) => sum + (p.amount || 0), 0);
 
-        <TabsContent value="influencers">
-          <Card>
-            <CardHeader>
-              <CardTitle>Influencer Partners</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Influencer</TableHead>
-                    <TableHead>Tier</TableHead>
-                    <TableHead>Referrals</TableHead>
-                    <TableHead>Commission Rate</TableHead>
-                    <TableHead>Earnings</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayInfluencers.map((influencer) => (
-                    <TableRow key={influencer.id}>
-                      <TableCell>
+                return (
+                  <TableRow key={influencer.id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold">
+                            {influencer.name?.charAt(0) || 'I'}
+                          </div>
+                        </div>
                         <div>
                           <div className="font-medium">{influencer.name}</div>
                           <div className="text-sm text-gray-500">{influencer.email}</div>
-                          <div className="text-sm text-blue-600">Code: {influencer.referral_code}</div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getTierColor(influencer.tier)}>
-                          {influencer.tier}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{getPlatformIcon(influencer.platform)}</span>
                         <div>
-                          <div className="font-semibold">{influencer.successful_referrals}</div>
-                          <div className="text-sm text-gray-500">of {influencer.total_referrals}</div>
+                          <div className="font-medium">{influencer.platform}</div>
+                          <div className="text-sm text-gray-500">@{influencer.handle}</div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-semibold">{(influencer.commission_rate * 100)}%</div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-semibold">R{influencer.total_commission.toLocaleString()}</div>
-                          <div className="text-sm text-orange-600">
-                            R{influencer.pending_commission.toLocaleString()} pending
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(influencer.status)}>
-                          {influencer.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {setSelectedInfluencer(influencer); setShowInfluencerDialog(true);}}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {influencer.pending_commission > 0 && (
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="payouts">
-          <Card>
-            <CardHeader>
-              <CardTitle>Influencer Payouts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Influencer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Period</TableHead>
-                    <TableHead>Referrals</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{formatFollowers(influencer.follower_count)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-green-50">
+                        {influencer.commission_rate}%
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(influencer.status)}>
+                        {influencer.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-bold text-green-600">R{totalEarned.toFixed(2)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditDialog(influencer)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleToggleInfluencerStatus(influencer.id, influencer.status)}
+                        >
+                          {influencer.status === 'active' ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedInfluencer(influencer);
+                            setShowPayoutDialog(true);
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteInfluencer(influencer.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayPayouts.map((payout) => (
-                    <TableRow key={payout.id}>
-                      <TableCell>
-                        <div className="font-medium">{payout.influencer_name}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-semibold text-green-600">
-                          R{payout.amount.toLocaleString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {new Date(payout.commission_period_start).toLocaleDateString()} - {new Date(payout.commission_period_end).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-semibold">{payout.referrals_count}</div>
-                          <div className="text-sm text-gray-500">
-                            {payout.details.new_user_referrals} new users
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(payout.status)}>
-                          {payout.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{new Date(payout.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {payout.status === 'pending' && (
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                              Process
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="analytics">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance Metrics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                    <span className="font-medium">Conversion Rate</span>
-                    <span className="text-2xl font-bold text-green-600">
-                      {Math.round((displayStats.successful_referrals / displayStats.total_referrals) * 100)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                    <span className="font-medium">Average Commission</span>
-                    <span className="text-2xl font-bold text-blue-600">
-                      R{Math.round(displayStats.total_commission_paid / displayStats.successful_referrals).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                    <span className="font-medium">Monthly Growth</span>
-                    <span className="text-2xl font-bold text-purple-600">+{displayStats.monthly_growth}%</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Performers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {displayInfluencers.slice(0, 5).map((influencer, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                          index === 0 ? 'bg-yellow-500' : 
-                          index === 1 ? 'bg-gray-400' : 
-                          index === 2 ? 'bg-orange-500' : 'bg-blue-500'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="font-medium">{influencer.name}</div>
-                          <div className="text-sm text-gray-500">{influencer.successful_referrals} referrals</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold">R{influencer.total_commission.toLocaleString()}</div>
-                        <Badge className={getTierColor(influencer.tier)} variant="outline">
-                          {influencer.tier}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="tiers">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Commission Tiers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { name: 'Bronze', min_referrals: 0, commission_rate: 0.10, color: 'bg-orange-100 text-orange-800' },
-                    { name: 'Silver', min_referrals: 25, commission_rate: 0.12, color: 'bg-blue-100 text-blue-800' },
-                    { name: 'Gold', min_referrals: 50, commission_rate: 0.15, color: 'bg-yellow-100 text-yellow-800' },
-                    { name: 'Platinum', min_referrals: 100, commission_rate: 0.20, color: 'bg-gray-100 text-gray-800' },
-                    { name: 'Diamond', min_referrals: 200, commission_rate: 0.25, color: 'bg-purple-100 text-purple-800' }
-                  ].map((tier, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Badge className={tier.color}>{tier.name}</Badge>
-                        <span className="text-sm text-gray-600">
-                          {tier.min_referrals}+ referrals
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold">{(tier.commission_rate * 100)}%</div>
-                        <div className="text-sm text-gray-500">commission</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tier Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'].map((tier, index) => {
-                    const count = displayInfluencers.filter(inf => inf.tier === tier).length;
-                    const percentage = Math.round((count / displayInfluencers.length) * 100);
-                    
-                    return (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge className={getTierColor(tier)} variant="outline">
-                            {tier}
-                          </Badge>
-                          <span className="text-sm">{count} influencers</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-emerald-600 rounded-full"
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium w-8">{percentage}%</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Influencer Details Dialog */}
-      <Dialog open={showInfluencerDialog} onOpenChange={setShowInfluencerDialog}>
-        <DialogContent className="max-w-3xl">
+      {/* Add Influencer Dialog */}
+      <Dialog open={showAddInfluencer} onOpenChange={setShowAddInfluencer}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Influencer Details</DialogTitle>
+            <DialogTitle>Add New Influencer</DialogTitle>
             <DialogDescription>
-              Comprehensive influencer performance and payout information
+              Register a new influencer for the affiliate program
             </DialogDescription>
           </DialogHeader>
-          
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Full Name *</Label>
+              <Input
+                value={newInfluencer.name}
+                onChange={(e) => setNewInfluencer({...newInfluencer, name: e.target.value})}
+                placeholder="John Doe"
+              />
+            </div>
+            <div>
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={newInfluencer.email}
+                onChange={(e) => setNewInfluencer({...newInfluencer, email: e.target.value})}
+                placeholder="john@example.com"
+              />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input
+                value={newInfluencer.phone}
+                onChange={(e) => setNewInfluencer({...newInfluencer, phone: e.target.value})}
+                placeholder="+27 123 456 789"
+              />
+            </div>
+            <div>
+              <Label>Platform *</Label>
+              <Select value={newInfluencer.platform} onValueChange={(value) => setNewInfluencer({...newInfluencer, platform: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="TikTok">TikTok</SelectItem>
+                  <SelectItem value="YouTube">YouTube</SelectItem>
+                  <SelectItem value="Twitter">Twitter</SelectItem>
+                  <SelectItem value="Facebook">Facebook</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Handle/Username *</Label>
+              <Input
+                value={newInfluencer.handle}
+                onChange={(e) => setNewInfluencer({...newInfluencer, handle: e.target.value})}
+                placeholder="@johndoe"
+              />
+            </div>
+            <div>
+              <Label>Follower Count</Label>
+              <Input
+                type="number"
+                value={newInfluencer.follower_count}
+                onChange={(e) => setNewInfluencer({...newInfluencer, follower_count: e.target.value})}
+                placeholder="10000"
+              />
+            </div>
+            <div>
+              <Label>Commission Rate (%)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={newInfluencer.commission_rate}
+                onChange={(e) => setNewInfluencer({...newInfluencer, commission_rate: e.target.value})}
+                placeholder="5.0"
+              />
+            </div>
+            <div>
+              <Label>Payment Method</Label>
+              <Select value={newInfluencer.payment_method} onValueChange={(value) => setNewInfluencer({...newInfluencer, payment_method: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="crypto">Cryptocurrency</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2">
+              <Label>Bank Details / Payment Info</Label>
+              <Textarea
+                value={newInfluencer.bank_details}
+                onChange={(e) => setNewInfluencer({...newInfluencer, bank_details: e.target.value})}
+                placeholder="Bank account details or payment information"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddInfluencer(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddInfluencer} 
+              disabled={loading || !newInfluencer.name || !newInfluencer.email}
+            >
+              {loading ? 'Adding...' : 'Add Influencer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Influencer Dialog */}
+      <Dialog open={showEditInfluencer} onOpenChange={setShowEditInfluencer}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Influencer</DialogTitle>
+            <DialogDescription>
+              Update influencer information
+            </DialogDescription>
+          </DialogHeader>
+
           {selectedInfluencer && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Name</Label>
-                  <p className="text-sm">{selectedInfluencer.name}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Email</Label>
-                  <p className="text-sm">{selectedInfluencer.email}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Referral Code</Label>
-                  <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{selectedInfluencer.referral_code}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Tier</Label>
-                  <Badge className={getTierColor(selectedInfluencer.tier)}>
-                    {selectedInfluencer.tier}
-                  </Badge>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Commission Rate</Label>
-                  <p className="text-sm font-semibold">{(selectedInfluencer.commission_rate * 100)}%</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Status</Label>
-                  <Badge className={getStatusColor(selectedInfluencer.status)}>
-                    {selectedInfluencer.status}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{selectedInfluencer.total_referrals}</div>
-                  <div className="text-sm text-gray-600">Total Referrals</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{selectedInfluencer.successful_referrals}</div>
-                  <div className="text-sm text-gray-600">Successful</div>
-                </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {Math.round((selectedInfluencer.successful_referrals / selectedInfluencer.total_referrals) * 100)}%
-                  </div>
-                  <div className="text-sm text-gray-600">Conversion Rate</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Total Earnings</Label>
-                  <p className="text-lg font-bold text-green-600">R{selectedInfluencer.total_commission.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Pending Commission</Label>
-                  <p className="text-lg font-bold text-orange-600">R{selectedInfluencer.pending_commission.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Paid Commission</Label>
-                  <p className="text-lg font-bold text-blue-600">R{selectedInfluencer.paid_commission.toLocaleString()}</p>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm font-medium">Bank Details</Label>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{selectedInfluencer.bank_details.account_holder}</div>
-                      <div className="text-sm text-gray-600">
-                        {selectedInfluencer.bank_details.bank} - {selectedInfluencer.bank_details.account_number}
-                      </div>
-                    </div>
-                    <Badge className={selectedInfluencer.bank_details.verified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {selectedInfluencer.bank_details.verified ? 'Verified' : 'Unverified'}
-                    </Badge>
-                  </div>
-                </div>
+                <Label>Full Name *</Label>
+                <Input
+                  value={selectedInfluencer.name}
+                  onChange={(e) => setSelectedInfluencer({...selectedInfluencer, name: e.target.value})}
+                />
               </div>
-
               <div>
-                <Label className="text-sm font-medium">Social Media</Label>
-                <div className="flex gap-2 mt-1">
-                  {Object.entries(selectedInfluencer.social_media).map(([platform, handle]) => (
-                    <Badge key={platform} variant="outline" className="text-xs">
-                      {platform}: {handle}
-                    </Badge>
-                  ))}
-                </div>
+                <Label>Email *</Label>
+                <Input
+                  type="email"
+                  value={selectedInfluencer.email}
+                  onChange={(e) => setSelectedInfluencer({...selectedInfluencer, email: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Follower Count</Label>
+                <Input
+                  type="number"
+                  value={selectedInfluencer.follower_count}
+                  onChange={(e) => setSelectedInfluencer({...selectedInfluencer, follower_count: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Commission Rate (%)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={selectedInfluencer.commission_rate}
+                  onChange={(e) => setSelectedInfluencer({...selectedInfluencer, commission_rate: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={selectedInfluencer.status} onValueChange={(value) => setSelectedInfluencer({...selectedInfluencer, status: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInfluencerDialog(false)}>
-              Close
+            <Button variant="outline" onClick={() => setShowEditInfluencer(false)}>
+              Cancel
             </Button>
-            <Button variant="outline">
-              View Referrals
+            <Button onClick={handleEditInfluencer} disabled={loading}>
+              {loading ? 'Updating...' : 'Update Influencer'}
             </Button>
-            {selectedInfluencer?.pending_commission > 0 && (
-              <Button className="bg-green-600 hover:bg-green-700">
-                <Send className="h-4 w-4 mr-2" />
-                Process Payout
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

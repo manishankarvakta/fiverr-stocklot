@@ -1,647 +1,558 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Card, CardContent, CardHeader, CardTitle, Button, Badge,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  Input, Label, Alert, AlertDescription, Textarea, Tabs, TabsContent, TabsList, TabsTrigger
-} from '../ui';
+  Card, CardContent, CardHeader, CardTitle,
+  Button, Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Alert, AlertDescription
+} from '@/components/ui';
 import { 
-  CreditCard, Building, AlertTriangle, CheckCircle, Clock, Shield,
-  Eye, Edit, Trash2, Plus, RefreshCw
+  CreditCard, Plus, Edit, Trash2, CheckCircle, XCircle, AlertTriangle,
+  Shield, DollarSign, Globe, Settings, Eye
 } from 'lucide-react';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = process.env.REACT_APP_BACKEND_URL || 'https://stocklot-repair.preview.emergentagent.com/api';
 
 export default function AdminPaymentMethods() {
   const [paymentMethods, setPaymentMethods] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [showAddMethod, setShowAddMethod] = useState(false);
+  const [showEditMethod, setShowEditMethod] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState(null);
-  const [showMethodDialog, setShowMethodDialog] = useState(false);
-  const [verifyingMethod, setVerifyingMethod] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [newMethod, setNewMethod] = useState({
+    name: '',
+    type: 'credit_card',
+    provider: '',
+    description: '',
+    status: 'active',
+    supported_currencies: ['ZAR'],
+    processing_fee: 0,
+    fixed_fee: 0,
+    min_amount: 0,
+    max_amount: 0,
+    settings: {}
+  });
 
   useEffect(() => {
     fetchPaymentMethods();
   }, []);
 
   const fetchPaymentMethods = async () => {
-    setLoading(true);
     try {
       const response = await fetch(`${API}/admin/payment-methods`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       
       if (response.ok) {
         const data = await response.json();
-        setPaymentMethods(data.methods || []);
+        setPaymentMethods(data.payment_methods || []);
       }
     } catch (error) {
       console.error('Error fetching payment methods:', error);
+    }
+  };
+
+  const handleAddPaymentMethod = async () => {
+    setLoading(true);
+    try {
+      const methodData = {
+        ...newMethod,
+        processing_fee: parseFloat(newMethod.processing_fee) || 0,
+        fixed_fee: parseFloat(newMethod.fixed_fee) || 0,
+        min_amount: parseFloat(newMethod.min_amount) || 0,
+        max_amount: parseFloat(newMethod.max_amount) || 0
+      };
+
+      const response = await fetch(`${API}/admin/payment-methods`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(methodData)
+      });
+
+      if (response.ok) {
+        setShowAddMethod(false);
+        setNewMethod({
+          name: '', type: 'credit_card', provider: '', description: '',
+          status: 'active', supported_currencies: ['ZAR'], processing_fee: 0,
+          fixed_fee: 0, min_amount: 0, max_amount: 0, settings: {}
+        });
+        fetchPaymentMethods();
+        alert('Payment method added successfully!');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add payment method');
+      }
+    } catch (error) {
+      console.error('Error adding payment method:', error);
+      alert('Failed to add payment method: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyPaymentMethod = async (methodId, action) => {
-    setVerifyingMethod(true);
+  const handleEditPaymentMethod = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`${API}/admin/payment-methods/${methodId}/${action}`, {
-        method: 'POST',
+      const methodData = {
+        ...selectedMethod,
+        processing_fee: parseFloat(selectedMethod.processing_fee) || 0,
+        fixed_fee: parseFloat(selectedMethod.fixed_fee) || 0,
+        min_amount: parseFloat(selectedMethod.min_amount) || 0,
+        max_amount: parseFloat(selectedMethod.max_amount) || 0
+      };
+
+      const response = await fetch(`${API}/admin/payment-methods/${selectedMethod.id}`, {
+        method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(methodData)
       });
-      
+
       if (response.ok) {
-        await fetchPaymentMethods();
-        setShowMethodDialog(false);
+        setShowEditMethod(false);
+        setSelectedMethod(null);
+        fetchPaymentMethods();
+        alert('Payment method updated successfully!');
+      } else {
+        throw new Error('Failed to update payment method');
       }
     } catch (error) {
-      console.error('Error verifying payment method:', error);
+      console.error('Error updating payment method:', error);
+      alert('Failed to update payment method');
     } finally {
-      setVerifyingMethod(false);
+      setLoading(false);
     }
+  };
+
+  const handleDeletePaymentMethod = async (methodId) => {
+    if (window.confirm('Are you sure you want to delete this payment method?')) {
+      try {
+        const response = await fetch(`${API}/admin/payment-methods/${methodId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (response.ok) {
+          fetchPaymentMethods();
+          alert('Payment method deleted successfully!');
+        } else {
+          throw new Error('Failed to delete payment method');
+        }
+      } catch (error) {
+        console.error('Error deleting payment method:', error);
+        alert('Failed to delete payment method');
+      }
+    }
+  };
+
+  const handleToggleStatus = async (methodId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    try {
+      const response = await fetch(`${API}/admin/payment-methods/${methodId}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        fetchPaymentMethods();
+        alert(`Payment method ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      } else {
+        throw new Error('Failed to toggle payment method status');
+      }
+    } catch (error) {
+      console.error('Error toggling payment method status:', error);
+      alert('Failed to toggle payment method status');
+    }
+  };
+
+  const openEditDialog = (method) => {
+    setSelectedMethod({ ...method });
+    setShowEditMethod(true);
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'verified': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800'; 
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'suspended': return 'bg-gray-100 text-gray-800';
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-red-100 text-red-800';
+      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // Mock data for demo
-  const mockPaymentMethods = [
-    {
-      id: 'pm_1',
-      seller_id: 'seller_1',
-      seller_name: 'John van der Merwe',
-      type: 'bank_account',
-      bank_name: 'FNB',
-      account_number: '****1234',
-      account_holder: 'John van der Merwe',
-      branch_code: '250655',
-      account_type: 'Savings',
-      status: 'verified',
-      verified_at: '2025-08-15T10:30:00Z',
-      created_at: '2025-08-10T14:20:00Z',
-      is_primary: true,
-      verification_documents: ['bank_statement.pdf', 'id_document.pdf']
-    },
-    {
-      id: 'pm_2',
-      seller_id: 'seller_2', 
-      seller_name: 'Sipho Farming Co-op',
-      type: 'bank_account',
-      bank_name: 'Standard Bank',
-      account_number: '****5678',
-      account_holder: 'Sipho Farming Cooperative',
-      branch_code: '051001',
-      account_type: 'Business',
-      status: 'pending',
-      created_at: '2025-08-28T11:15:00Z',
-      is_primary: true,
-      verification_documents: ['bank_statement.pdf', 'company_registration.pdf'],
-      pending_reason: 'Awaiting document verification'
-    },
-    {
-      id: 'pm_3',
-      seller_id: 'seller_3',
-      seller_name: 'Premium Poultry Ltd',
-      type: 'bank_account', 
-      bank_name: 'ABSA',
-      account_number: '****9012',
-      account_holder: 'Premium Poultry Ltd',
-      branch_code: '632005',
-      account_type: 'Business',
-      status: 'rejected',
-      created_at: '2025-08-25T16:45:00Z',
-      rejected_at: '2025-08-27T09:30:00Z',
-      rejection_reason: 'Account holder name mismatch with registration documents',
-      is_primary: false
-    },
-    {
-      id: 'pm_4',
-      seller_id: 'seller_4',
-      seller_name: 'Maria Livestock',
-      type: 'bank_account',
-      bank_name: 'Nedbank',
-      account_number: '****3456',
-      account_holder: 'Maria dos Santos',
-      branch_code: '198765',
-      account_type: 'Savings',
-      status: 'suspended',
-      verified_at: '2025-08-20T12:00:00Z',
-      suspended_at: '2025-08-29T08:15:00Z',
-      created_at: '2025-08-18T09:30:00Z',
-      suspension_reason: 'Suspicious activity detected',
-      is_primary: true
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'credit_card': return <CreditCard className="h-4 w-4" />;
+      case 'bank_transfer': return <Globe className="h-4 w-4" />;
+      case 'digital_wallet': return <Shield className="h-4 w-4" />;
+      default: return <DollarSign className="h-4 w-4" />;
     }
+  };
+
+  const paymentMethodTypes = [
+    { value: 'credit_card', label: 'Credit Card' },
+    { value: 'debit_card', label: 'Debit Card' },
+    { value: 'bank_transfer', label: 'Bank Transfer' },
+    { value: 'digital_wallet', label: 'Digital Wallet' },
+    { value: 'cryptocurrency', label: 'Cryptocurrency' },
+    { value: 'mobile_money', label: 'Mobile Money' }
   ];
 
-  const displayMethods = paymentMethods.length > 0 ? paymentMethods : mockPaymentMethods;
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Payment Methods Management</h2>
-        </div>
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="text-gray-500 mt-2">Loading payment methods...</p>
-        </div>
-      </div>
-    );
-  }
+  const activeCount = paymentMethods.filter(m => m.status === 'active').length;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Payment Methods Management</h2>
-          <p className="text-gray-600">Manage seller bank accounts and payment method verification</p>
+          <h1 className="text-2xl font-bold">Payment Methods</h1>
+          <Badge className="bg-green-100 text-green-800 mt-2">
+            {activeCount} Active Methods
+          </Badge>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={fetchPaymentMethods}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Payment Method
-          </Button>
-        </div>
+        <Button onClick={() => setShowAddMethod(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Payment Method
+        </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Verified Methods</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {displayMethods.filter(m => m.status === 'verified').length}
-                </p>
+                <p className="text-sm text-gray-600">Active</p>
+                <p className="text-2xl font-bold text-green-600">{activeCount}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
+              <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Pending Verification</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {displayMethods.filter(m => m.status === 'pending').length}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-yellow-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Rejected Methods</p>
+                <p className="text-sm text-gray-600">Inactive</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {displayMethods.filter(m => m.status === 'rejected').length}
+                  {paymentMethods.filter(m => m.status === 'inactive').length}
                 </p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-red-600" />
+              <XCircle className="h-8 w-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Suspended Methods</p>
-                <p className="text-2xl font-bold text-gray-600">
-                  {displayMethods.filter(m => m.status === 'suspended').length}
+                <p className="text-sm text-gray-600">Credit Cards</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {paymentMethods.filter(m => m.type === 'credit_card').length}
                 </p>
               </div>
-              <Shield className="h-8 w-8 text-gray-600" />
+              <CreditCard className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Methods</p>
+                <p className="text-2xl font-bold">{paymentMethods.length}</p>
+              </div>
+              <Settings className="h-8 w-8 text-gray-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All Methods</TabsTrigger>
-          <TabsTrigger value="pending">Pending Verification</TabsTrigger>
-          <TabsTrigger value="verified">Verified</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all">
-          <Card>
-            <CardHeader>
-              <CardTitle>All Payment Methods</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Seller</TableHead>
-                    <TableHead>Bank Details</TableHead>
-                    <TableHead>Account Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Primary</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayMethods.map((method) => (
-                    <TableRow key={method.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.seller_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_holder}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.bank_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_number}</div>
-                          <div className="text-sm text-gray-500">Branch: {method.branch_code}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{method.account_type}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(method.status)}>
-                          {method.status}
+      {/* Payment Methods Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Methods ({paymentMethods.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Method</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Fees</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Currencies</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paymentMethods.map((method) => (
+                <TableRow key={method.id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        {getTypeIcon(method.type)}
+                      </div>
+                      <div>
+                        <div className="font-medium">{method.name}</div>
+                        <div className="text-sm text-gray-500">{method.description}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {paymentMethodTypes.find(t => t.value === method.type)?.label || method.type}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{method.provider}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {method.processing_fee > 0 && (
+                        <div>{method.processing_fee}% + </div>
+                      )}
+                      <div>R{method.fixed_fee || 0}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(method.status)}>
+                      {method.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {method.supported_currencies?.map((currency, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {currency}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {method.is_primary && (
-                          <Badge variant="outline">Primary</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{new Date(method.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {setSelectedMethod(method); setShowMethodDialog(true);}}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {method.status === 'pending' && (
-                            <>
-                              <Button 
-                                size="sm" 
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => verifyPaymentMethod(method.id, 'verify')}
-                              >
-                                Verify
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => verifyPaymentMethod(method.id, 'reject')}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {method.status === 'verified' && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => verifyPaymentMethod(method.id, 'suspend')}
-                            >
-                              Suspend
-                            </Button>
-                          )}
-                          {method.status === 'suspended' && (
-                            <Button 
-                              size="sm" 
-                              className="bg-blue-600 hover:bg-blue-700"
-                              onClick={() => verifyPaymentMethod(method.id, 'reactivate')}
-                            >
-                              Reactivate
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                      )) || <Badge variant="outline">ZAR</Badge>}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditDialog(method)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleToggleStatus(method.id, method.status)}
+                      >
+                        {method.status === 'active' ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeletePaymentMethod(method.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="pending">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Verification</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Seller</TableHead>
-                    <TableHead>Bank Details</TableHead>
-                    <TableHead>Documents</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayMethods.filter(m => m.status === 'pending').map((method) => (
-                    <TableRow key={method.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.seller_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_holder}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.bank_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_number}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {method.verification_documents?.map((doc, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {doc}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>{new Date(method.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {setSelectedMethod(method); setShowMethodDialog(true);}}
-                          >
-                            Review
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => verifyPaymentMethod(method.id, 'verify')}
-                          >
-                            Verify
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => verifyPaymentMethod(method.id, 'reject')}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="verified">
-          <Card>
-            <CardHeader>
-              <CardTitle>Verified Payment Methods</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Seller</TableHead>
-                    <TableHead>Bank Details</TableHead>
-                    <TableHead>Verified Date</TableHead>
-                    <TableHead>Primary</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayMethods.filter(m => m.status === 'verified').map((method) => (
-                    <TableRow key={method.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.seller_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_holder}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.bank_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_number}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{new Date(method.verified_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        {method.is_primary && (
-                          <Badge variant="outline">Primary</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {setSelectedMethod(method); setShowMethodDialog(true);}}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => verifyPaymentMethod(method.id, 'suspend')}
-                          >
-                            Suspend
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="rejected">
-          <Card>
-            <CardHeader>
-              <CardTitle>Rejected Payment Methods</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Seller</TableHead>
-                    <TableHead>Bank Details</TableHead>
-                    <TableHead>Rejection Reason</TableHead>
-                    <TableHead>Rejected Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayMethods.filter(m => m.status === 'rejected').map((method) => (
-                    <TableRow key={method.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.seller_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_holder}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{method.bank_name}</div>
-                          <div className="text-sm text-gray-500">{method.account_number}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-red-600 text-sm">{method.rejection_reason}</span>
-                      </TableCell>
-                      <TableCell>{new Date(method.rejected_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            Contact Seller
-                          </Button>
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                            Request Resubmission
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Payment Method Details Dialog */}
-      <Dialog open={showMethodDialog} onOpenChange={setShowMethodDialog}>
+      {/* Add Payment Method Dialog */}
+      <Dialog open={showAddMethod} onOpenChange={setShowAddMethod}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Payment Method Details</DialogTitle>
+            <DialogTitle>Add Payment Method</DialogTitle>
             <DialogDescription>
-              Review payment method information and verification status
+              Configure a new payment method for the platform
             </DialogDescription>
           </DialogHeader>
-          
-          {selectedMethod && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Seller</Label>
-                  <p className="text-sm">{selectedMethod.seller_name}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Account Holder</Label>
-                  <p className="text-sm">{selectedMethod.account_holder}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Bank</Label>
-                  <p className="text-sm">{selectedMethod.bank_name}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Account Number</Label>
-                  <p className="text-sm">{selectedMethod.account_number}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Branch Code</Label>
-                  <p className="text-sm">{selectedMethod.branch_code}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Account Type</Label>
-                  <p className="text-sm">{selectedMethod.account_type}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Status</Label>
-                  <Badge className={getStatusColor(selectedMethod.status)}>
-                    {selectedMethod.status}
-                  </Badge>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Primary Method</Label>
-                  <p className="text-sm">{selectedMethod.is_primary ? 'Yes' : 'No'}</p>
-                </div>
-              </div>
-              
-              {selectedMethod.verification_documents && (
-                <div>
-                  <Label className="text-sm font-medium">Verification Documents</Label>
-                  <div className="space-y-1 mt-1">
-                    {selectedMethod.verification_documents.map((doc, index) => (
-                      <Badge key={index} variant="outline" className="mr-2">
-                        {doc}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {selectedMethod.rejection_reason && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Rejection Reason:</strong> {selectedMethod.rejection_reason}
-                  </AlertDescription>
-                </Alert>
-              )}
 
-              {selectedMethod.suspension_reason && (
-                <Alert>
-                  <Shield className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Suspension Reason:</strong> {selectedMethod.suspension_reason}
-                  </AlertDescription>
-                </Alert>
-              )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Method Name *</Label>
+              <Input
+                value={newMethod.name}
+                onChange={(e) => setNewMethod({...newMethod, name: e.target.value})}
+                placeholder="e.g., Visa Credit Card"
+              />
+            </div>
+            <div>
+              <Label>Type *</Label>
+              <Select value={newMethod.type} onValueChange={(value) => setNewMethod({...newMethod, type: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethodTypes.map(type => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Provider *</Label>
+              <Input
+                value={newMethod.provider}
+                onChange={(e) => setNewMethod({...newMethod, provider: e.target.value})}
+                placeholder="e.g., Stripe, PayPal, Paystack"
+              />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={newMethod.status} onValueChange={(value) => setNewMethod({...newMethod, status: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Processing Fee (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={newMethod.processing_fee}
+                onChange={(e) => setNewMethod({...newMethod, processing_fee: e.target.value})}
+                placeholder="2.9"
+              />
+            </div>
+            <div>
+              <Label>Fixed Fee (R)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={newMethod.fixed_fee}
+                onChange={(e) => setNewMethod({...newMethod, fixed_fee: e.target.value})}
+                placeholder="0.30"
+              />
+            </div>
+            <div className="col-span-2">
+              <Label>Description</Label>
+              <Textarea
+                value={newMethod.description}
+                onChange={(e) => setNewMethod({...newMethod, description: e.target.value})}
+                placeholder="Brief description of this payment method"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddMethod(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddPaymentMethod} 
+              disabled={loading || !newMethod.name || !newMethod.provider}
+            >
+              {loading ? 'Adding...' : 'Add Payment Method'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Payment Method Dialog */}
+      <Dialog open={showEditMethod} onOpenChange={setShowEditMethod}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Payment Method</DialogTitle>
+            <DialogDescription>
+              Update payment method configuration
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedMethod && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Method Name *</Label>
+                <Input
+                  value={selectedMethod.name}
+                  onChange={(e) => setSelectedMethod({...selectedMethod, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Type *</Label>
+                <Select value={selectedMethod.type} onValueChange={(value) => setSelectedMethod({...selectedMethod, type: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethodTypes.map(type => (
+                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Provider *</Label>
+                <Input
+                  value={selectedMethod.provider}
+                  onChange={(e) => setSelectedMethod({...selectedMethod, provider: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={selectedMethod.status} onValueChange={(value) => setSelectedMethod({...selectedMethod, status: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Processing Fee (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={selectedMethod.processing_fee}
+                  onChange={(e) => setSelectedMethod({...selectedMethod, processing_fee: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Fixed Fee (R)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={selectedMethod.fixed_fee}
+                  onChange={(e) => setSelectedMethod({...selectedMethod, fixed_fee: e.target.value})}
+                />
+              </div>
+              <div className="col-span-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={selectedMethod.description}
+                  onChange={(e) => setSelectedMethod({...selectedMethod, description: e.target.value})}
+                />
+              </div>
             </div>
           )}
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMethodDialog(false)}>
-              Close
+            <Button variant="outline" onClick={() => setShowEditMethod(false)}>
+              Cancel
             </Button>
-            {selectedMethod?.status === 'pending' && (
-              <>
-                <Button 
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => verifyPaymentMethod(selectedMethod.id, 'verify')}
-                  disabled={verifyingMethod}
-                >
-                  {verifyingMethod ? 'Processing...' : 'Verify Method'}
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => verifyPaymentMethod(selectedMethod.id, 'reject')}
-                  disabled={verifyingMethod}
-                >
-                  Reject Method
-                </Button>
-              </>
-            )}
+            <Button onClick={handleEditPaymentMethod} disabled={loading}>
+              {loading ? 'Updating...' : 'Update Method'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
