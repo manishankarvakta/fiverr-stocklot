@@ -193,7 +193,7 @@ class CriticalFixesTester:
                         }
                     }
                     
-                    async with self.session.post(
+                    async with self.session.put(
                         f"{self.api_url}/admin/settings",
                         json=test_settings,
                         headers={**headers, "Content-Type": "application/json"}
