@@ -28,7 +28,7 @@ export default function AdminSettingsControls() {
     // General Settings
     siteName: 'StockLot',
     siteDescription: 'South Africa\'s Premier Livestock Marketplace',
-    supportEmail: 'hello@stocklot.co.za',
+    supportEmail: 'hello@stocklot.farm',
     supportPhone: '',
     businessAddress: '',
     
