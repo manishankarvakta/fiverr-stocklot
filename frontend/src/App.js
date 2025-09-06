@@ -678,21 +678,13 @@ function Footer() {
             </div>
           </div>
 
-          {/* Contact Info */}
+          {/* Support & Help */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-emerald-100 text-lg">Contact Info</h4>
+            <h4 className="font-semibold text-emerald-100 text-lg">Support & Help</h4>
             <div className="flex flex-col space-y-3 text-sm">
               <div className="flex items-center space-x-2 text-emerald-200">
-                <MapPin className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                <span>Agricultural Hub, South Africa</span>
-              </div>
-              <div className="flex items-center space-x-2 text-emerald-200">
-                <Phone className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                <span>+27 12 345 6789</span>
-              </div>
-              <div className="flex items-center space-x-2 text-emerald-200">
                 <Mail className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                <span>info@stocklot.co.za</span>
+                <span>hello@stocklot.co.za</span>
               </div>
             </div>
             <div className="pt-4">
