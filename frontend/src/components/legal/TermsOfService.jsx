@@ -367,9 +367,7 @@ const TermsOfService = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p><strong>StockLot (Pty) Ltd</strong></p>
                 <p>
-                  Email: legal@stocklot.co.za<br />
-                  Phone: +27 11 123 4567<br />
-                  Address: 123 Business District, Johannesburg, 2000, South Africa
+                  Email: legal@stocklot.co.za
                 </p>
                 <p>
                   <strong>Business Hours:</strong><br />
