@@ -545,10 +545,12 @@ function Footer() {
   useEffect(() => {
     const loadSocialSettings = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/platform/config`);
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://stocklot-repair.preview.emergentagent.com/api';
+        const response = await fetch(`${backendUrl}/platform/config`);
         if (response.ok) {
           const config = await response.json();
           const settings = config.settings || {};
+          console.log('Loaded social settings:', settings); // Debug log
           setSocialSettings({
             facebookUrl: settings.facebookUrl || '',
             twitterUrl: settings.twitterUrl || '',
