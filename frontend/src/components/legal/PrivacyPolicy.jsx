@@ -406,7 +406,7 @@ const PrivacyPolicy = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p><strong>Data Protection Officer</strong></p>
                 <p>
-                  Email: privacy@stocklot.co.za
+                  Email: privacy@stocklot.farm
                 </p>
               </div>
 
