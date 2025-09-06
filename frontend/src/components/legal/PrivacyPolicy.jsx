@@ -259,7 +259,7 @@ const PrivacyPolicy = () => {
               <p>To exercise your privacy rights:</p>
               <ol>
                 <li>Log into your account and use privacy settings</li>
-                <li>Contact our Data Protection Officer at privacy@stocklot.co.za</li>
+                <li>Contact our Data Protection Officer at privacy@stocklot.farm</li>
                 <li>Submit a written request with proof of identity</li>
                 <li>We will respond within 30 days (or as required by law)</li>
               </ol>
