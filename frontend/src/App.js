@@ -691,7 +691,7 @@ function Footer() {
             <div className="flex flex-col space-y-3 text-sm">
               <div className="flex items-center space-x-2 text-emerald-200">
                 <Mail className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                <span>hello@stocklot.co.za</span>
+                <span>hello@stocklot.farm</span>
               </div>
             </div>
             <div className="pt-4">
