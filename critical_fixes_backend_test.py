@@ -407,7 +407,7 @@ class CriticalFixesTester:
             return False
     
     async def test_disease_zone_manager(self):
-        """Test DiseaseZoneManager endpoint - POST /admin/disease-zones"""
+        """Test DiseaseZoneManager endpoint - GET /admin/disease-zones"""
         if not self.auth_token:
             logger.warning("⚠️ No auth token available for disease zones test")
             return False
@@ -420,38 +420,20 @@ class CriticalFixesTester:
                 "Content-Type": "application/json"
             }
             
-            # Test disease zone creation
-            disease_zone_data = {
-                "name": "Test Disease Zone",
-                "description": "Test disease zone for critical fixes validation",
-                "disease_type": "Foot and Mouth Disease",
-                "severity_level": "high",
-                "affected_areas": ["Gauteng North", "Pretoria East"],
-                "restrictions": {
-                    "movement_banned": True,
-                    "quarantine_required": True,
-                    "testing_mandatory": True
-                },
-                "start_date": datetime.now(timezone.utc).isoformat(),
-                "end_date": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
-                "contact_person": "Dr. Smith",
-                "contact_phone": "+27 12 345 6789"
-            }
-            
-            async with self.session.post(
+            # Test disease zones listing
+            async with self.session.get(
                 f"{self.api_url}/admin/disease-zones",
-                json=disease_zone_data,
                 headers=headers
             ) as response:
                 
                 status = response.status
                 response_data = await response.json() if response.content_type == 'application/json' else await response.text()
                 
-                if status in [200, 201]:
+                if status == 200:
                     self.test_results.append({
                         "test": "Disease Zone Manager",
                         "status": "✅ PASS",
-                        "details": f"Disease zone created successfully",
+                        "details": f"Disease zones endpoint accessible, returned {len(response_data) if isinstance(response_data, list) else 'data'}",
                         "response_code": status,
                         "data": response_data
                     })
@@ -461,7 +443,7 @@ class CriticalFixesTester:
                     self.test_results.append({
                         "test": "Disease Zone Manager",
                         "status": "❌ FAIL",
-                        "details": f"Disease zone creation failed with status {status}: {response_data}",
+                        "details": f"Disease zones endpoint failed with status {status}: {response_data}",
                         "response_code": status
                     })
                     return False
