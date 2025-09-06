@@ -763,6 +763,106 @@ export default function AdminAuctionsManagement() {
         </TabsContent>
       </Tabs>
 
+      {/* Create Auction Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Auction</DialogTitle>
+            <DialogDescription>
+              Set up a new livestock auction with bidding parameters
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Auction Title *</Label>
+              <Input
+                id="title"
+                value={newAuction.title}
+                onChange={(e) => setNewAuction({...newAuction, title: e.target.value})}
+                placeholder="e.g., Premium Brahman Bulls Auction"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="listing_id">Listing ID (Optional)</Label>
+              <Input
+                id="listing_id"
+                value={newAuction.listing_id}
+                onChange={(e) => setNewAuction({...newAuction, listing_id: e.target.value})}
+                placeholder="Link to existing listing"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="starting_price">Starting Price (R) *</Label>
+                <Input
+                  id="starting_price"
+                  type="number"
+                  value={newAuction.starting_price}
+                  onChange={(e) => setNewAuction({...newAuction, starting_price: e.target.value})}
+                  placeholder="45000"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="reserve_price">Reserve Price (R)</Label>
+                <Input
+                  id="reserve_price"
+                  type="number"
+                  value={newAuction.reserve_price}
+                  onChange={(e) => setNewAuction({...newAuction, reserve_price: e.target.value})}
+                  placeholder="50000"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="duration_hours">Auction Duration (Hours)</Label>
+              <Select 
+                value={newAuction.duration_hours.toString()} 
+                onValueChange={(value) => setNewAuction({...newAuction, duration_hours: parseInt(value)})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24">24 Hours</SelectItem>
+                  <SelectItem value="48">48 Hours (2 Days)</SelectItem>
+                  <SelectItem value="72">72 Hours (3 Days)</SelectItem>
+                  <SelectItem value="168">168 Hours (1 Week)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="description">Auction Description</Label>
+              <Textarea
+                id="description"
+                value={newAuction.description}
+                onChange={(e) => setNewAuction({...newAuction, description: e.target.value})}
+                placeholder="Detailed description of the livestock being auctioned..."
+                rows={4}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateAuction}
+              disabled={createLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {createLoading ? 'Creating...' : 'Create Auction'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Auction Details Dialog */}
       <Dialog open={showAuctionDialog} onOpenChange={setShowAuctionDialog}>
         <DialogContent className="max-w-3xl">
