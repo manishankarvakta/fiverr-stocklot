@@ -1,34 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Card, CardContent, CardHeader, CardTitle, Button, Input, Badge,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Textarea
-} from '../ui';
-import { Package, Search, Filter, Download, Eye, Check, X, AlertTriangle } from 'lucide-react';
+  Card, CardContent, CardHeader, CardTitle,
+  Button, Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Alert, AlertDescription
+} from '@/components/ui';
+import { 
+  Package, CheckCircle, XCircle, Clock, Eye, Edit, Trash2, Search, Filter,
+  Star, MapPin, DollarSign, Calendar, AlertTriangle
+} from 'lucide-react';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = process.env.REACT_APP_BACKEND_URL || 'https://stocklot-repair.preview.emergentagent.com/api';
 
 export default function AdminListingsManagement() {
   const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('pending');
   const [selectedListing, setSelectedListing] = useState(null);
-  const [showListingDialog, setShowListingDialog] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [reviewAction, setReviewAction] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchListings();
-  }, [filterStatus]);
+  }, []);
 
   const fetchListings = async () => {
     try {
-      const response = await fetch(`${API}/admin/listings?status=${filterStatus}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await fetch(`${API}/admin/listings`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       
       if (response.ok) {
@@ -37,250 +39,346 @@ export default function AdminListingsManagement() {
       }
     } catch (error) {
       console.error('Error fetching listings:', error);
+    }
+  };
+
+  const handleApproveListing = async (listingId, action, notes = '') => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API}/admin/listings/${listingId}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ 
+          action: action, // 'approve', 'reject', 'request_changes'
+          notes: notes 
+        })
+      });
+
+      if (response.ok) {
+        fetchListings();
+        setShowReviewDialog(false);
+        setSelectedListing(null);
+        setReviewAction('');
+        setReviewNotes('');
+        alert(`Listing ${action}d successfully!`);
+      } else {
+        throw new Error(`Failed to ${action} listing`);
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing listing:`, error);
+      alert(`Failed to ${action} listing`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleListingAction = async (listingId, action, reason = '') => {
+  const handleBulkApprove = async () => {
+    const pendingListings = filteredListings.filter(listing => 
+      listing.moderation_status === 'pending'
+    );
+
+    if (pendingListings.length === 0) {
+      alert('No pending listings to approve');
+      return;
+    }
+
+    if (!window.confirm(`Approve ${pendingListings.length} pending listings?`)) {
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await fetch(`${API}/admin/listings/${listingId}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reason })
-      });
-      
-      if (response.ok) {
-        fetchListings(); // Refresh the list
-        setShowListingDialog(false);
-        setRejectionReason('');
-      }
+      const promises = pendingListings.map(listing =>
+        fetch(`${API}/admin/listings/${listing.id}/review`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ action: 'approve', notes: 'Bulk approved' })
+        })
+      );
+
+      await Promise.all(promises);
+      fetchListings();
+      alert(`${pendingListings.length} listings approved successfully!`);
     } catch (error) {
-      console.error(`Error ${action} listing:`, error);
+      console.error('Error bulk approving listings:', error);
+      alert('Failed to bulk approve listings');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredListings = listings.filter(listing =>
-    listing.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    listing.species?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDeleteListing = async (listingId) => {
+    if (window.confirm('Are you sure you want to delete this listing?')) {
+      try {
+        const response = await fetch(`${API}/admin/listings/${listingId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
 
-  const getStatusBadge = (status) => {
+        if (response.ok) {
+          fetchListings();
+          alert('Listing deleted successfully!');
+        } else {
+          throw new Error('Failed to delete listing');
+        }
+      } catch (error) {
+        console.error('Error deleting listing:', error);
+        alert('Failed to delete listing');
+      }
+    }
+  };
+
+  const openReviewDialog = (listing, action) => {
+    setSelectedListing(listing);
+    setReviewAction(action);
+    setReviewNotes('');
+    setShowReviewDialog(true);
+  };
+
+  const filteredListings = listings.filter(listing => {
+    const matchesSearch = listing.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         listing.seller_info?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || listing.moderation_status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusColor = (status) => {
     switch (status) {
-      case 'pending':
-        return <Badge variant="outline" className="text-amber-600 border-amber-600">Pending</Badge>;
-      case 'approved':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'approved': return <CheckCircle className="h-4 w-4" />;
+      case 'rejected': return <XCircle className="h-4 w-4" />;
+      case 'pending': return <Clock className="h-4 w-4" />;
+      default: return <AlertTriangle className="h-4 w-4" />;
+    }
+  };
+
+  const pendingCount = listings.filter(l => l.moderation_status === 'pending').length;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Listings Management</h2>
-        <div className="flex gap-3">
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Listings Management</h1>
+          {pendingCount > 0 && (
+            <Badge className="bg-yellow-100 text-yellow-800 mt-2">
+              {pendingCount} Pending Approval
+            </Badge>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {pendingCount > 0 && (
+            <Button 
+              onClick={handleBulkApprove}
+              disabled={loading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Approve All Pending ({pendingCount})
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search listings..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">Pending Review</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="all">All Status</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Search and Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search listings by title or seller..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Listings Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Listings Queue ({filteredListings.length})
-          </CardTitle>
+          <CardTitle>Listings ({filteredListings.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
-              <p className="text-gray-500 mt-2">Loading listings...</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Listing</TableHead>
-                  <TableHead>Species</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredListings.map((listing) => (
-                  <TableRow key={listing.id}>
-                    <TableCell>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Listing</TableHead>
+                <TableHead>Seller</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredListings.map((listing) => (
+                <TableRow key={listing.id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <Package className="h-8 w-8 text-gray-400" />
+                      </div>
                       <div>
                         <div className="font-medium">{listing.title}</div>
-                        <div className="text-sm text-gray-500">ID: {listing.id.slice(0, 8)}...</div>
+                        <div className="text-sm text-gray-500">
+                          {listing.species} • {listing.quantity} {listing.unit}
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>{listing.species}</TableCell>
-                    <TableCell className="font-medium">
-                      R{listing.price?.toLocaleString() || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(listing.status)}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(listing.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedListing(listing);
-                            setShowListingDialog(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {listing.status === 'pending' && (
-                          <>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleListingAction(listing.id, 'approve')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setSelectedListing(listing);
-                                setShowListingDialog(true);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{listing.seller_info?.name || 'Unknown'}</div>
+                      <div className="text-sm text-gray-500 flex items-center">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {listing.location?.province || 'N/A'}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">R{listing.unit_price || listing.price_per_unit || 0}</div>
+                    <div className="text-sm text-gray-500">per {listing.unit}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(listing.moderation_status)}>
+                      <div className="flex items-center gap-1">
+                        {getStatusIcon(listing.moderation_status)}
+                        {listing.moderation_status || 'pending'}
+                      </div>
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {listing.created_at ? new Date(listing.created_at).toLocaleDateString() : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      {listing.moderation_status === 'pending' && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => openReviewDialog(listing, 'approve')}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openReviewDialog(listing, 'reject')}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => console.log('View listing:', listing.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteListing(listing.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      {/* Listing Details Dialog */}
-      <Dialog open={showListingDialog} onOpenChange={setShowListingDialog}>
-        <DialogContent className="max-w-4xl">
+      {/* Review Dialog */}
+      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Listing Review</DialogTitle>
+            <DialogTitle>
+              {reviewAction === 'approve' ? 'Approve Listing' : 'Reject Listing'}
+            </DialogTitle>
             <DialogDescription>
-              Review and moderate livestock listing
-            </DialogDescription>
-          </DialogHeader>
-          {selectedListing && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Title</label>
-                  <p className="text-sm text-gray-600">{selectedListing.title}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Species</label>
-                  <p className="text-sm text-gray-600">{selectedListing.species}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Price</label>
-                  <p className="text-sm text-gray-600 font-medium">
-                    R{selectedListing.price?.toLocaleString() || 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Status</label>
-                  {getStatusBadge(selectedListing.status)}
-                </div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <p className="text-sm text-gray-600 mt-1">{selectedListing.description || 'No description provided'}</p>
-              </div>
-
-              {selectedListing.status === 'pending' && (
-                <div>
-                  <label className="text-sm font-medium">Rejection Reason (optional)</label>
-                  <Textarea
-                    placeholder="Enter reason for rejection..."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    className="mt-1"
-                  />
+              {selectedListing && (
+                <div className="mt-2">
+                  <strong>{selectedListing.title}</strong>
+                  <br />
+                  <span className="text-sm text-gray-500">
+                    by {selectedListing.seller_info?.name}
+                  </span>
                 </div>
               )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Review Notes</Label>
+              <Textarea
+                value={reviewNotes}
+                onChange={(e) => setReviewNotes(e.target.value)}
+                placeholder={
+                  reviewAction === 'approve' 
+                    ? "Optional: Add approval notes..."
+                    : "Explain why this listing is being rejected..."
+                }
+                rows={3}
+              />
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowListingDialog(false)}>
-              Close
-            </Button>
-            {selectedListing?.status === 'pending' && (
-              <>
-                <Button
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => handleListingAction(selectedListing.id, 'approve')}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleListingAction(selectedListing.id, 'reject', rejectionReason)}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
-              </>
+
+            {reviewAction === 'reject' && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  The seller will be notified about the rejection and your feedback.
+                </AlertDescription>
+              </Alert>
             )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReviewDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleApproveListing(selectedListing?.id, reviewAction, reviewNotes)}
+              disabled={loading}
+              className={reviewAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : ''}
+            >
+              {loading ? 'Processing...' : (reviewAction === 'approve' ? 'Approve' : 'Reject')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
