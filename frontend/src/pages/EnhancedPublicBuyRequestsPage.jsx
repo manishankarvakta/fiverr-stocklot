@@ -81,7 +81,7 @@ const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0"> {/* Prevent text overflow */}
             <CardTitle className="text-lg font-semibold text-emerald-900 line-clamp-2">
-              WANTED: {request.title}
+              {request.title}
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
