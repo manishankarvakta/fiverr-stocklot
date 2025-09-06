@@ -19,6 +19,19 @@ export default function AdminLogisticsManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [showProviderDialog, setShowProviderDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [providerType, setProviderType] = useState('transporter');
+  const [newProvider, setNewProvider] = useState({
+    company_name: '',
+    contact_person: '',
+    phone: '',
+    email: '',
+    location: '',
+    service_areas: [],
+    specializations: [],
+    description: ''
+  });
 
   useEffect(() => {
     fetchTransporters();
@@ -62,6 +75,92 @@ export default function AdminLogisticsManagement() {
     }
   };
 
+  const handleCreateProvider = async () => {
+    if (!newProvider.company_name || !newProvider.contact_person || !newProvider.phone) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      const endpoint = providerType === 'transporter' ? 'transporters' : 'abattoirs';
+      const response = await fetch(`${API}/admin/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          ...newProvider,
+          type: providerType,
+          service_areas: newProvider.service_areas.filter(area => area.trim()),
+          specializations: newProvider.specializations.filter(spec => spec.trim())
+        })
+      });
+
+      if (response.ok) {
+        const provider = await response.json();
+        if (providerType === 'transporter') {
+          setTransporters([...transporters, provider]);
+        } else {
+          setAbattoirs([...abattoirs, provider]);
+        }
+        setShowCreateDialog(false);
+        setNewProvider({
+          company_name: '',
+          contact_person: '',
+          phone: '',
+          email: '',
+          location: '',
+          service_areas: [],
+          specializations: [],
+          description: ''
+        });
+        alert(`${providerType === 'transporter' ? 'Transporter' : 'Abattoir'} added successfully!`);
+      } else {
+        const error = await response.json();
+        alert(`Error adding provider: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error creating provider:', error);
+      alert('Error adding provider. Please try again.');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (providerId, newStatus, type) => {
+    try {
+      const endpoint = type === 'transporter' ? 'transporters' : 'abattoirs';
+      const response = await fetch(`${API}/admin/${endpoint}/${providerId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        if (type === 'transporter') {
+          setTransporters(transporters.map(t => 
+            t.id === providerId ? {...t, status: newStatus} : t
+          ));
+        } else {
+          setAbattoirs(abattoirs.map(a => 
+            a.id === providerId ? {...a, status: newStatus} : a
+          ));
+        }
+        alert('Provider status updated successfully!');
+      } else {
+        alert('Error updating provider status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Error updating status. Please try again.');
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800';
@@ -98,135 +197,102 @@ export default function AdminLogisticsManagement() {
       verification_status: 'verified',
       insurance_expires: '2025-12-31',
       permits: ['Animal Transport Permit', 'Cross-Border Permit'],
-      joined_date: '2024-03-15',
-      last_trip: '2025-08-29T14:30:00Z'
+      created_at: '2024-08-15T10:30:00Z'
     },
     {
       id: 'trans_2',
-      company_name: 'KZN Livestock Logistics',
-      contact_person: 'Thabo Mthembu',
-      phone: '+27 83 444 0156',
-      email: 'operations@kznlivestock.co.za',
-      location: 'Pietermaritzburg, KwaZulu-Natal',
-      service_areas: ['KwaZulu-Natal', 'Eastern Cape', 'Mpumalanga'],
+      company_name: 'Karoo Livestock Logistics',
+      contact_person: 'Maria van der Merwe',
+      phone: '+27 83 444 0987',
+      email: 'maria@karoolifestock.co.za',
+      location: 'Kimberley, Northern Cape',
+      service_areas: ['Northern Cape', 'Western Cape'],
       vehicle_count: 8,
       capacity_per_load: '25 cattle / 100 sheep',
-      specializations: ['cattle', 'poultry'],
+      specializations: ['cattle', 'sheep'],
       rating: 4.3,
       completed_trips: 892,
       status: 'active',
       verification_status: 'verified',
-      insurance_expires: '2026-06-30',
+      insurance_expires: '2025-09-15',
       permits: ['Animal Transport Permit'],
-      joined_date: '2024-06-20',
-      last_trip: '2025-08-28T11:45:00Z'
+      created_at: '2024-07-22T14:15:00Z'
     },
     {
       id: 'trans_3',
-      company_name: 'Cape Animal Transport',
-      contact_person: 'Maria van der Walt',
-      phone: '+27 84 333 0189',
-      email: 'maria@capetransport.co.za',
-      location: 'Worcester, Western Cape',
-      service_areas: ['Western Cape', 'Northern Cape'],
-      vehicle_count: 12,
-      capacity_per_load: '30 cattle / 120 sheep',
-      specializations: ['cattle', 'sheep', 'ostrich'],
-      rating: 4.9,
-      completed_trips: 1589,
-      status: 'pending',
-      verification_status: 'pending_documents',
-      insurance_expires: '2025-10-15',
-      permits: ['Animal Transport Permit'],
-      joined_date: '2025-08-25',
-      last_trip: null
-    },
-    {
-      id: 'trans_4',
-      company_name: 'Limpopo Livestock Movers',
-      contact_person: 'Peter Maluleke',
-      phone: '+27 81 222 0167',
-      email: 'peter@limpolivestock.co.za',
+      company_name: 'Limpopo Animal Movers',
+      contact_person: 'Thabo Mthembu',
+      phone: '+27 84 333 0876',
+      email: 'thabo@limpopoanimals.co.za',
       location: 'Polokwane, Limpopo',
       service_areas: ['Limpopo', 'Mpumalanga', 'Gauteng'],
-      vehicle_count: 6,
-      capacity_per_load: '20 cattle / 80 sheep',
-      specializations: ['cattle', 'goats'],
-      rating: 3.8,
-      completed_trips: 456,
-      status: 'suspended',
-      verification_status: 'verified',
+      vehicle_count: 12,
+      capacity_per_load: '35 cattle / 120 sheep',
+      specializations: ['cattle', 'sheep', 'goats', 'pigs'],
+      rating: 4.1,
+      completed_trips: 654,
+      status: 'pending',
+      verification_status: 'pending',
       insurance_expires: '2025-11-30',
       permits: ['Animal Transport Permit'],
-      joined_date: '2024-09-10',
-      last_trip: '2025-08-15T09:20:00Z',
-      suspension_reason: 'Customer complaints about animal welfare'
+      created_at: '2024-08-01T09:45:00Z'
     }
   ];
 
   const mockAbattoirs = [
     {
-      id: 'abatt_1',
-      facility_name: 'Highveld Abattoir',
-      owner_name: 'Highveld Meat Processing Ltd',
-      contact_person: 'David Botha',
-      phone: '+27 11 555 0234',
-      email: 'operations@highveldmeat.co.za',
-      address: '123 Industrial Road, Germiston, Gauteng',
-      capacity_per_day: '500 cattle / 2000 sheep',
+      id: 'abattoir_1',
+      company_name: 'Highveld Premium Abattoir',
+      contact_person: 'David Johnson',
+      phone: '+27 82 777 0123',
+      email: 'david@highveldabattoir.co.za',
+      location: 'Johannesburg, Gauteng',
+      service_areas: ['Gauteng', 'North West', 'Free State'],
+      daily_capacity: '200 cattle / 500 sheep',
       specializations: ['cattle', 'sheep', 'goats'],
-      halal_certified: true,
-      haccp_certified: true,
-      rating: 4.6,
-      processed_animals: 185000,
-      status: 'active',
-      verification_status: 'verified',
-      health_certificate_expires: '2026-03-15',
-      certifications: ['HACCP', 'Halal', 'ISO 22000'],
-      established_date: '2018-05-10',
-      last_inspection: '2025-07-20T10:00:00Z'
-    },
-    {
-      id: 'abatt_2',
-      facility_name: 'Western Cape Premium Abattoir',
-      owner_name: 'Cape Premium Meats',
-      contact_person: 'Susan Williams',
-      phone: '+27 21 444 0267',
-      email: 'susan@capepremium.co.za',
-      address: '456 Meat Street, Parow, Western Cape',
-      capacity_per_day: '300 cattle / 1500 sheep',
-      specializations: ['cattle', 'sheep', 'lamb'],
-      halal_certified: false,
-      haccp_certified: true,
+      certifications: ['HACCP', 'ISO 22000', 'Halal', 'Export Grade'],
       rating: 4.8,
-      processed_animals: 95000,
+      processed_animals: 45623,
       status: 'active',
       verification_status: 'verified',
-      health_certificate_expires: '2025-12-10',
-      certifications: ['HACCP', 'ISO 22000', 'Organic Certified'],
-      established_date: '2020-02-28',
-      last_inspection: '2025-08-15T14:30:00Z'
+      license_expires: '2025-12-31',
+      created_at: '2023-05-10T08:00:00Z'
     },
     {
-      id: 'abatt_3',
-      facility_name: 'KZN Halal Processing',
-      owner_name: 'Crescent Foods Ltd',
-      contact_person: 'Ahmed Hassan',
-      phone: '+27 31 333 0198',
-      email: 'ahmed@crescentfoods.co.za',
-      address: '789 Halal Avenue, Durban, KwaZulu-Natal',
-      capacity_per_day: '200 cattle / 1000 sheep',
-      specializations: ['cattle', 'sheep', 'goats', 'poultry'],
-      halal_certified: true,
-      haccp_certified: true,
-      rating: 4.4,
-      processed_animals: 67000,
-      status: 'pending',
-      verification_status: 'pending_inspection',
-      health_certificate_expires: '2025-11-20',
-      certifications: ['Halal', 'HACCP'],
-      established_date: '2023-08-15',
-      last_inspection: null
+      id: 'abattoir_2',
+      company_name: 'Cape Town Meat Processing',
+      contact_person: 'Sarah Williams',
+      phone: '+27 83 888 0987',
+      email: 'sarah@ctmeatprocessing.co.za',
+      location: 'Cape Town, Western Cape',
+      service_areas: ['Western Cape', 'Northern Cape'],
+      daily_capacity: '150 cattle / 400 sheep',
+      specializations: ['cattle', 'sheep', 'pigs'],
+      certifications: ['HACCP', 'Halal'],
+      rating: 4.5,
+      processed_animals: 32145,
+      status: 'active',
+      verification_status: 'verified',
+      license_expires: '2025-10-15',
+      created_at: '2023-07-15T12:30:00Z'
+    },
+    {
+      id: 'abattoir_3',
+      company_name: 'Durban Livestock Processing',
+      contact_person: 'Raj Patel',
+      phone: '+27 84 999 0876',
+      email: 'raj@durbanprocessing.co.za',
+      location: 'Durban, KwaZulu-Natal',
+      service_areas: ['KwaZulu-Natal', 'Eastern Cape'],
+      daily_capacity: '100 cattle / 300 sheep',
+      specializations: ['cattle', 'sheep', 'goats'],
+      certifications: ['HACCP', 'Halal'],
+      rating: 4.2,
+      processed_animals: 28934,
+      status: 'suspended',
+      verification_status: 'verified',
+      license_expires: '2025-08-30',
+      created_at: '2023-09-20T16:20:00Z'
     }
   ];
 
@@ -252,14 +318,17 @@ export default function AdminLogisticsManagement() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Logistics Management</h2>
-          <p className="text-gray-600">Manage transporters and abattoir partners</p>
+          <p className="text-gray-600">Manage transport and processing providers</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => {fetchTransporters(); fetchAbattoirs();}}>
+          <Button variant="outline" onClick={() => { fetchTransporters(); fetchAbattoirs(); }}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
+          <Button 
+            className="bg-green-600 hover:bg-green-700"
+            onClick={() => setShowCreateDialog(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Provider
           </Button>
@@ -273,11 +342,11 @@ export default function AdminLogisticsManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Active Transporters</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-blue-600">
                   {displayTransporters.filter(t => t.status === 'active').length}
                 </p>
               </div>
-              <Truck className="h-8 w-8 text-green-600" />
+              <Truck className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -287,11 +356,11 @@ export default function AdminLogisticsManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Active Abattoirs</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-green-600">
                   {displayAbattoirs.filter(a => a.status === 'active').length}
                 </p>
               </div>
-              <Building2 className="h-8 w-8 text-blue-600" />
+              <Building2 className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
@@ -300,7 +369,7 @@ export default function AdminLogisticsManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Pending Approvals</p>
+                <p className="text-sm text-gray-500">Pending Verification</p>
                 <p className="text-2xl font-bold text-yellow-600">
                   {[...displayTransporters, ...displayAbattoirs].filter(p => p.status === 'pending').length}
                 </p>
@@ -314,12 +383,18 @@ export default function AdminLogisticsManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Fleet Size</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {displayTransporters.reduce((sum, t) => sum + t.vehicle_count, 0)}
+                <p className="text-sm text-gray-500">Average Rating</p>
+                <p className="text-2xl font-bold text-emerald-600">
+                  {[...displayTransporters, ...displayAbattoirs].length > 0
+                    ? (
+                        [...displayTransporters, ...displayAbattoirs].reduce((sum, p) => sum + (p.rating || 0), 0) / 
+                        [...displayTransporters, ...displayAbattoirs].length
+                      ).toFixed(1)
+                    : '0.0'
+                  }
                 </p>
               </div>
-              <Shield className="h-8 w-8 text-purple-600" />
+              <Star className="h-8 w-8 text-emerald-600" />
             </div>
           </CardContent>
         </Card>
@@ -327,24 +402,23 @@ export default function AdminLogisticsManagement() {
 
       <Tabs defaultValue="transporters" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="transporters">Transporters</TabsTrigger>
-          <TabsTrigger value="abattoirs">Abattoirs</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+          <TabsTrigger value="transporters">Transporters ({displayTransporters.length})</TabsTrigger>
+          <TabsTrigger value="abattoirs">Abattoirs ({displayAbattoirs.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="transporters">
           <Card>
             <CardHeader>
-              <CardTitle>Transport Partners</CardTitle>
+              <CardTitle>Livestock Transporters</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Company</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Fleet</TableHead>
-                    <TableHead>Specialization</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Service Areas</TableHead>
+                    <TableHead>Capacity</TableHead>
                     <TableHead>Rating</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -355,44 +429,42 @@ export default function AdminLogisticsManagement() {
                     <TableRow key={transporter.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{transporter.company_name}</div>
-                          <div className="text-sm text-gray-500">{transporter.contact_person}</div>
-                          <div className="text-sm text-gray-500">{transporter.phone}</div>
+                          <p className="font-medium">{transporter.company_name}</p>
+                          <p className="text-sm text-gray-500">{transporter.location}</p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{transporter.location}</div>
-                          <div className="text-sm text-gray-500">
-                            {transporter.service_areas.length} service areas
-                          </div>
+                          <p className="font-medium">{transporter.contact_person}</p>
+                          <p className="text-sm text-gray-500">{transporter.phone}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <div className="font-semibold">{transporter.vehicle_count} vehicles</div>
-                          <div className="text-sm text-gray-500">{transporter.capacity_per_load}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {transporter.specializations.slice(0, 2).map((spec, index) => (
-                            <Badge key={index} variant="outline" className="text-xs mr-1">
-                              {spec}
+                        <div className="flex flex-wrap gap-1">
+                          {transporter.service_areas.slice(0, 2).map((area, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {area}
                             </Badge>
                           ))}
+                          {transporter.service_areas.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{transporter.service_areas.length - 2}
+                            </Badge>
+                          )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm">{transporter.capacity_per_load}</p>
+                        <p className="text-xs text-gray-500">{transporter.vehicle_count} vehicles</p>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Star className={`h-4 w-4 ${getRatingColor(transporter.rating)}`} />
-                          <span className={`font-medium ${getRatingColor(transporter.rating)}`}>
+                          <span className={getRatingColor(transporter.rating)}>
                             {transporter.rating}
                           </span>
-                          <span className="text-sm text-gray-500">
-                            ({transporter.completed_trips})
-                          </span>
                         </div>
+                        <p className="text-xs text-gray-500">{transporter.completed_trips} trips</p>
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(transporter.status)}>
@@ -404,16 +476,25 @@ export default function AdminLogisticsManagement() {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => {setSelectedProvider(transporter); setShowProviderDialog(true);}}
+                            onClick={() => {setSelectedProvider({...transporter, type: 'transporter'}); setShowProviderDialog(true);}}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {transporter.status === 'active' && (
-                            <Button size="sm" variant="outline">
+                          {transporter.status === 'active' ? (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleUpdateStatus(transporter.id, 'suspended', 'transporter')}
+                            >
                               <Ban className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleUpdateStatus(transporter.id, 'active', 'transporter')}
+                            >
+                              <CheckCircle className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
@@ -429,17 +510,17 @@ export default function AdminLogisticsManagement() {
         <TabsContent value="abattoirs">
           <Card>
             <CardHeader>
-              <CardTitle>Abattoir Partners</CardTitle>
+              <CardTitle>Processing Facilities (Abattoirs)</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Facility</TableHead>
-                    <TableHead>Location</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Service Areas</TableHead>
                     <TableHead>Capacity</TableHead>
                     <TableHead>Certifications</TableHead>
-                    <TableHead>Rating</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -449,41 +530,46 @@ export default function AdminLogisticsManagement() {
                     <TableRow key={abattoir.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{abattoir.facility_name}</div>
-                          <div className="text-sm text-gray-500">{abattoir.owner_name}</div>
-                          <div className="text-sm text-gray-500">{abattoir.contact_person}</div>
+                          <p className="font-medium">{abattoir.company_name}</p>
+                          <p className="text-sm text-gray-500">{abattoir.location}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">
-                          <MapPin className="h-4 w-4 inline mr-1" />
-                          {abattoir.address.split(',').slice(-1)[0]}
+                        <div>
+                          <p className="font-medium">{abattoir.contact_person}</p>
+                          <p className="text-sm text-gray-500">{abattoir.phone}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm font-medium">{abattoir.capacity_per_day}</div>
-                        <div className="text-sm text-gray-500">
-                          {abattoir.processed_animals.toLocaleString()} processed
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {abattoir.certifications.slice(0, 2).map((cert, index) => (
-                            <Badge key={index} variant="outline" className="text-xs mr-1">
-                              {cert}
+                        <div className="flex flex-wrap gap-1">
+                          {abattoir.service_areas.slice(0, 2).map((area, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {area}
                             </Badge>
                           ))}
-                          {abattoir.halal_certified && (
-                            <Badge className="bg-green-100 text-green-800 text-xs">Halal</Badge>
+                          {abattoir.service_areas.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{abattoir.service_areas.length - 2}
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Star className={`h-4 w-4 ${getRatingColor(abattoir.rating)}`} />
-                          <span className={`font-medium ${getRatingColor(abattoir.rating)}`}>
-                            {abattoir.rating}
-                          </span>
+                        <p className="text-sm">{abattoir.daily_capacity}</p>
+                        <p className="text-xs text-gray-500">{abattoir.processed_animals} processed</p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {abattoir.certifications.slice(0, 2).map((cert, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {cert}
+                            </Badge>
+                          ))}
+                          {abattoir.certifications.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{abattoir.certifications.length - 2}
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -496,16 +582,25 @@ export default function AdminLogisticsManagement() {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => {setSelectedProvider(abattoir); setShowProviderDialog(true);}}
+                            onClick={() => {setSelectedProvider({...abattoir, type: 'abattoir'}); setShowProviderDialog(true);}}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {abattoir.status === 'active' && (
-                            <Button size="sm" variant="outline">
+                          {abattoir.status === 'active' ? (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleUpdateStatus(abattoir.id, 'suspended', 'abattoir')}
+                            >
                               <Ban className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleUpdateStatus(abattoir.id, 'active', 'abattoir')}
+                            >
+                              <CheckCircle className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
@@ -517,99 +612,149 @@ export default function AdminLogisticsManagement() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="pending">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Approvals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Provider</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Verification Status</TableHead>
-                    <TableHead>Applied Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...displayTransporters, ...displayAbattoirs]
-                    .filter(provider => provider.status === 'pending')
-                    .map((provider) => (
-                    <TableRow key={provider.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">
-                            {provider.company_name || provider.facility_name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {provider.owner_name || provider.contact_person}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {provider.vehicle_count ? 'Transporter' : 'Abattoir'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            {provider.phone}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {provider.email}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={
-                          provider.verification_status === 'verified' ? 'bg-green-100 text-green-800' :
-                          provider.verification_status === 'pending_documents' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }>
-                          {provider.verification_status?.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(provider.joined_date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                            Approve
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            Reject
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            Request Info
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
+
+      {/* Create Provider Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New Logistics Provider</DialogTitle>
+            <DialogDescription>
+              Add a new transporter or processing facility to the platform
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="provider-type">Provider Type *</Label>
+              <Select value={providerType} onValueChange={setProviderType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select provider type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transporter">Livestock Transporter</SelectItem>
+                  <SelectItem value="abattoir">Processing Facility (Abattoir)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="company_name">Company Name *</Label>
+                <Input
+                  id="company_name"
+                  value={newProvider.company_name}
+                  onChange={(e) => setNewProvider({...newProvider, company_name: e.target.value})}
+                  placeholder="Company Name"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contact_person">Contact Person *</Label>
+                <Input
+                  id="contact_person"
+                  value={newProvider.contact_person}
+                  onChange={(e) => setNewProvider({...newProvider, contact_person: e.target.value})}
+                  placeholder="Contact Person Name"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input
+                  id="phone"
+                  value={newProvider.phone}
+                  onChange={(e) => setNewProvider({...newProvider, phone: e.target.value})}
+                  placeholder="+27 82 555 0123"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newProvider.email}
+                  onChange={(e) => setNewProvider({...newProvider, email: e.target.value})}
+                  placeholder="contact@company.co.za"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={newProvider.location}
+                onChange={(e) => setNewProvider({...newProvider, location: e.target.value})}
+                placeholder="City, Province"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="service_areas">Service Areas (comma separated)</Label>
+              <Input
+                id="service_areas"
+                value={newProvider.service_areas.join(', ')}
+                onChange={(e) => setNewProvider({
+                  ...newProvider, 
+                  service_areas: e.target.value.split(',').map(area => area.trim()).filter(area => area)
+                })}
+                placeholder="Gauteng, Free State, Northern Cape"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="specializations">Specializations (comma separated)</Label>
+              <Input
+                id="specializations"
+                value={newProvider.specializations.join(', ')}
+                onChange={(e) => setNewProvider({
+                  ...newProvider, 
+                  specializations: e.target.value.split(',').map(spec => spec.trim()).filter(spec => spec)
+                })}
+                placeholder="Cattle, Sheep, Goats"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={newProvider.description}
+                onChange={(e) => setNewProvider({...newProvider, description: e.target.value})}
+                placeholder="Brief description of services offered"
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateProvider}
+              disabled={createLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {createLoading ? 'Adding...' : `Add ${providerType === 'transporter' ? 'Transporter' : 'Abattoir'}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Provider Details Dialog */}
       <Dialog open={showProviderDialog} onOpenChange={setShowProviderDialog}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {selectedProvider?.company_name || selectedProvider?.facility_name} Details
+              {selectedProvider?.type === 'transporter' ? 'Transporter' : 'Abattoir'} Details
             </DialogTitle>
             <DialogDescription>
-              Comprehensive provider information and performance metrics
+              View detailed information about this logistics provider
             </DialogDescription>
           </DialogHeader>
           
@@ -617,129 +762,85 @@ export default function AdminLogisticsManagement() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Company/Facility</Label>
-                  <p className="text-sm">{selectedProvider.company_name || selectedProvider.facility_name}</p>
+                  <Label className="text-sm font-medium">Company Name</Label>
+                  <p className="text-sm">{selectedProvider.company_name}</p>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">Contact Person</Label>
-                  <p className="text-sm">{selectedProvider.contact_person}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Phone</Label>
-                  <p className="text-sm">{selectedProvider.phone}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Email</Label>
-                  <p className="text-sm">{selectedProvider.email}</p>
-                </div>
+                
                 <div>
                   <Label className="text-sm font-medium">Status</Label>
                   <Badge className={getStatusColor(selectedProvider.status)}>
                     {selectedProvider.status}
                   </Badge>
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Rating</Label>
-                  <div className="flex items-center gap-1">
-                    <Star className={`h-4 w-4 ${getRatingColor(selectedProvider.rating)}`} />
-                    <span className={`font-medium ${getRatingColor(selectedProvider.rating)}`}>
-                      {selectedProvider.rating}
-                    </span>
-                  </div>
+                  <Label className="text-sm font-medium">Contact Person</Label>
+                  <p className="text-sm">{selectedProvider.contact_person}</p>
+                </div>
+                
+                <div>
+                  <Label className="text-sm font-medium">Phone</Label>
+                  <p className="text-sm">{selectedProvider.phone}</p>
                 </div>
               </div>
               
-              {selectedProvider.vehicle_count && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">Vehicle Count</Label>
-                      <p className="text-sm font-semibold">{selectedProvider.vehicle_count}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Capacity per Load</Label>
-                      <p className="text-sm">{selectedProvider.capacity_per_load}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Completed Trips</Label>
-                      <p className="text-sm font-semibold">{selectedProvider.completed_trips}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Insurance Expires</Label>
-                      <p className="text-sm">{new Date(selectedProvider.insurance_expires).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  
+              <div>
+                <Label className="text-sm font-medium">Location</Label>
+                <p className="text-sm">{selectedProvider.location}</p>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Service Areas</Label>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {selectedProvider.service_areas.map((area, index) => (
+                    <Badge key={index} variant="outline">
+                      {area}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Specializations</Label>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {selectedProvider.specializations.map((spec, index) => (
+                    <Badge key={index} variant="outline">
+                      {spec}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              
+              {selectedProvider.type === 'transporter' && (
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Service Areas</Label>
-                    <div className="space-y-1 mt-1">
-                      {selectedProvider.service_areas.map((area, index) => (
-                        <Badge key={index} variant="outline" className="mr-2">
-                          {area}
-                        </Badge>
-                      ))}
-                    </div>
+                    <Label className="text-sm font-medium">Vehicle Count</Label>
+                    <p className="text-sm">{selectedProvider.vehicle_count}</p>
                   </div>
-
                   <div>
-                    <Label className="text-sm font-medium">Permits</Label>
-                    <div className="space-y-1 mt-1">
-                      {selectedProvider.permits.map((permit, index) => (
-                        <Badge key={index} className="mr-2 bg-blue-100 text-blue-800">
-                          {permit}
-                        </Badge>
-                      ))}
-                    </div>
+                    <Label className="text-sm font-medium">Capacity</Label>
+                    <p className="text-sm">{selectedProvider.capacity_per_load}</p>
                   </div>
-                </>
+                  <div>
+                    <Label className="text-sm font-medium">Completed Trips</Label>
+                    <p className="text-sm">{selectedProvider.completed_trips}</p>
+                  </div>
+                </div>
               )}
-
-              {selectedProvider.capacity_per_day && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">Daily Capacity</Label>
-                      <p className="text-sm font-semibold">{selectedProvider.capacity_per_day}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Animals Processed</Label>
-                      <p className="text-sm font-semibold">{selectedProvider.processed_animals?.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Health Certificate</Label>
-                      <p className="text-sm">Expires: {new Date(selectedProvider.health_certificate_expires).toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Last Inspection</Label>
-                      <p className="text-sm">
-                        {selectedProvider.last_inspection ? 
-                          new Date(selectedProvider.last_inspection).toLocaleDateString() : 
-                          'Pending'
-                        }
-                      </p>
-                    </div>
+              
+              {selectedProvider.type === 'abattoir' && (
+                <div>
+                  <Label className="text-sm font-medium">Certifications</Label>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedProvider.certifications.map((cert, index) => (
+                      <Badge key={index} variant="outline">
+                        {cert}
+                      </Badge>
+                    ))}
                   </div>
-
-                  <div>
-                    <Label className="text-sm font-medium">Certifications</Label>
-                    <div className="space-y-1 mt-1">
-                      {selectedProvider.certifications?.map((cert, index) => (
-                        <Badge key={index} className="mr-2 bg-green-100 text-green-800">
-                          {cert}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {selectedProvider.suspension_reason && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Suspension Reason:</strong> {selectedProvider.suspension_reason}
-                  </AlertDescription>
-                </Alert>
+                </div>
               )}
             </div>
           )}
@@ -748,14 +849,9 @@ export default function AdminLogisticsManagement() {
             <Button variant="outline" onClick={() => setShowProviderDialog(false)}>
               Close
             </Button>
-            <Button variant="outline">
-              Contact Provider
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              Edit Provider
             </Button>
-            {selectedProvider?.status === 'pending' && (
-              <Button className="bg-green-600 hover:bg-green-700">
-                Approve Provider
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

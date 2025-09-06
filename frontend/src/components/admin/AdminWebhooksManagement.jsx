@@ -18,6 +18,15 @@ export default function AdminWebhooksManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedWebhook, setSelectedWebhook] = useState(null);
   const [showWebhookDialog, setShowWebhookDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [newWebhook, setNewWebhook] = useState({
+    name: '',
+    url: '',
+    events: [],
+    secret: '',
+    description: ''
+  });
 
   useEffect(() => {
     fetchWebhooks();
@@ -58,6 +67,70 @@ export default function AdminWebhooksManagement() {
       }
     } catch (error) {
       console.error('Error fetching webhook logs:', error);
+    }
+  };
+
+  const handleCreateWebhook = async () => {
+    if (!newWebhook.name || !newWebhook.url) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      const response = await fetch(`${API}/admin/webhooks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(newWebhook)
+      });
+
+      if (response.ok) {
+        const webhook = await response.json();
+        setWebhooks([...webhooks, webhook]);
+        setShowCreateDialog(false);
+        setNewWebhook({
+          name: '',
+          url: '',
+          events: [],
+          secret: '',
+          description: ''
+        });
+        alert('Webhook created successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Error creating webhook: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error creating webhook:', error);
+      alert('Error creating webhook. Please try again.');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleDeleteWebhook = async (webhookId) => {
+    if (!confirm('Are you sure you want to delete this webhook?')) return;
+
+    try {
+      const response = await fetch(`${API}/admin/webhooks/${webhookId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        setWebhooks(webhooks.filter(w => w.id !== webhookId));
+        alert('Webhook deleted successfully!');
+      } else {
+        alert('Error deleting webhook');
+      }
+    } catch (error) {
+      console.error('Error deleting webhook:', error);
+      alert('Error deleting webhook. Please try again.');
     }
   };
 
@@ -216,7 +289,10 @@ export default function AdminWebhooksManagement() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
+          <Button 
+            className="bg-green-600 hover:bg-green-700"
+            onClick={() => setShowCreateDialog(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Webhook
           </Button>
@@ -301,12 +377,11 @@ export default function AdminWebhooksManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Webhook Name</TableHead>
                     <TableHead>URL</TableHead>
                     <TableHead>Events</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Success Rate</TableHead>
-                    <TableHead>Last Delivery</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -315,22 +390,21 @@ export default function AdminWebhooksManagement() {
                     <TableRow key={webhook.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{webhook.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {webhook.total_deliveries} total deliveries
-                          </div>
+                          <p className="font-medium">{webhook.name}</p>
+                          <p className="text-sm text-gray-500">
+                            Created: {new Date(webhook.created_at).toLocaleDateString()}
+                          </p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-xs truncate" title={webhook.url}>
-                          <Globe className="h-4 w-4 inline mr-1" />
+                        <p className="text-sm font-mono bg-gray-50 px-2 py-1 rounded max-w-xs truncate">
                           {webhook.url}
-                        </div>
+                        </p>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
+                        <div className="flex flex-wrap gap-1">
                           {webhook.events.slice(0, 2).map((event, index) => (
-                            <Badge key={index} variant="outline" className="text-xs mr-1">
+                            <Badge key={index} variant="outline" className="text-xs">
                               {event}
                             </Badge>
                           ))}
@@ -347,24 +421,12 @@ export default function AdminWebhooksManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full ${
-                                webhook.success_rate >= 95 ? 'bg-green-600' :
-                                webhook.success_rate >= 80 ? 'bg-yellow-600' : 'bg-red-600'
-                              }`}
-                              style={{ width: `${webhook.success_rate}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{webhook.success_rate}%</span>
+                        <div>
+                          <p className="font-medium">{webhook.success_rate}%</p>
+                          <p className="text-sm text-gray-500">
+                            {webhook.total_deliveries} total
+                          </p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {webhook.last_delivery ? 
-                          new Date(webhook.last_delivery).toLocaleDateString() : 
-                          'Never'
-                        }
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
@@ -375,11 +437,12 @@ export default function AdminWebhooksManagement() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Settings className="h-4 w-4" />
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleDeleteWebhook(webhook.id)}
+                          >
+                            <AlertTriangle className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -402,10 +465,9 @@ export default function AdminWebhooksManagement() {
                   <TableRow>
                     <TableHead>Webhook</TableHead>
                     <TableHead>Event</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Status Code</TableHead>
                     <TableHead>Response Time</TableHead>
-                    <TableHead>Retries</TableHead>
-                    <TableHead>Delivered</TableHead>
+                    <TableHead>Delivered At</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -413,12 +475,7 @@ export default function AdminWebhooksManagement() {
                   {displayLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{log.webhook_name}</div>
-                          <div className="text-sm text-gray-500 max-w-xs truncate">
-                            {log.url}
-                          </div>
-                        </div>
+                        <p className="font-medium">{log.webhook_name}</p>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{log.event_type}</Badge>
@@ -429,17 +486,13 @@ export default function AdminWebhooksManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className={`text-sm ${
-                          log.response_time > 2000 ? 'text-red-600' :
-                          log.response_time > 1000 ? 'text-yellow-600' : 'text-green-600'
-                        }`}>
+                        <span className={log.response_time > 1000 ? 'text-red-600' : 'text-green-600'}>
                           {log.response_time}ms
                         </span>
                       </TableCell>
                       <TableCell>
-                        {log.retry_count || 0}
+                        {new Date(log.delivered_at).toLocaleString()}
                       </TableCell>
-                      <TableCell>{new Date(log.delivered_at).toLocaleTimeString()}</TableCell>
                       <TableCell>
                         <Button size="sm" variant="outline">
                           <Eye className="h-4 w-4" />
@@ -454,67 +507,130 @@ export default function AdminWebhooksManagement() {
         </TabsContent>
 
         <TabsContent value="events">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Available Event Types</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { category: 'Payment Events', events: ['payment.success', 'payment.failed', 'payment.pending'] },
-                    { category: 'Order Events', events: ['order.created', 'order.completed', 'order.cancelled'] },
-                    { category: 'User Events', events: ['user.registered', 'user.verified', 'user.suspended'] },
-                    { category: 'Listing Events', events: ['listing.created', 'listing.approved', 'listing.rejected'] }
-                  ].map((category, index) => (
-                    <div key={index} className="border rounded-lg p-3">
-                      <h4 className="font-medium mb-2">{category.category}</h4>
-                      <div className="space-y-1">
-                        {category.events.map((event, eventIndex) => (
-                          <Badge key={eventIndex} variant="outline" className="mr-2 text-xs">
-                            {event}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Webhook Security</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Lock className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="font-medium">HMAC Signature Verification</h4>
-                      <p className="text-sm text-gray-500">All webhooks include cryptographic signatures</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Shield className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <h4 className="font-medium">HTTPS Only</h4>
-                      <p className="text-sm text-gray-500">Webhook URLs must use HTTPS encryption</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 border rounded-lg">
-                    <RefreshCw className="h-5 w-5 text-purple-600" />
-                    <div>
-                      <h4 className="font-medium">Automatic Retries</h4>
-                      <p className="text-sm text-gray-500">Failed deliveries retry with exponential backoff</p>
-                    </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Event Types</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium mb-2">Payment Events</h4>
+                  <div className="space-y-1">
+                    <Badge variant="outline">payment.success</Badge>
+                    <Badge variant="outline">payment.failed</Badge>
+                    <Badge variant="outline">transfer.success</Badge>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div>
+                  <h4 className="font-medium mb-2">Order Events</h4>
+                  <div className="space-y-1">
+                    <Badge variant="outline">order.created</Badge>
+                    <Badge variant="outline">order.completed</Badge>
+                    <Badge variant="outline">order.cancelled</Badge>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Listing Events</h4>
+                  <div className="space-y-1">
+                    <Badge variant="outline">listing.approved</Badge>
+                    <Badge variant="outline">listing.rejected</Badge>
+                    <Badge variant="outline">listing.expired</Badge>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">User Events</h4>
+                  <div className="space-y-1">
+                    <Badge variant="outline">user.verified</Badge>
+                    <Badge variant="outline">user.suspended</Badge>
+                    <Badge variant="outline">user.created</Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create Webhook Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Webhook</DialogTitle>
+            <DialogDescription>
+              Add a new webhook endpoint to receive event notifications
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Webhook Name *</Label>
+              <Input
+                id="name"
+                value={newWebhook.name}
+                onChange={(e) => setNewWebhook({...newWebhook, name: e.target.value})}
+                placeholder="e.g., Payment Processor Webhook"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="url">Webhook URL *</Label>
+              <Input
+                id="url"
+                value={newWebhook.url}
+                onChange={(e) => setNewWebhook({...newWebhook, url: e.target.value})}
+                placeholder="https://your-domain.com/webhooks/endpoint"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="events">Event Types (comma separated)</Label>
+              <Input
+                id="events"
+                value={newWebhook.events.join(', ')}
+                onChange={(e) => setNewWebhook({
+                  ...newWebhook, 
+                  events: e.target.value.split(',').map(e => e.trim()).filter(e => e)
+                })}
+                placeholder="payment.success, order.created"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="secret">Webhook Secret</Label>
+              <Input
+                id="secret"
+                value={newWebhook.secret}
+                onChange={(e) => setNewWebhook({...newWebhook, secret: e.target.value})}
+                placeholder="Optional security secret"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={newWebhook.description}
+                onChange={(e) => setNewWebhook({...newWebhook, description: e.target.value})}
+                placeholder="Brief description of this webhook's purpose"
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateWebhook}
+              disabled={createLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {createLoading ? 'Creating...' : 'Create Webhook'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Webhook Details Dialog */}
       <Dialog open={showWebhookDialog} onOpenChange={setShowWebhookDialog}>
@@ -530,39 +646,37 @@ export default function AdminWebhooksManagement() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Name</Label>
+                  <Label className="text-sm font-medium">Webhook Name</Label>
                   <p className="text-sm">{selectedWebhook.name}</p>
                 </div>
+                
                 <div>
                   <Label className="text-sm font-medium">Status</Label>
                   <Badge className={getStatusColor(selectedWebhook.status)}>
                     {selectedWebhook.status}
                   </Badge>
                 </div>
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium">URL</Label>
-                  <p className="text-sm font-mono bg-gray-50 p-2 rounded">{selectedWebhook.url}</p>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Webhook URL</Label>
+                <p className="text-sm font-mono bg-gray-50 p-2 rounded break-all">
+                  {selectedWebhook.url}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Success Rate</Label>
+                  <p className="text-2xl font-bold text-green-600">{selectedWebhook.success_rate}%</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Total Deliveries</Label>
-                  <p className="text-sm font-semibold">{selectedWebhook.total_deliveries}</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedWebhook.total_deliveries}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Failed Deliveries</Label>
-                  <p className="text-sm font-semibold text-red-600">{selectedWebhook.failed_deliveries}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Success Rate</Label>
-                  <p className="text-sm font-semibold">{selectedWebhook.success_rate}%</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Last Delivery</Label>
-                  <p className="text-sm">
-                    {selectedWebhook.last_delivery ? 
-                      new Date(selectedWebhook.last_delivery).toLocaleString() : 
-                      'Never'
-                    }
-                  </p>
+                  <p className="text-2xl font-bold text-red-600">{selectedWebhook.failed_deliveries}</p>
                 </div>
               </div>
               
