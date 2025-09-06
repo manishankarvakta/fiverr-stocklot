@@ -28,9 +28,9 @@ export default function AdminSettingsControls() {
     // General Settings
     siteName: 'StockLot',
     siteDescription: 'South Africa\'s Premier Livestock Marketplace',
-    supportEmail: 'support@stocklot.co.za',
-    supportPhone: '+27 123 456 789',
-    businessAddress: 'Cape Town, South Africa',
+    supportEmail: 'hello@stocklot.co.za',
+    supportPhone: '',
+    businessAddress: '',
     
     // Commission Settings
     platformCommissionPercent: 5.0,
