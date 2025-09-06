@@ -214,7 +214,7 @@ export default function OrganizationDashboardCard({ user }) {
                       {activeOrganization.handle && (
                         <div className="flex items-center space-x-1">
                           <Globe className="h-3 w-3" />
-                          <span>stocklot.co.za/o/{activeOrganization.handle}</span>
+                          <span>stocklot.farm/o/{activeOrganization.handle}</span>
                         </div>
                       )}
                       {activeOrganization.email && (
