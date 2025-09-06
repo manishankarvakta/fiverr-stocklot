@@ -376,12 +376,7 @@ const TermsOfService = () => {
                 </p>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400 mt-4">
-                <p className="text-blue-800 mb-0">
-                  <strong>Emergency Support:</strong> For urgent issues related to live animal 
-                  welfare or safety concerns, please call our 24/7 emergency line: +27 82 123 4567
-                </p>
-              </div>
+
             </CardContent>
           </Card>
 
