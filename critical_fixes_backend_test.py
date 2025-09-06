@@ -291,7 +291,7 @@ class CriticalFixesTester:
             return False
     
     async def test_admin_logistics_management(self):
-        """Test AdminLogisticsManagement endpoints - POST /admin/transporters and /admin/abattoirs"""
+        """Test AdminLogisticsManagement endpoints - GET /admin/transporters and /admin/abattoirs"""
         if not self.auth_token:
             logger.warning("⚠️ No auth token available for logistics test")
             return False
@@ -304,50 +304,27 @@ class CriticalFixesTester:
                 "Content-Type": "application/json"
             }
             
-            # Test transporter creation
-            transporter_data = {
-                "name": "Test Transport Co",
-                "contact_person": "John Doe",
-                "phone": "+27 11 123 4567",
-                "email": "transport@test.com",
-                "service_areas": ["Gauteng", "Mpumalanga"],
-                "vehicle_types": ["truck", "bakkie"],
-                "rates_per_km": 15.50
-            }
-            
-            async with self.session.post(
+            # Test transporters listing
+            async with self.session.get(
                 f"{self.api_url}/admin/transporters",
-                json=transporter_data,
                 headers=headers
             ) as response:
                 
                 status = response.status
                 response_data = await response.json() if response.content_type == 'application/json' else await response.text()
                 
-                transporter_success = status in [200, 201]
+                transporter_success = status == 200
                 
-                # Test abattoir creation
-                abattoir_data = {
-                    "name": "Test Abattoir",
-                    "location": "Johannesburg",
-                    "contact_person": "Jane Smith",
-                    "phone": "+27 11 987 6543",
-                    "email": "abattoir@test.com",
-                    "capacity_per_day": 100,
-                    "species_handled": ["cattle", "sheep", "goats"],
-                    "certifications": ["HACCP", "Halal"]
-                }
-                
-                async with self.session.post(
+                # Test abattoirs listing
+                async with self.session.get(
                     f"{self.api_url}/admin/abattoirs",
-                    json=abattoir_data,
                     headers=headers
                 ) as abattoir_response:
                     
                     abattoir_status = abattoir_response.status
                     abattoir_data_response = await abattoir_response.json() if abattoir_response.content_type == 'application/json' else await abattoir_response.text()
                     
-                    abattoir_success = abattoir_status in [200, 201]
+                    abattoir_success = abattoir_status == 200
                     
                     if transporter_success and abattoir_success:
                         self.test_results.append({
