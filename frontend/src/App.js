@@ -4542,6 +4542,58 @@ function Blog() {
 }
 
 function Contact() {
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!contactForm.name || !contactForm.email || !contactForm.subject || !contactForm.message) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://farm-admin.preview.emergentagent.com';
+      const response = await fetch(`${backendUrl}/api/contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...contactForm,
+          to_email: 'hello@stocklot.farm'
+        })
+      });
+
+      if (response.ok) {
+        alert('Message sent successfully! We\'ll get back to you soon.');
+        setContactForm({ name: '', email: '', subject: '', message: '' });
+      } else {
+        alert('Failed to send message. Please try again or email us directly at hello@stocklot.farm');
+      }
+    } catch (error) {
+      console.error('Contact form error:', error);
+      alert('Failed to send message. Please email us directly at hello@stocklot.farm');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setContactForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
       <div className="container mx-auto px-4 py-16">
@@ -4590,30 +4642,57 @@ function Contact() {
             <Card className="border-emerald-200">
               <CardContent className="p-8">
                 <h2 className="text-2xl font-semibold text-emerald-900 mb-6">Send a Message</h2>
-                <div className="space-y-4">
+                <form onSubmit={handleContactSubmit} className="space-y-4">
                   <div>
                     <Label htmlFor="name" className="text-emerald-700">Name</Label>
-                    <Input id="name" className="border-emerald-200 focus:border-emerald-500" />
+                    <Input 
+                      id="name" 
+                      value={contactForm.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className="border-emerald-200 focus:border-emerald-500" 
+                      required
+                    />
                   </div>
                   <div>
                     <Label htmlFor="email" className="text-emerald-700">Email</Label>
-                    <Input id="email" type="email" className="border-emerald-200 focus:border-emerald-500" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={contactForm.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="border-emerald-200 focus:border-emerald-500" 
+                      required
+                    />
                   </div>
                   <div>
                     <Label htmlFor="subject" className="text-emerald-700">Subject</Label>
-                    <Input id="subject" className="border-emerald-200 focus:border-emerald-500" />
+                    <Input 
+                      id="subject" 
+                      value={contactForm.subject}
+                      onChange={(e) => handleInputChange('subject', e.target.value)}
+                      className="border-emerald-200 focus:border-emerald-500" 
+                      required
+                    />
                   </div>
                   <div>
                     <Label htmlFor="message" className="text-emerald-700">Message</Label>
-                    <Textarea id="message" rows={4} className="border-emerald-200 focus:border-emerald-500" />
+                    <Textarea 
+                      id="message" 
+                      rows={4} 
+                      value={contactForm.message}
+                      onChange={(e) => handleInputChange('message', e.target.value)}
+                      className="border-emerald-200 focus:border-emerald-500" 
+                      required
+                    />
                   </div>
                   <Button 
+                    type="submit"
+                    disabled={isSubmitting}
                     className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
-                    onClick={() => alert('Message sent! We\'ll get back to you soon.')}
                   >
-                    Send Message
+                    {isSubmitting ? 'Sending...' : 'Send Message'}
                   </Button>
-                </div>
+                </form>
               </CardContent>
             </Card>
           </div>
