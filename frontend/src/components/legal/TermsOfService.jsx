@@ -367,7 +367,7 @@ const TermsOfService = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p><strong>StockLot (Pty) Ltd</strong></p>
                 <p>
-                  Email: legal@stocklot.co.za
+                  Email: legal@stocklot.farm
                 </p>
                 <p>
                   <strong>Business Hours:</strong><br />
