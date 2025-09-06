@@ -406,9 +406,7 @@ const PrivacyPolicy = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p><strong>Data Protection Officer</strong></p>
                 <p>
-                  Email: privacy@stocklot.co.za<br />
-                  Phone: +27 11 123 4567<br />
-                  Address: 123 Business District, Johannesburg, 2000, South Africa
+                  Email: privacy@stocklot.co.za
                 </p>
               </div>
 
