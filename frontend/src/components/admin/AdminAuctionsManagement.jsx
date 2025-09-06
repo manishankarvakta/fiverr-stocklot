@@ -97,6 +97,78 @@ export default function AdminAuctionsManagement() {
     return `${minutes}m`;
   };
 
+  const handleCreateAuction = async () => {
+    if (!newAuction.title || !newAuction.starting_price) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      const response = await fetch(`${API}/admin/auctions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          ...newAuction,
+          starting_price: parseFloat(newAuction.starting_price),
+          reserve_price: parseFloat(newAuction.reserve_price) || 0,
+          duration_hours: parseInt(newAuction.duration_hours)
+        })
+      });
+
+      if (response.ok) {
+        const auction = await response.json();
+        setAuctions([...auctions, auction]);
+        setShowCreateDialog(false);
+        setNewAuction({
+          title: '',
+          listing_id: '',
+          starting_price: '',
+          reserve_price: '',
+          duration_hours: 48,
+          description: ''
+        });
+        alert('Auction created successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Error creating auction: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error creating auction:', error);
+      alert('Error creating auction. Please try again.');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleUpdateAuctionStatus = async (auctionId, newStatus) => {
+    try {
+      const response = await fetch(`${API}/admin/auctions/${auctionId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        setAuctions(auctions.map(a => 
+          a.id === auctionId ? {...a, status: newStatus} : a
+        ));
+        alert(`Auction ${newStatus} successfully!`);
+      } else {
+        alert('Error updating auction status');
+      }
+    } catch (error) {
+      console.error('Error updating auction status:', error);
+      alert('Error updating auction status. Please try again.');
+    }
+  };
+
   // Mock data for demo
   const mockAuctions = [
     {
