@@ -4557,16 +4557,8 @@ function Contact() {
                 <h2 className="text-2xl font-semibold text-emerald-900 mb-6">Get In Touch</h2>
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
-                    <MapPin className="h-5 w-5 text-emerald-600" />
-                    <span className="text-emerald-700">Agricultural Hub, South Africa</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Phone className="h-5 w-5 text-emerald-600" />
-                    <span className="text-emerald-700">+27 12 345 6789</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
                     <Mail className="h-5 w-5 text-emerald-600" />
-                    <span className="text-emerald-700">info@stocklot.co.za</span>
+                    <span className="text-emerald-700">hello@stocklot.farm</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Clock className="h-5 w-5 text-emerald-600" />
