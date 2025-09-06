@@ -417,7 +417,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         queryParams.append('search', searchTerm);
       }
       
-      const response = await fetch(`${BACKEND_URL}/public/buy-requests?${queryParams.toString()}`);
+      const response = await fetch(`${BACKEND_URL}/api/public/buy-requests?${queryParams.toString()}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
