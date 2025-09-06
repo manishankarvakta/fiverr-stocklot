@@ -543,19 +543,26 @@ function Footer() {
 
   // Load social media settings from admin configuration
   useEffect(() => {
-    // In a real app, this would fetch from the admin settings API
-    // For now, we'll use localStorage or default values
-    const savedSettings = localStorage.getItem('platformSettings');
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      setSocialSettings({
-        facebookUrl: settings.facebookUrl || '',
-        twitterUrl: settings.twitterUrl || '',
-        instagramUrl: settings.instagramUrl || '',
-        youtubeUrl: settings.youtubeUrl || '',
-        linkedinUrl: settings.linkedinUrl || ''
-      });
-    }
+    const loadSocialSettings = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/public/config`);
+        if (response.ok) {
+          const config = await response.json();
+          const settings = config.settings || {};
+          setSocialSettings({
+            facebookUrl: settings.facebookUrl || '',
+            twitterUrl: settings.twitterUrl || '',
+            instagramUrl: settings.instagramUrl || '',
+            youtubeUrl: settings.youtubeUrl || '',
+            linkedinUrl: settings.linkedinUrl || ''
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load social settings:', error);
+      }
+    };
+    
+    loadSocialSettings();
   }, []);
 
   return (
