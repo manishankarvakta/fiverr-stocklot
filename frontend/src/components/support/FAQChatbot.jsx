@@ -68,7 +68,7 @@ const FAQ_DATA = [
     questions: [
       {
         q: "How do I contact customer support?",
-        a: "Use this chat for instant help, email us at support@stocklot.co.za, or call our SA support line. We're here to help with any questions."
+        a: "Use this chat for instant help, or email us at hello@stocklot.co.za. We're here to help with any questions."
       },
       {
         q: "What if there's a problem with my order?",
