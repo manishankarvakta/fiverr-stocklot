@@ -211,7 +211,7 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
         <DialogHeader>
           <DialogTitle className="text-lg md:text-xl line-clamp-2">
-            WANTED: {request.title}
+            {request.title}
           </DialogTitle>
         </DialogHeader>
 
