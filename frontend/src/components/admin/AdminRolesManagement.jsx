@@ -551,6 +551,79 @@ export default function AdminRolesManagement() {
         </TabsContent>
       </Tabs>
 
+      {/* Create Role Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Role</DialogTitle>
+            <DialogDescription>
+              Create a new admin role with specific permissions
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="roleName">Role Name</Label>
+              <Input
+                id="roleName"
+                value={newRole.name}
+                onChange={(e) => setNewRole({...newRole, name: e.target.value})}
+                placeholder="e.g., Content Manager"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="roleSlug">Role Slug</Label>
+              <Input
+                id="roleSlug"
+                value={newRole.slug}
+                onChange={(e) => setNewRole({...newRole, slug: e.target.value})}
+                placeholder="e.g., content_manager"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="roleDescription">Description</Label>
+              <Textarea
+                id="roleDescription"
+                value={newRole.description}
+                onChange={(e) => setNewRole({...newRole, description: e.target.value})}
+                placeholder="Describe the role's responsibilities"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="roleLevel">Permission Level</Label>
+              <Select value={newRole.level.toString()} onValueChange={(value) => setNewRole({...newRole, level: parseInt(value)})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Level 1 (Super Admin)</SelectItem>
+                  <SelectItem value="2">Level 2 (Admin)</SelectItem>
+                  <SelectItem value="3">Level 3 (Manager)</SelectItem>
+                  <SelectItem value="4">Level 4 (Moderator)</SelectItem>
+                  <SelectItem value="5">Level 5 (Staff)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleCreateRole}
+              disabled={!newRole.name || !newRole.slug}
+            >
+              Create Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Role Details Dialog */}
       <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
         <DialogContent className="max-w-2xl">
