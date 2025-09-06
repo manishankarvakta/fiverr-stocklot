@@ -115,7 +115,7 @@ export default function OrganizationDashboard() {
                     <span>📞 {organization.phone}</span>
                   )}
                   {organization.handle && (
-                    <span>🌐 stocklot.co.za/o/{organization.handle}</span>
+                    <span>🌐 stocklot.farm/o/{organization.handle}</span>
                   )}
                 </div>
               </div>
