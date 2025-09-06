@@ -80,6 +80,46 @@ export default function AdminRolesManagement() {
     }
   };
 
+  const handleCreateRole = async () => {
+    try {
+      const response = await fetch(`${API}/admin/roles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(newRole)
+      });
+      
+      if (response.ok) {
+        setShowCreateDialog(false);
+        setNewRole({ name: '', slug: '', description: '', permissions: [], level: 5 });
+        fetchRoles(); // Refresh the list
+      } else {
+        console.error('Failed to create role');
+      }
+    } catch (error) {
+      console.error('Error creating role:', error);
+    }
+  };
+
+  const handleDeleteRole = async (roleId) => {
+    if (window.confirm('Are you sure you want to delete this role?')) {
+      try {
+        const response = await fetch(`${API}/admin/roles/${roleId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (response.ok) {
+          fetchRoles(); // Refresh the list
+        }
+      } catch (error) {
+        console.error('Error deleting role:', error);
+      }
+    }
+  };
+
   const getRoleColor = (roleName) => {
     switch (roleName.toLowerCase()) {
       case 'super_admin': return 'bg-red-100 text-red-800';
