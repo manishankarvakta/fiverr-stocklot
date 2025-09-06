@@ -225,7 +225,7 @@ export default function AdminRolesManagement() {
     {
       id: 'admin_3',
       full_name: 'Sarah Williams',
-      email: 'sarah.williams@stocklot.co.za',
+      email: 'sarah.williams@stocklot.farm',
       roles: ['Content Manager'],
       status: 'active',
       last_login: '2025-08-28T16:45:00Z',
