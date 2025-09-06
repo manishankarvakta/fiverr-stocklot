@@ -235,7 +235,7 @@ export default function AdminRolesManagement() {
     {
       id: 'admin_4',
       full_name: 'Michael Johnson',
-      email: 'michael.johnson@stocklot.co.za',
+      email: 'michael.johnson@stocklot.farm',
       roles: ['Financial Admin'],
       status: 'active',
       last_login: '2025-08-29T09:20:00Z',
