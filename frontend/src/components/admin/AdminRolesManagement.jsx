@@ -245,7 +245,7 @@ export default function AdminRolesManagement() {
     {
       id: 'admin_5',
       full_name: 'Emma Davis',
-      email: 'emma.davis@stocklot.co.za',
+      email: 'emma.davis@stocklot.farm',
       roles: ['Moderator'],
       status: 'inactive',
       last_login: '2025-08-25T14:30:00Z',
