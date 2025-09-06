@@ -49,7 +49,7 @@ const PrivacyPolicy = () => {
                 <p className="text-emerald-800 mb-0">
                   <strong>Your Privacy Matters:</strong> We believe in transparency about how 
                   we handle your data. If you have questions about this policy, please contact 
-                  our Data Protection Officer at privacy@stocklot.co.za.
+                  our Data Protection Officer at privacy@stocklot.farm.
                 </p>
               </div>
             </CardContent>
