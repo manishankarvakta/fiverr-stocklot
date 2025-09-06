@@ -172,7 +172,7 @@ export default function FAQChatbot() {
       const botResponse = {
         id: Date.now() + 1,
         type: 'bot',
-        content: data.response || "I'm having trouble right now, but our support team can help!\n\n📧 Email: support@stocklot.co.za\n📞 Call: +27 11 123 4567",
+        content: data.response || "I'm having trouble right now, but our support team can help!\n\n📧 Email: hello@stocklot.co.za",
         source: data.source || 'ai',
         timestamp: new Date()
       };
