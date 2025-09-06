@@ -403,6 +403,23 @@ class NotificationService:
                 
         return notifications
     
+    async def get_notifications(
+        self, 
+        user_id: str, 
+        limit: int = 50,
+        offset: int = 0,
+        unread_only: bool = False,
+        channel: NotificationChannel = NotificationChannel.IN_APP
+    ) -> List[Dict]:
+        """Get notifications for user - alias for get_user_notifications with compatible parameters"""
+        return await self.get_user_notifications(
+            user_id=user_id,
+            channel=channel,
+            limit=limit,
+            offset=offset,
+            unread_only=unread_only
+        )
+    
     async def mark_notification_read(self, notification_id: str, user_id: str) -> bool:
         """Mark notification as read"""
         
