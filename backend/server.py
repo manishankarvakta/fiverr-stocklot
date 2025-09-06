@@ -10576,6 +10576,84 @@ async def handle_paystack_webhook(request: Request):
         return {"success": False, "error": "Webhook processing failed"}
 
 # ==============================================================================
+# 📧 CONTACT FORM API ENDPOINT
+# ==============================================================================
+
+@api_router.post("/contact")
+async def submit_contact_form(request: dict):
+    """Handle contact form submissions"""
+    try:
+        # Extract form data
+        name = request.get("name", "").strip()
+        email = request.get("email", "").strip() 
+        subject = request.get("subject", "").strip()
+        message = request.get("message", "").strip()
+        to_email = request.get("to_email", "hello@stocklot.farm")
+        
+        # Validate required fields
+        if not all([name, email, subject, message]):
+            raise HTTPException(status_code=400, detail="All fields are required")
+        
+        # Basic email validation
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            raise HTTPException(status_code=400, detail="Invalid email format")
+        
+        # Create contact message record
+        contact_record = {
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "email": email,
+            "subject": subject,
+            "message": message,
+            "to_email": to_email,
+            "status": "received",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        # Store in database
+        await db.contact_messages.insert_one(contact_record)
+        
+        # Try to send email notification (optional - won't fail if email service is unavailable)
+        try:
+            # Create email content
+            email_content = f"""
+New Contact Form Submission
+
+From: {name} ({email})
+Subject: {subject}
+
+Message:
+{message}
+
+--
+This message was sent through the StockLot contact form.
+            """
+            
+            # In a production system, you would integrate with an email service here
+            # For now, we'll just log the message
+            logger.info(f"Contact form submission: {name} ({email}) - {subject}")
+            logger.info(f"Message content: {message}")
+            
+        except Exception as email_error:
+            logger.warning(f"Failed to send email notification: {email_error}")
+            # Don't fail the request if email sending fails
+        
+        return {
+            "success": True,
+            "message": "Thank you for your message! We'll get back to you soon.",
+            "contact_id": contact_record["id"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Contact form submission failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to submit contact form")
+
+# ==============================================================================
 # 📱 REAL-TIME EVENTS API ENDPOINTS
 # ==============================================================================
 
