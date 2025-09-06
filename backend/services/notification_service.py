@@ -444,7 +444,7 @@ async def send_welcome_email(db, user_id: str, user_name: str, user_email: str):
         title="Welcome to StockLot!",
         message="Thank you for joining South Africa's premier livestock marketplace.",
         channels=[NotificationChannel.EMAIL, NotificationChannel.IN_APP],
-        action_url="https://stocklot-repair.preview.emergentagent.com/marketplace",
+        action_url="https://farm-admin.preview.emergentagent.com/marketplace",
         template_data={
             "user_name": user_name,
             "action_text": "Browse Marketplace"
@@ -460,7 +460,7 @@ async def send_order_confirmation(db, user_id: str, order_data: Dict):
         title=f"Order #{order_data['order_id']} Confirmed",
         message=f"Your order for {order_data['item_count']} livestock items has been placed successfully.",
         channels=[NotificationChannel.EMAIL, NotificationChannel.IN_APP],
-        action_url=f"https://stocklot-repair.preview.emergentagent.com/orders/{order_data['order_id']}",
+        action_url=f"https://farm-admin.preview.emergentagent.com/orders/{order_data['order_id']}",
         template_data={
             "order_id": order_data["order_id"],
             "total_amount": order_data["total_amount"],
@@ -478,7 +478,7 @@ async def send_login_alert(db, user_id: str, user_name: str, device_info: str, l
         title="New Login Detected",
         message=f"New login from {device_info} in {location}",
         channels=[NotificationChannel.EMAIL, NotificationChannel.IN_APP], 
-        action_url="https://stocklot-repair.preview.emergentagent.com/account/security",
+        action_url="https://farm-admin.preview.emergentagent.com/account/security",
         template_data={
             "user_name": user_name,
             "device_info": device_info,

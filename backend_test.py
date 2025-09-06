@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class FeeSystemTester:
     """Comprehensive Fee System Backend Tester"""
     
-    def __init__(self, base_url: str = "https://stocklot-repair.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "https://farm-admin.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.session = None

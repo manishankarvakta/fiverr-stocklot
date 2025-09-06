@@ -545,7 +545,7 @@ function Footer() {
   useEffect(() => {
     const loadSocialSettings = async () => {
       try {
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://stocklot-repair.preview.emergentagent.com/api';
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://farm-admin.preview.emergentagent.com/api';
         const response = await fetch(`${backendUrl}/platform/config`);
         if (response.ok) {
           const config = await response.json();

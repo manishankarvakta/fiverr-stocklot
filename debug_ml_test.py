@@ -6,7 +6,7 @@ from datetime import datetime
 
 class DebugMLTester:
     def __init__(self):
-        self.base_url = "https://stocklot-repair.preview.emergentagent.com/api"
+        self.base_url = "https://farm-admin.preview.emergentagent.com/api"
         self.token = None
 
     def authenticate(self):

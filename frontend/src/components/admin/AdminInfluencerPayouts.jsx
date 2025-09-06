@@ -11,7 +11,7 @@ import {
   UserPlus, Award, Target, BarChart3, Calendar
 } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL || 'https://stocklot-repair.preview.emergentagent.com/api';
+const API = process.env.REACT_APP_BACKEND_URL || 'https://farm-admin.preview.emergentagent.com/api';
 
 export default function AdminInfluencerPayouts() {
   const [influencers, setInfluencers] = useState([]);
