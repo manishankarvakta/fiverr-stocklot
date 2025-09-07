@@ -37,8 +37,8 @@ async def create_sample_buy_requests():
         {
             "title": "Ross 308 Broiler Chicks - Day Old",
             "description": "Need premium Ross 308 day-old broiler chicks from healthy parent stock. Must have hatchery health certificates.",
-            "species_id": "269b6706-c56a-4c52-8e8d-b7d3613853ea",  # Commercial Broilers
-            "product_type_id": "4fc409b3-7ea3-4112-b2fc-e23c35e44006",  # Day-Old
+            "species": "Commercial Broilers",
+            "product_type": "Day-Old",
             "qty": 5000,
             "unit": "head",
             "target_price": 8.00,
