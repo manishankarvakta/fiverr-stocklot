@@ -128,7 +128,8 @@ async def create_sample_buy_requests():
         for i, request_data in enumerate(sample_buy_requests, 1):
             try:
                 print(f"\n📝 Creating buy request {i}: {request_data['title']}")
-                print(f"   Species: {request_data['species_id']}")
+                print(f"   Species: {request_data['species']}")
+                print(f"   Product Type: {request_data['product_type']}")
                 print(f"   Quantity: {request_data['qty']} {request_data['unit']}")
                 print(f"   Target Price: R{request_data['target_price']}")
                 print(f"   Weight Range: {request_data['weight_range']['min']}-{request_data['weight_range']['max']} {request_data['weight_range']['unit']}")
