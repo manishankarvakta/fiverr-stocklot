@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}New Offer Received on Your Buy Request{% endblock %}
+
+{% block content %}
+<h2>New Offer Received! 🎯</h2>
+
+<p>Great news! You've received a new offer on your buy request <strong>{{request_code}}</strong>.</p>
+
+<div class="livestock-card">
+    <h3>Offer Details</h3>
+    <div class="spec-grid">
+        <div class="spec-item">
+            <span class="spec-label">Request:</span>
+            <span class="spec-value">{{request_code}}</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-label">Offer Price:</span>
+            <span class="spec-value"><strong>{{offer_price}}</strong></span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-label">Status:</span>
+            <span class="spec-value">Pending Your Review</span>
+        </div>
+    </div>
+</div>
+
+<p><strong>Next Steps:</strong></p>
+<ul>
+    <li>📋 Review the complete offer details</li>
+    <li>💬 Message the seller with any questions</li>
+    <li>✅ Accept the offer to proceed to checkout</li>
+    <li>❌ Decline if it doesn't meet your requirements</li>
+</ul>
+
+<div class="info-box warning">
+    <p><strong>⏰ Time Sensitive</strong><br>
+    This offer has a limited validity period. Review and respond soon to secure your livestock!</p>
+</div>
+
+<p style="text-align: center;">
+    <a href="{{offer_url}}" class="button">Review Offer</a>
+    <a href="{{offer_url}}" class="button button-secondary">Message Seller</a>
+</p>
+
+<p>Remember, StockLot's escrow system protects your payment until you confirm delivery.</p>
+
+<p>Happy trading,<br>
+<strong>The StockLot Team</strong></p>
+{% endblock %}
