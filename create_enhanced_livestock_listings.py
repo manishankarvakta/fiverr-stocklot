@@ -178,7 +178,7 @@ async def create_enhanced_listings():
                 print(f"   Health Certificates: {len(listing_data['health_certificates'])} certificates")
                 
                 async with session.post(f"{base_url}/listings", json=listing_data, headers=headers) as response:
-                    if response.status == 201:
+                    if response.status in [200, 201]:
                         result = await response.json()
                         created_listings.append(result)
                         print(f"   ✅ Created listing ID: {result.get('id', 'unknown')}")
