@@ -1,0 +1,1012 @@
+{
+  "meta": {
+    "generated_at": "2025-09-07T16:00:55.259673",
+    "total_templates": 65,
+    "platform": "StockLot",
+    "version": "1.0",
+    "description": "Complete email notification catalog for StockLot livestock marketplace"
+  },
+  "templates": {
+    "E01": {
+      "id": "E01",
+      "subject": "Welcome – Verify your email",
+      "category": "transactional.auth",
+      "priority": "high",
+      "variables": [
+        "first_name",
+        "verify_url"
+      ],
+      "description": "User registers",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E02": {
+      "id": "E02",
+      "subject": "Email verified – You're in",
+      "category": "transactional.auth",
+      "priority": "high",
+      "variables": [
+        "first_name"
+      ],
+      "description": "Verification succeeds",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E03": {
+      "id": "E03",
+      "subject": "Reset your password",
+      "category": "transactional.auth",
+      "priority": "high",
+      "variables": [
+        "first_name",
+        "reset_url"
+      ],
+      "description": "Forgot password request",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E04": {
+      "id": "E04",
+      "subject": "Your password was changed",
+      "category": "security",
+      "priority": "high",
+      "variables": [
+        "first_name",
+        "device",
+        "ip",
+        "when"
+      ],
+      "description": "Password updated",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E05": {
+      "id": "E05",
+      "subject": "New login on your account",
+      "category": "security",
+      "priority": "high",
+      "variables": [
+        "first_name",
+        "device",
+        "ip",
+        "location",
+        "when"
+      ],
+      "description": "New device/session",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E06": {
+      "id": "E06",
+      "subject": "Your 2FA code",
+      "category": "security",
+      "priority": "high",
+      "variables": [
+        "first_name",
+        "otp"
+      ],
+      "description": "2FA challenge",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E07": {
+      "id": "E07",
+      "subject": "2FA settings changed",
+      "category": "security",
+      "priority": "high",
+      "variables": [
+        "first_name",
+        "action",
+        "when"
+      ],
+      "description": "2FA enabled/disabled",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E08": {
+      "id": "E08",
+      "subject": "KYC submitted",
+      "category": "transactional.kyc",
+      "priority": "normal",
+      "variables": [
+        "first_name",
+        "kyc_level"
+      ],
+      "description": "User submits KYC",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E09": {
+      "id": "E09",
+      "subject": "KYC approved",
+      "category": "transactional.kyc",
+      "priority": "normal",
+      "variables": [
+        "first_name",
+        "kyc_level"
+      ],
+      "description": "KYC verified",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E10": {
+      "id": "E10",
+      "subject": "KYC needs attention",
+      "category": "transactional.kyc",
+      "priority": "high",
+      "variables": [
+        "first_name",
+        "issues",
+        "resubmit_url"
+      ],
+      "description": "KYC rejected",
+      "trigger": "user",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E11": {
+      "id": "E11",
+      "subject": "Organization created",
+      "category": "transactional.org",
+      "priority": "normal",
+      "variables": [
+        "first_name",
+        "org_name"
+      ],
+      "description": "Farm/Co-op created",
+      "trigger": "org owner",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E12": {
+      "id": "E12",
+      "subject": "You've been invited to {{org_name}}",
+      "category": "transactional.org",
+      "priority": "normal",
+      "variables": [
+        "inviter_name",
+        "org_name",
+        "accept_url"
+      ],
+      "description": "Member invited",
+      "trigger": "invitee",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E13": {
+      "id": "E13",
+      "subject": "Your role changed on {{org_name}}",
+      "category": "transactional.org",
+      "priority": "normal",
+      "variables": [
+        "member_name",
+        "org_name",
+        "old_role",
+        "new_role"
+      ],
+      "description": "Role updated",
+      "trigger": "member",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E14": {
+      "id": "E14",
+      "subject": "Removed from {{org_name}}",
+      "category": "transactional.org",
+      "priority": "normal",
+      "variables": [
+        "member_name",
+        "org_name"
+      ],
+      "description": "Member removed",
+      "trigger": "member",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E15": {
+      "id": "E15",
+      "subject": "Listing submitted for review",
+      "category": "transactional.listings",
+      "priority": "normal",
+      "variables": [
+        "seller_name",
+        "listing_title",
+        "listing_url"
+      ],
+      "description": "Seller creates listing",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E16": {
+      "id": "E16",
+      "subject": "Listing approved",
+      "category": "transactional.listings",
+      "priority": "normal",
+      "variables": [
+        "listing_title",
+        "listing_url"
+      ],
+      "description": "Admin approves",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E17": {
+      "id": "E17",
+      "subject": "Listing rejected – action required",
+      "category": "transactional.listings",
+      "priority": "high",
+      "variables": [
+        "listing_title",
+        "reason",
+        "edit_url"
+      ],
+      "description": "Admin rejects",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E18": {
+      "id": "E18",
+      "subject": "Certificate expiring in 7 days",
+      "category": "compliance",
+      "priority": "high",
+      "variables": [
+        "listing_title",
+        "cert_type",
+        "expiry_date",
+        "upload_url"
+      ],
+      "description": "Cert near expiry",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E19": {
+      "id": "E19",
+      "subject": "Certificate expired – listing paused",
+      "category": "compliance",
+      "priority": "high",
+      "variables": [
+        "listing_title",
+        "cert_type",
+        "upload_url"
+      ],
+      "description": "Cert expires",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E20": {
+      "id": "E20",
+      "subject": "Listing reaches 30 days soon",
+      "category": "lifecycle",
+      "priority": "normal",
+      "variables": [
+        "listing_title",
+        "pause_date",
+        "renew_url"
+      ],
+      "description": "Day-25 reminder",
+      "trigger": "seller",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E21": {
+      "id": "E21",
+      "subject": "Listing auto-paused (30-day or doc missing)",
+      "category": "lifecycle",
+      "priority": "high",
+      "variables": [
+        "listing_title",
+        "reason",
+        "reactivate_url"
+      ],
+      "description": "Auto-pause rule",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E22": {
+      "id": "E22",
+      "subject": "Your listing sold",
+      "category": "transactional.listings",
+      "priority": "high",
+      "variables": [
+        "listing_title",
+        "order_code",
+        "orders_url"
+      ],
+      "description": "Order created",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E23": {
+      "id": "E23",
+      "subject": "Inventory low/out of stock",
+      "category": "lifecycle",
+      "priority": "normal",
+      "variables": [
+        "listing_title",
+        "remaining",
+        "edit_url"
+      ],
+      "description": "Stock threshold",
+      "trigger": "seller",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E24": {
+      "id": "E24",
+      "subject": "Reactivate your paused listing",
+      "category": "lifecycle",
+      "priority": "low",
+      "variables": [
+        "listing_title",
+        "reactivate_url"
+      ],
+      "description": "Nudge after pause",
+      "trigger": "seller",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E25": {
+      "id": "E25",
+      "subject": "New matches for your saved search",
+      "category": "engagement",
+      "priority": "low",
+      "variables": [
+        "search_name",
+        "results_count",
+        "results_url"
+      ],
+      "description": "New listings match",
+      "trigger": "user",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E26": {
+      "id": "E26",
+      "subject": "Price drop on an item you watch",
+      "category": "engagement",
+      "priority": "normal",
+      "variables": [
+        "listing_title",
+        "old_price",
+        "new_price",
+        "listing_url"
+      ],
+      "description": "Price change",
+      "trigger": "user",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E27": {
+      "id": "E27",
+      "subject": "Order created – next steps",
+      "category": "transactional.orders",
+      "priority": "high",
+      "variables": [
+        "buyer_name",
+        "order_code",
+        "total",
+        "checkout_url"
+      ],
+      "description": "Buyer places order",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E28": {
+      "id": "E28",
+      "subject": "New order received",
+      "category": "transactional.orders",
+      "priority": "high",
+      "variables": [
+        "seller_name",
+        "order_code",
+        "orders_url"
+      ],
+      "description": "Order created",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E29": {
+      "id": "E29",
+      "subject": "Payment received – escrow held",
+      "category": "transactional.payments",
+      "priority": "high",
+      "variables": [
+        "order_code",
+        "amount"
+      ],
+      "description": "Payment success",
+      "trigger": "buyer & seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E30": {
+      "id": "E30",
+      "subject": "Payment failed",
+      "category": "transactional.payments",
+      "priority": "high",
+      "variables": [
+        "order_code",
+        "retry_url",
+        "reason"
+      ],
+      "description": "Charge fails",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E31": {
+      "id": "E31",
+      "subject": "Order canceled",
+      "category": "transactional.orders",
+      "priority": "high",
+      "variables": [
+        "order_code",
+        "reason"
+      ],
+      "description": "Cancelation processed",
+      "trigger": "buyer & seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E32": {
+      "id": "E32",
+      "subject": "Seller marked order Ready to Dispatch",
+      "category": "transactional.orders",
+      "priority": "normal",
+      "variables": [
+        "order_code",
+        "tracking_setup_url"
+      ],
+      "description": "Fulfillment update",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E33": {
+      "id": "E33",
+      "subject": "Order dispatched",
+      "category": "transactional.orders",
+      "priority": "high",
+      "variables": [
+        "order_code",
+        "carrier",
+        "tracking_code",
+        "track_url"
+      ],
+      "description": "Shipped",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E34": {
+      "id": "E34",
+      "subject": "Delivery ETA reminder",
+      "category": "transactional.orders",
+      "priority": "normal",
+      "variables": [
+        "order_code",
+        "eta"
+      ],
+      "description": "T-24h of ETA",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E35": {
+      "id": "E35",
+      "subject": "Confirm delivery to release escrow",
+      "category": "transactional.payments",
+      "priority": "high",
+      "variables": [
+        "order_code",
+        "confirm_url"
+      ],
+      "description": "Delivery confirmation",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E36": {
+      "id": "E36",
+      "subject": "Buyer confirmed receipt",
+      "category": "transactional.payments",
+      "priority": "high",
+      "variables": [
+        "order_code"
+      ],
+      "description": "Buyer confirms",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E37": {
+      "id": "E37",
+      "subject": "Escrow released – payout on its way",
+      "category": "transactional.payouts",
+      "priority": "high",
+      "variables": [
+        "order_code",
+        "net_payout",
+        "payout_ref"
+      ],
+      "description": "Escrow release",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E38": {
+      "id": "E38",
+      "subject": "Refund issued",
+      "category": "transactional.payments",
+      "priority": "high",
+      "variables": [
+        "order_code",
+        "amount",
+        "reason"
+      ],
+      "description": "Refund completed",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E39": {
+      "id": "E39",
+      "subject": "Payout initiated",
+      "category": "transactional.payouts",
+      "priority": "high",
+      "variables": [
+        "payout_amount",
+        "bank_name",
+        "account_last4",
+        "transfer_ref"
+      ],
+      "description": "Transfer created",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E40": {
+      "id": "E40",
+      "subject": "Payout failed – action required",
+      "category": "transactional.payouts",
+      "priority": "high",
+      "variables": [
+        "payout_amount",
+        "reason",
+        "fix_url"
+      ],
+      "description": "Transfer error",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E41": {
+      "id": "E41",
+      "subject": "Payout succeeded",
+      "category": "transactional.payouts",
+      "priority": "high",
+      "variables": [
+        "payout_amount",
+        "bank_name",
+        "transfer_ref"
+      ],
+      "description": "Transfer success",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E42": {
+      "id": "E42",
+      "subject": "Monthly statement",
+      "category": "statements",
+      "priority": "low",
+      "variables": [
+        "period",
+        "gross",
+        "fees",
+        "net",
+        "pdf_url"
+      ],
+      "description": "First of month",
+      "trigger": "seller",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E43": {
+      "id": "E43",
+      "subject": "Tax invoice/receipt",
+      "category": "statements",
+      "priority": "normal",
+      "variables": [
+        "order_code",
+        "amount",
+        "invoice_pdf_url"
+      ],
+      "description": "Payment completed",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E44": {
+      "id": "E44",
+      "subject": "Delivery quote request created",
+      "category": "logistics",
+      "priority": "normal",
+      "variables": [
+        "rfq_code",
+        "pickup",
+        "dropoff",
+        "deadlines",
+        "rfq_url"
+      ],
+      "description": "RFQ created",
+      "trigger": "transporters",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E45": {
+      "id": "E45",
+      "subject": "New transporter bid received",
+      "category": "logistics",
+      "priority": "normal",
+      "variables": [
+        "rfq_code",
+        "carrier_name",
+        "bid_amount",
+        "rfq_url"
+      ],
+      "description": "Bid submitted",
+      "trigger": "buyer/seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E46": {
+      "id": "E46",
+      "subject": "RFQ awarded",
+      "category": "logistics",
+      "priority": "high",
+      "variables": [
+        "rfq_code",
+        "consignment_url"
+      ],
+      "description": "Award done",
+      "trigger": "transporter",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E47": {
+      "id": "E47",
+      "subject": "Consignment docs required",
+      "category": "compliance",
+      "priority": "high",
+      "variables": [
+        "consignment_code",
+        "doc_list",
+        "upload_url"
+      ],
+      "description": "Missing permits",
+      "trigger": "transporter & seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E48": {
+      "id": "E48",
+      "subject": "Proof of delivery uploaded",
+      "category": "logistics",
+      "priority": "normal",
+      "variables": [
+        "consignment_code",
+        "pod_url"
+      ],
+      "description": "POD added",
+      "trigger": "buyer & seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E49": {
+      "id": "E49",
+      "subject": "Auction listing approved",
+      "category": "auctions",
+      "priority": "normal",
+      "variables": [
+        "lot_title",
+        "auction_url"
+      ],
+      "description": "Auction approved",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E50": {
+      "id": "E50",
+      "subject": "Auction starting soon",
+      "category": "auctions",
+      "priority": "normal",
+      "variables": [
+        "lot_title",
+        "start_time",
+        "auction_url"
+      ],
+      "description": "T-24h reminder",
+      "trigger": "watchers",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E51": {
+      "id": "E51",
+      "subject": "You've been outbid",
+      "category": "auctions",
+      "priority": "high",
+      "variables": [
+        "lot_title",
+        "current_bid",
+        "bid_url"
+      ],
+      "description": "Bid surpassed",
+      "trigger": "bidder",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E52": {
+      "id": "E52",
+      "subject": "You won the auction – complete payment",
+      "category": "auctions",
+      "priority": "high",
+      "variables": [
+        "lot_title",
+        "final_bid",
+        "checkout_url"
+      ],
+      "description": "Auction won",
+      "trigger": "winner",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E53": {
+      "id": "E53",
+      "subject": "Auction ended – reserve not met",
+      "category": "auctions",
+      "priority": "normal",
+      "variables": [
+        "lot_title",
+        "highest_bid",
+        "relist_url"
+      ],
+      "description": "Reserve unmet",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E54": {
+      "id": "E54",
+      "subject": "Buy request posted",
+      "category": "rfq",
+      "priority": "normal",
+      "variables": [
+        "request_code",
+        "request_url"
+      ],
+      "description": "Buyer posts RFQ",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E55": {
+      "id": "E55",
+      "subject": "New nearby buy request",
+      "category": "rfq",
+      "priority": "normal",
+      "variables": [
+        "request_title",
+        "distance",
+        "request_url"
+      ],
+      "description": "Geo/species match",
+      "trigger": "sellers",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E56": {
+      "id": "E56",
+      "subject": "Offer received on your request",
+      "category": "rfq",
+      "priority": "high",
+      "variables": [
+        "request_code",
+        "offer_price",
+        "offer_url"
+      ],
+      "description": "Seller offers",
+      "trigger": "buyer",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E57": {
+      "id": "E57",
+      "subject": "Your offer was accepted – proceed to checkout",
+      "category": "rfq",
+      "priority": "high",
+      "variables": [
+        "offer_code",
+        "order_code",
+        "orders_url"
+      ],
+      "description": "Buyer accepts",
+      "trigger": "seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E58": {
+      "id": "E58",
+      "subject": "Offer expired",
+      "category": "rfq",
+      "priority": "normal",
+      "variables": [
+        "offer_code",
+        "expired_at"
+      ],
+      "description": "Offer validity passed",
+      "trigger": "buyer & seller",
+      "recipients": false,
+      "can_unsubscribe": false
+    },
+    "E59": {
+      "id": "E59",
+      "subject": "Time to review your recent transaction",
+      "category": "reviews",
+      "priority": "low",
+      "variables": [
+        "order_code",
+        "review_url"
+      ],
+      "description": "Post-delivery",
+      "trigger": "buyer & seller",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E60": {
+      "id": "E60",
+      "subject": "You received a review",
+      "category": "reviews",
+      "priority": "normal",
+      "variables": [
+        "order_code",
+        "stars",
+        "review_excerpt",
+        "profile_url"
+      ],
+      "description": "Review posted",
+      "trigger": "buyer/seller",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E61": {
+      "id": "E61",
+      "subject": "Your review is now public",
+      "category": "reviews",
+      "priority": "low",
+      "variables": [
+        "order_code",
+        "review_url"
+      ],
+      "description": "Double-blind reveal",
+      "trigger": "both",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E62": {
+      "id": "E62",
+      "subject": "Your review was moderated",
+      "category": "reviews",
+      "priority": "normal",
+      "variables": [
+        "order_code",
+        "reason",
+        "appeal_url"
+      ],
+      "description": "Moderation action",
+      "trigger": "author",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E63": {
+      "id": "E63",
+      "subject": "New message in your conversation",
+      "category": "messaging",
+      "priority": "normal",
+      "variables": [
+        "subject",
+        "snippet",
+        "thread_url"
+      ],
+      "description": "Message when idle",
+      "trigger": "participant",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E64": {
+      "id": "E64",
+      "subject": "You were mentioned / assigned",
+      "category": "messaging",
+      "priority": "high",
+      "variables": [
+        "subject",
+        "snippet",
+        "thread_url"
+      ],
+      "description": "@mention",
+      "trigger": "mentioned user",
+      "recipients": true,
+      "can_unsubscribe": false
+    },
+    "E65": {
+      "id": "E65",
+      "subject": "Action required: webhook or job failure",
+      "category": "admin.alerts",
+      "priority": "high",
+      "variables": [
+        "service",
+        "error",
+        "first_seen",
+        "runbook_url"
+      ],
+      "description": "System failure",
+      "trigger": "admins",
+      "recipients": false,
+      "can_unsubscribe": false
+    }
+  },
+  "implementation_notes": {
+    "mailgun_integration": "Templates use Mailgun API with Handlebars variables",
+    "template_storage": "/app/backend/templates/email/",
+    "base_template": "base.html",
+    "categories": [
+      "transactional.payouts",
+      "statements",
+      "transactional.auth",
+      "logistics",
+      "security",
+      "transactional.kyc",
+      "engagement",
+      "transactional.payments",
+      "transactional.orders",
+      "auctions",
+      "reviews",
+      "transactional.org",
+      "rfq",
+      "lifecycle",
+      "transactional.listings",
+      "admin.alerts",
+      "compliance",
+      "messaging"
+    ],
+    "priority_levels": [
+      "high",
+      "normal",
+      "low"
+    ],
+    "compliance": {
+      "transactional_always_send": true,
+      "marketing_can_unsubscribe": true,
+      "gdpr_compliant": true
+    }
+  }
+}
