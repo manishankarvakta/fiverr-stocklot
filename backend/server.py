@@ -3791,6 +3791,155 @@ async def reactivate_suppressed_email(
         raise HTTPException(status_code=500, detail="Failed to reactivate email")
 
 # =============================================================================
+# PLATFORM CONFIGURATION MANAGEMENT
+# =============================================================================
+
+# Platform configuration cache
+_platform_config_cache = None
+_config_cache_timestamp = None
+
+async def get_platform_configuration():
+    """Get platform configuration with caching"""
+    global _platform_config_cache, _config_cache_timestamp
+    
+    # Check cache validity (5 minutes)
+    now = datetime.now(timezone.utc)
+    if (_platform_config_cache is not None and 
+        _config_cache_timestamp is not None and 
+        (now - _config_cache_timestamp).total_seconds() < 300):
+        return _platform_config_cache
+    
+    try:
+        # Get configuration from database
+        config_doc = await db.platform_config.find_one({"type": "general"})
+        
+        if not config_doc:
+            # Create default configuration
+            default_config = {
+                "type": "general",
+                "settings": {
+                    "site_name": "StockLot",
+                    "site_description": "South African Livestock Marketplace",
+                    "contact_email": "support@stocklot.co.za",
+                    "contact_phone": "+27 11 123 4567",
+                    "social_media": {}
+                },
+                "created_at": now,
+                "updated_at": now
+            }
+            await db.platform_config.insert_one(default_config)
+            config_doc = default_config
+        
+        # Remove MongoDB _id field
+        if "_id" in config_doc:
+            del config_doc["_id"]
+        
+        # Update cache
+        _platform_config_cache = config_doc
+        _config_cache_timestamp = now
+        
+        return config_doc
+        
+    except Exception as e:
+        logger.error(f"Error getting platform configuration: {e}")
+        # Return default config on error
+        return {
+            "type": "general",
+            "settings": {
+                "site_name": "StockLot",
+                "site_description": "South African Livestock Marketplace",
+                "contact_email": "support@stocklot.co.za",
+                "contact_phone": "+27 11 123 4567",
+                "social_media": {}
+            }
+        }
+
+async def clear_platform_config_cache():
+    """Clear the platform configuration cache"""
+    global _platform_config_cache, _config_cache_timestamp
+    _platform_config_cache = None
+    _config_cache_timestamp = None
+
+@api_router.get("/platform/config")
+async def get_platform_config():
+    """Get public platform configuration"""
+    try:
+        config = await get_platform_configuration()
+        return config
+    except Exception as e:
+        logger.error(f"Error getting platform config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get platform configuration")
+
+@api_router.put("/admin/platform/social-media")
+async def update_social_media_settings(
+    settings: Dict[str, str],
+    current_user: User = Depends(get_current_user)
+):
+    """Update social media settings (admin only)"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Validate URLs
+        valid_platforms = ["facebook", "twitter", "instagram", "linkedin", "youtube"]
+        filtered_settings = {}
+        
+        for platform, url in settings.items():
+            if platform in valid_platforms and url:
+                # Basic URL validation
+                if url.startswith(('http://', 'https://')):
+                    filtered_settings[platform] = url
+                else:
+                    filtered_settings[platform] = f"https://{url}"
+        
+        # Update the platform configuration
+        await db.platform_config.update_one(
+            {"type": "social_media"},
+            {
+                "$set": {
+                    "settings": filtered_settings,
+                    "updated_at": datetime.now(timezone.utc),
+                    "updated_by": current_user.id
+                }
+            },
+            upsert=True
+        )
+        
+        # Clear cache to force reload
+        await clear_platform_config_cache()
+        
+        logger.info(f"Social media settings updated by {current_user.email}")
+        return {"message": "Social media settings updated successfully", "settings": filtered_settings}
+        
+    except Exception as e:
+        logger.error(f"Error updating social media settings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update social media settings")
+
+@api_router.get("/admin/platform/social-media")
+async def get_social_media_settings(current_user: User = Depends(get_current_user)):
+    """Get social media settings for admin editing"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        config = await get_platform_configuration()
+        social_media = config.get("settings", {}).get("social_media", {})
+        
+        return {
+            "settings": social_media,
+            "available_platforms": [
+                {"key": "facebook", "label": "Facebook", "example": "https://facebook.com/stocklot"},
+                {"key": "twitter", "label": "Twitter/X", "example": "https://twitter.com/stocklot"},
+                {"key": "instagram", "label": "Instagram", "example": "https://instagram.com/stocklot"},
+                {"key": "linkedin", "label": "LinkedIn", "example": "https://linkedin.com/company/stocklot"},
+                {"key": "youtube", "label": "YouTube", "example": "https://youtube.com/@stocklot"}
+            ]
+        }
+    except Exception as e:  
+        logger.error(f"Error getting social media settings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get social media settings")
+
+# =============================================================================
 # ORDERS API ENDPOINTS
 # =============================================================================
 
