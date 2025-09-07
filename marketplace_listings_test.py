@@ -288,9 +288,8 @@ class MarketplaceListingsTester:
             # Get species
             async with self.session.get(f"{self.api_url}/species") as response:
                 if response.status == 200:
-                    data = await response.json()
-                    species_list = data.get("species", [])
-                    if species_list:
+                    species_list = await response.json()
+                    if isinstance(species_list, list) and species_list:
                         species_id = species_list[0]["id"]
                         logger.info(f"   Using species ID: {species_id}")
         except Exception as e:
@@ -300,9 +299,8 @@ class MarketplaceListingsTester:
             # Get product types
             async with self.session.get(f"{self.api_url}/product-types") as response:
                 if response.status == 200:
-                    data = await response.json()
-                    product_types = data.get("product_types", [])
-                    if product_types:
+                    product_types = await response.json()
+                    if isinstance(product_types, list) and product_types:
                         product_type_id = product_types[0]["id"]
                         logger.info(f"   Using product type ID: {product_type_id}")
         except Exception as e:
