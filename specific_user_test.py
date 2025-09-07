@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 class SpecificUserTester:
-    def __init__(self, base_url="https://buy-request-fix.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://email-system-test.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.test_results = []
         

@@ -15,7 +15,7 @@ import sys
 from datetime import datetime, timezone
 
 # Backend URL configuration
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://buy-request-fix.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://email-system-test.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 # Test credentials
