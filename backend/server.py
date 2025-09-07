@@ -3844,6 +3844,31 @@ async def approve_listing(listing_id: str, current_user: User = Depends(get_curr
             "admin_name": current_user.full_name
         })
         
+        # 📧 Send listing approved email (E16)
+        try:
+            # Get listing and seller details
+            listing_doc = await db.listings.find_one({"id": listing_id})
+            if listing_doc:
+                seller_doc = await db.users.find_one({"id": listing_doc.get("seller_id")})
+                if seller_doc:
+                    listing_title = listing_doc.get("title", "Your listing")
+                    listing_url = f"https://stocklot.farm/listings/{listing_id}"
+                    
+                    notification = EmailNotification(
+                        template_id="E16",
+                        recipient_email=seller_doc["email"],
+                        recipient_name=seller_doc.get("full_name", "Seller"),
+                        variables={
+                            "listing_title": listing_title,
+                            "listing_url": listing_url
+                        },
+                        tags=["E16", "listings", "approved"]
+                    )
+                    await email_notification_service.send_email(notification)
+                    logger.info(f"Listing approved email sent for listing {listing_id}")
+        except Exception as e:
+            logger.warning(f"Failed to send listing approved email for {listing_id}: {e}")
+        
         return {"message": "Listing approved successfully"}
     except HTTPException:
         raise
