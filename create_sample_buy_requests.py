@@ -77,8 +77,8 @@ async def create_sample_buy_requests():
         {
             "title": "Dorper Sheep Lambs - Commercial",
             "description": "Need premium Dorper lambs for meat production. Looking for healthy animals with good growth rates.",
-            "species_id": "6654f72a-0c73-40b3-92d5-f943f05a8404",  # Sheep
-            "product_type_id": "ea9d426a-c181-4ac8-8dec-d7d2c5062fde",  # Calves/Kids/Lambs
+            "species": "Sheep",
+            "product_type": "Calves/Kids/Lambs",
             "qty": 40,
             "unit": "head",
             "target_price": 1800,
