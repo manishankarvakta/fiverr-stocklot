@@ -107,9 +107,8 @@ async def create_enhanced_listings():
             ]
         },
         {
-            "species_id": "sheep",
-            "breed_id": "dorper", 
-            "product_type_id": "commercial",
+            "species_id": "6654f72a-0c73-40b3-92d5-f943f05a8404",  # Sheep
+            "product_type_id": "ea9d426a-c181-4ac8-8dec-d7d2c5062fde",  # Calves/Kids/Lambs
             "title": "Dorper Sheep - 6 Month Old Commercial Lambs",
             "description": "Premium Dorper lambs suitable for meat production. Hardy breed well-adapted to South African conditions. Excellent growth rate and meat quality.",
             "quantity": 40,
