@@ -3481,6 +3481,42 @@ async def create_order(order_data: OrderCreate, current_user: User = Depends(get
             logger.warning(f"Failed to create conversation for order {order.id}: {e}")
             # Don't fail the order creation if conversation creation fails
         
+        # 📧 Send order creation emails (E27 to buyer, E28 to seller)
+        try:
+            # Get seller details
+            seller_doc = await db.users.find_one({"id": listing.seller_id})
+            seller_name = seller_doc.get("full_name", "Seller") if seller_doc else "Seller"
+            
+            # Send to buyer (E27)
+            checkout_url = f"https://stocklot.farm/orders/{order.id}"
+            await email_notification_service.send_order_created_email(
+                buyer_email=current_user.email,
+                buyer_name=current_user.full_name or "Customer",
+                order_code=order.id[:8].upper(),
+                total=float(total_amount),
+                checkout_url=checkout_url
+            )
+            
+            # Send to seller (E28)
+            if seller_doc:
+                notification = EmailNotification(
+                    template_id="E28",
+                    recipient_email=seller_doc["email"],
+                    recipient_name=seller_name,
+                    variables={
+                        "seller_name": seller_name,
+                        "order_code": order.id[:8].upper(),
+                        "orders_url": f"https://stocklot.farm/dashboard/orders"
+                    },
+                    tags=["E28", "orders", "seller"]
+                )
+                await email_notification_service.send_email(notification)
+            
+            logger.info(f"Order creation emails sent for order {order.id}")
+        except Exception as e:
+            logger.warning(f"Failed to send order emails for {order.id}: {e}")
+            # Don't fail the order creation if email fails
+        
         return order
     
     except HTTPException:
