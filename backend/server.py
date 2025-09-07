@@ -3864,7 +3864,31 @@ async def clear_platform_config_cache():
 async def get_platform_config():
     """Get public platform configuration"""
     try:
+        # Get configuration from the service
         config = await get_platform_configuration()
+        
+        # If social_media is empty in settings, load from platform_config collection
+        if not config.get("settings", {}).get("social_media"):
+            try:
+                social_media_doc = await db.platform_config.find_one({"type": "social_media"})
+                if social_media_doc and social_media_doc.get("settings"):
+                    if "settings" not in config:
+                        config["settings"] = {}
+                    config["settings"]["social_media"] = social_media_doc["settings"]
+                else:
+                    # Provide fallback social media URLs
+                    if "settings" not in config:
+                        config["settings"] = {}
+                    config["settings"]["social_media"] = {
+                        "facebook": "https://www.facebook.com/stocklot65/",
+                        "instagram": "https://www.instagram.com/stocklotmarket_/",
+                        "twitter": "https://twitter.com/stocklot",
+                        "linkedin": "https://linkedin.com/company/stocklot",
+                        "youtube": "https://youtube.com/@stocklot"
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to load social media config: {e}")
+        
         return config
     except Exception as e:
         logger.error(f"Error getting platform config: {e}")
