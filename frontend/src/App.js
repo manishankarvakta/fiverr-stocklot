@@ -561,7 +561,7 @@ function Footer() {
     const loadSocialSettings = async () => {
       try {
         const backendUrl = process.env.REACT_APP_BACKEND_URL || '/api';
-        const response = await fetch(`${backendUrl}/platform/config`);
+        const response = await fetch(`${backendUrl}/api/platform/config`);
         if (response.ok) {
           const config = await response.json();
           const settings = config.settings || {};
