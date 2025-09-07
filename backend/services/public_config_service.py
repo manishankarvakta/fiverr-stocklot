@@ -99,8 +99,10 @@ class PublicConfigService:
     async def _get_public_settings(self) -> Dict[str, Any]:
         """Get public settings (non-sensitive)"""
         try:
+            # Get general platform settings
             settings_doc = await self.db.system_settings.find_one({"type": "public"})
             
+            base_settings = {}
             if settings_doc:
                 settings = settings_doc.get("settings", {})
                 
@@ -109,13 +111,36 @@ class PublicConfigService:
                 for field in sensitive_fields:
                     settings.pop(field, None)
                 
-                return settings
+                base_settings = settings
             
-            return {}
+            # Get social media settings from platform_config
+            social_media_doc = await self.db.platform_config.find_one({"type": "social_media"})
+            if social_media_doc:
+                social_media_settings = social_media_doc.get("settings", {})
+                base_settings["social_media"] = social_media_settings
+            else:
+                # Fallback to default social media URLs
+                base_settings["social_media"] = {
+                    "facebook": "https://facebook.com/stocklot",
+                    "twitter": "https://twitter.com/stocklot", 
+                    "instagram": "https://instagram.com/stocklot",
+                    "linkedin": "https://linkedin.com/company/stocklot",
+                    "youtube": "https://youtube.com/@stocklot"
+                }
+            
+            return base_settings
             
         except Exception as e:
             logger.error(f"Error getting public settings: {str(e)}")
-            return {}
+            return {
+                "social_media": {
+                    "facebook": "https://facebook.com/stocklot",
+                    "twitter": "https://twitter.com/stocklot", 
+                    "instagram": "https://instagram.com/stocklot",
+                    "linkedin": "https://linkedin.com/company/stocklot",
+                    "youtube": "https://youtube.com/@stocklot"
+                }
+            }
     
     async def _get_platform_stats(self) -> Dict[str, Any]:
         """Get public platform statistics"""
