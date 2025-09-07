@@ -74,11 +74,11 @@ const BuyRequestsList = ({
       setItems(data.items || []);
     } catch (error) {
       console.error('Error loading requests:', error);
-      const toast = document.createElement('div');
-      toast.className = 'fixed top-4 right-4 bg-red-500 text-white p-4 rounded-md z-50';
-      toast.textContent = error.message;
-      document.body.appendChild(toast);
-      setTimeout(() => document.body.removeChild(toast), 3000);
+      toast({
+        title: "Error loading requests",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
