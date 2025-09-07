@@ -11,7 +11,7 @@ import {
   Shield, DollarSign, Globe, Settings, Eye
 } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com/api';
+const API = process.env.REACT_APP_BACKEND_URL || '/api';
 
 export default function AdminPaymentMethods() {
   const [paymentMethods, setPaymentMethods] = useState([]);
