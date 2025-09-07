@@ -16,9 +16,8 @@ async def create_enhanced_listings():
     # Enhanced livestock listings with proper API field names
     enhanced_listings = [
         {
-            "species_id": "cattle", 
-            "breed_id": "angus",
-            "product_type_id": "commercial",
+            "species_id": "c6e8d249-e7c6-4a34-91e6-73e840de56b3",  # Cattle
+            "product_type_id": "e757be3b-ed94-47a4-a5bd-ce3d23d837dc",  # Market-Ready
             "title": "Premium Angus Cattle - Commercial Grade",
             "description": "High-quality Angus cattle suitable for commercial beef production. Grass-fed, healthy animals with excellent genetics. All health certifications included.",
             "quantity": 25,
