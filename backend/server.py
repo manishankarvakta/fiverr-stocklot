@@ -8,6 +8,7 @@ from typing import List, Optional, Dict, Any, Union
 from enum import Enum
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
+from dataclasses import asdict
 import os
 import logging
 import math
