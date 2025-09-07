@@ -152,8 +152,8 @@ class MarketplaceListingsTester:
             async with self.session.get(f"{self.api_url}/listings") as response:
                 if response.status == 200:
                     data = await response.json()
-                    if isinstance(data, dict) and "listings" in data:
-                        listings = data["listings"]
+                    if isinstance(data, list):
+                        listings = data
                         logger.info(f"✅ Marketplace listings endpoint returns JSON with {len(listings)} listings")
                         
                         if listings:
@@ -167,8 +167,8 @@ class MarketplaceListingsTester:
                                 'vaccination_status', 'health_certificates'
                             ]
                             
-                            present_fields = [field for field in livestock_fields if field in self.sample_listing]
-                            missing_fields = [field for field in livestock_fields if field not in self.sample_listing]
+                            present_fields = [field for field in livestock_fields if field in self.sample_listing and self.sample_listing[field] is not None]
+                            missing_fields = [field for field in livestock_fields if field not in self.sample_listing or self.sample_listing[field] is None]
                             
                             logger.info(f"   Livestock fields present: {present_fields}")
                             logger.info(f"   Livestock fields missing: {missing_fields}")
@@ -187,7 +187,7 @@ class MarketplaceListingsTester:
                             logger.warning("⚠️ No listings found in marketplace")
                             self.test_results.append(("Marketplace Listings API", True, "No listings available"))
                     else:
-                        logger.error(f"❌ Marketplace listings returns invalid JSON structure: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+                        logger.error(f"❌ Marketplace listings returns invalid JSON structure: {type(data)}")
                         self.test_results.append(("Marketplace Listings API", False, "Invalid JSON structure"))
                 else:
                     logger.error(f"❌ Marketplace listings endpoint failed: {response.status}")
