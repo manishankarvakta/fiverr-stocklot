@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import RespondToBuyRequestModal from './RespondToBuyRequestModal';
 import { MessageCircle } from 'lucide-react';
+import { useToast } from '../../hooks/use-toast';
 
 const BuyRequestsList = ({
   canRespond = false,   // set true in seller contexts to show Respond button
