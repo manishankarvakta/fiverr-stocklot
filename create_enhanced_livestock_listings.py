@@ -77,9 +77,8 @@ async def create_enhanced_listings():
             ]
         },
         {
-            "species_id": "goats",
-            "breed_id": "boer",
-            "product_type_id": "breeding", 
+            "species_id": "0311ccf3-cf6e-497a-bb10-95bec2cbc5d6",  # Goats
+            "product_type_id": "ea9d426a-c181-4ac8-8dec-d7d2c5062fde",  # Calves/Kids/Lambs 
             "title": "Boer Goat Kids - 3 Month Old Premium Breeding Stock",
             "description": "High-quality Boer goat kids from registered breeding stock. Excellent genetics for meat production. Well-socialized and healthy animals.",
             "quantity": 15,
