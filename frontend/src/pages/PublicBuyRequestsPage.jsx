@@ -30,7 +30,7 @@ const PublicBuyRequestsPage = ({ user, onLogin }) => {
         
       } catch (error) {
         console.error('Error loading buy requests:', error);
-        setError(`Failed to load buy requests: ${error.message}`);
+        setError(error.message || 'Unable to load buy requests');
       } finally {
         setLoading(false);
       }
