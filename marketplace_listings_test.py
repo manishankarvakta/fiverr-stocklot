@@ -200,6 +200,49 @@ class MarketplaceListingsTester:
         """Test 3: Compare Buy Requests vs Marketplace Listings Data Structure"""
         logger.info("\n🧪 Comparing Buy Requests vs Marketplace Listings Data Structure...")
         
+        # Create a buy request for comparison if none exists
+        if not self.sample_buy_request:
+            logger.info("   Creating test buy request for comparison...")
+            try:
+                buy_request_data = {
+                    "species": "Commercial Broilers",
+                    "product_type": "DAY_OLD",
+                    "qty": 100,
+                    "unit": "head",
+                    "target_price_per_unit": 15.0,
+                    "location": "Gauteng, South Africa",
+                    "deadline": "2025-10-07T15:00:00Z",
+                    "description": "Looking for Ross 308 day-old chicks for broiler production",
+                    "weight_range": {"min": 40, "max": 60, "unit": "g"},
+                    "age_requirements": {"min_age": 0, "max_age": 1, "unit": "days"},
+                    "vaccination_requirements": ["Marek's disease", "Newcastle disease"]
+                }
+                
+                async with self.session.post(
+                    f"{self.api_url}/buy-requests/enhanced",
+                    json=buy_request_data,
+                    headers=self.get_headers()
+                ) as response:
+                    if response.status in [200, 201]:
+                        data = await response.json()
+                        buy_request_id = data.get("id")
+                        
+                        # Get the created buy request
+                        async with self.session.get(
+                            f"{self.api_url}/buy-requests/{buy_request_id}",
+                            headers=self.get_headers()
+                        ) as get_response:
+                            if get_response.status == 200:
+                                get_data = await get_response.json()
+                                self.sample_buy_request = get_data.get("item", {})
+                                logger.info("   ✅ Test buy request created successfully")
+                            else:
+                                logger.error(f"   ❌ Failed to retrieve created buy request: {get_response.status}")
+                    else:
+                        logger.error(f"   ❌ Failed to create test buy request: {response.status}")
+            except Exception as e:
+                logger.error(f"   ❌ Error creating test buy request: {e}")
+        
         if not self.sample_buy_request or not self.sample_listing:
             logger.warning("⚠️ Cannot compare - missing sample data")
             self.test_results.append(("Data Structure Comparison", False, "Missing sample data"))
@@ -218,10 +261,10 @@ class MarketplaceListingsTester:
         
         # Analyze listing fields  
         listing_fields = set(self.sample_listing.keys())
-        listing_livestock = [field for field in livestock_spec_fields if field in listing_fields]
+        listing_livestock = [field for field in livestock_spec_fields if field in listing_fields and self.sample_listing[field] is not None]
         
         # Find missing fields in listings
-        missing_in_listings = [field for field in buy_request_livestock if field not in listing_fields]
+        missing_in_listings = [field for field in buy_request_livestock if field not in listing_fields or self.sample_listing.get(field) is None]
         
         logger.info("📊 DATA STRUCTURE COMPARISON:")
         logger.info(f"   Buy Request total fields: {len(buy_request_fields)}")
@@ -234,9 +277,9 @@ class MarketplaceListingsTester:
         logger.info("\n🔍 FIELD VALUE ANALYSIS:")
         
         # Check breed information
-        buy_request_breed = self.sample_buy_request.get('breed') or self.sample_buy_request.get('breed_id')
+        buy_request_breed = self.sample_buy_request.get('breed') or self.sample_buy_request.get('species')
         listing_breed = self.sample_listing.get('breed') or self.sample_listing.get('breed_id')
-        logger.info(f"   Buy Request breed: {buy_request_breed}")
+        logger.info(f"   Buy Request breed/species: {buy_request_breed}")
         logger.info(f"   Listing breed: {listing_breed}")
         
         # Check weight information
@@ -258,13 +301,18 @@ class MarketplaceListingsTester:
         logger.info(f"   Listing vaccination: {listing_vaccination}")
         
         # Check health certificates
-        buy_request_health = self.sample_buy_request.get('health_certificates')
+        buy_request_health = self.sample_buy_request.get('health_certificates') or self.sample_buy_request.get('vet_certificates')
         listing_health = self.sample_listing.get('health_certificates') or self.sample_listing.get('has_vet_certificate')
         logger.info(f"   Buy Request health certs: {buy_request_health}")
         logger.info(f"   Listing health certs: {listing_health}")
         
         # Determine if there's a significant gap
         coverage_percentage = len(listing_livestock) / len(livestock_spec_fields) * 100 if livestock_spec_fields else 0
+        
+        logger.info(f"\n📈 LIVESTOCK SPECIFICATION COVERAGE:")
+        logger.info(f"   Buy Request coverage: {len(buy_request_livestock)}/{len(livestock_spec_fields)} ({len(buy_request_livestock)/len(livestock_spec_fields)*100:.1f}%)")
+        logger.info(f"   Listing coverage: {len(listing_livestock)}/{len(livestock_spec_fields)} ({coverage_percentage:.1f}%)")
+        logger.info(f"   Gap: {len(missing_in_listings)} fields missing in listings")
         
         if coverage_percentage >= 80:
             logger.info(f"✅ Good livestock specification coverage: {coverage_percentage:.1f}%")
