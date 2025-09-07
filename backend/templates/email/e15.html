@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Listing Submitted for Review{% endblock %}
+
+{% block content %}
+<h2>Thanks for your listing, {{seller_name}}! 📝</h2>
+
+<p>Your livestock listing "<strong>{{listing_title}}</strong>" has been successfully submitted to our platform and is now under review by our team.</p>
+
+<div class="livestock-card">
+    <h3>{{listing_title}}</h3>
+    <div class="spec-grid">
+        <div class="spec-item">
+            <span class="spec-label">Status:</span>
+            <span class="spec-value">Under Review</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-label">Submitted:</span>
+            <span class="spec-value">Just now</span>
+        </div>
+    </div>
+</div>
+
+<p><strong>What happens next?</strong></p>
+<ol>
+    <li>🔍 Our team reviews your listing for compliance</li>
+    <li>📋 We verify livestock specifications and health certificates</li>
+    <li>✅ Approval typically takes 24-48 hours</li>
+    <li>🚀 Once approved, your listing goes live to thousands of buyers</li>
+</ol>
+
+<div class="info-box">
+    <p><strong>💡 Pro Tip</strong><br>
+    Make sure all health certificates are current and clearly visible. This speeds up the approval process!</p>
+</div>
+
+<p style="text-align: center;">
+    <a href="{{listing_url}}" class="button">View Your Listing</a>
+</p>
+
+<p>We'll notify you immediately once your listing is approved and starts receiving buyer interest.</p>
+
+<p>Happy selling,<br>
+<strong>The StockLot Team</strong></p>
+{% endblock %}
