@@ -387,15 +387,18 @@ class MarketplaceListingsTester:
         try:
             async with self.session.get(f"{self.api_url}/breeds") as response:
                 if response.status == 200:
-                    data = await response.json()
-                    breeds = data.get("breeds", [])
-                    logger.info(f"✅ Breeds endpoint accessible - {len(breeds)} breeds available")
-                    
-                    if breeds:
-                        sample_breed = breeds[0]
-                        logger.info(f"   Sample breed: {sample_breed.get('name')} (ID: {sample_breed.get('id')})")
-                    
-                    self.test_results.append(("Breed Resolution - Breeds Available", True, f"{len(breeds)} breeds"))
+                    breeds = await response.json()
+                    if isinstance(breeds, list):
+                        logger.info(f"✅ Breeds endpoint accessible - {len(breeds)} breeds available")
+                        
+                        if breeds:
+                            sample_breed = breeds[0]
+                            logger.info(f"   Sample breed: {sample_breed.get('name')} (ID: {sample_breed.get('id')})")
+                        
+                        self.test_results.append(("Breed Resolution - Breeds Available", True, f"{len(breeds)} breeds"))
+                    else:
+                        logger.error(f"❌ Breeds endpoint returns invalid structure: {type(breeds)}")
+                        self.test_results.append(("Breed Resolution - Breeds Available", False, "Invalid structure"))
                 else:
                     logger.error(f"❌ Breeds endpoint failed: {response.status}")
                     self.test_results.append(("Breed Resolution - Breeds Available", False, f"Status {response.status}"))
