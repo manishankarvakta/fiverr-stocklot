@@ -3683,6 +3683,117 @@ async def get_email_statistics(current_user: User = Depends(get_current_user)):
         logger.error(f"Error getting email statistics: {e}")
         raise HTTPException(status_code=500, detail="Failed to get email statistics")
 
+# =============================================================================
+# MAILGUN WEBHOOK HANDLERS FOR EMAIL DELIVERY TRACKING
+# =============================================================================
+
+@api_router.post("/webhooks/mailgun/events")
+async def mailgun_webhook_handler(request: Request):
+    """Handle Mailgun webhook events for delivery tracking"""
+    try:
+        # Get raw request data
+        body = await request.body()
+        form_data = await request.form()
+        
+        # Convert form data to dict
+        event_data = {}
+        for key, value in form_data.items():
+            if key.startswith('event-data'):
+                # Parse nested event data
+                if key == 'event-data':
+                    import json
+                    event_data.update(json.loads(value))
+                else:
+                    nested_key = key.replace('event-data[', '').replace(']', '')
+                    event_data[nested_key] = value
+            else:
+                event_data[key] = value
+        
+        # Handle the webhook event
+        result = await mailgun_webhook_service.handle_webhook_event(event_data)
+        
+        if "error" in result:
+            logger.error(f"Webhook processing error: {result['error']}")
+            return {"status": "error", "message": result["error"]}
+        
+        return {"status": "ok", "processed": result}
+        
+    except Exception as e:
+        logger.error(f"Error handling Mailgun webhook: {e}")
+        return {"status": "error", "message": str(e)}
+
+@api_router.get("/admin/email-analytics")
+async def get_email_analytics(
+    days: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Get email delivery analytics (admin only)"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        analytics = await mailgun_webhook_service.get_email_analytics(days)
+        return {
+            "period_days": days,
+            "analytics": analytics,
+            "summary": {
+                "total_templates": len(email_notification_service.templates),
+                "active_webhooks": True,
+                "suppression_list_enabled": True
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting email analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get email analytics")
+
+@api_router.get("/admin/email-suppressions")
+async def get_email_suppressions(current_user: User = Depends(get_current_user)):
+    """Get suppressed emails list (admin only)"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        suppressions = await mailgun_webhook_service.get_suppressed_emails()
+        return {
+            "suppressions": suppressions,
+            "total_suppressed": len(suppressions),
+            "can_reactivate": len([s for s in suppressions if s["can_reactivate"]])
+        }
+    except Exception as e:
+        logger.error(f"Error getting email suppressions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get email suppressions")
+
+@api_router.post("/admin/email-suppressions/{email}/reactivate")
+async def reactivate_suppressed_email(
+    email: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Reactivate a suppressed email address (admin only)"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Remove from suppression list
+        result = await email_preferences_service.suppression_collection.update_one(
+            {"email": email.lower()},
+            {"$set": {"active": False, "reactivated_at": datetime.now(timezone.utc)}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Email not found in suppression list")
+        
+        return {"message": f"Email {email} reactivated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reactivating email {email}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reactivate email")
+
+# =============================================================================
+# ORDERS API ENDPOINTS
+# =============================================================================
+
 @api_router.get("/orders")
 async def get_user_orders(current_user: User = Depends(get_current_user)):
     """Get orders for current user"""
