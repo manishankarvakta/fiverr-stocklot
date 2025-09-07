@@ -5607,6 +5607,26 @@ async def create_buy_request(
             except Exception as e:
                 logger.warning(f"Failed to notify sellers: {e}")
         
+        # 📧 Send buy request posted email (E54)
+        try:
+            buyer_name = current_user.full_name or "Customer"
+            request_url = f"https://stocklot.farm/buy-requests/{request['id']}"
+            
+            notification = EmailNotification(
+                template_id="E54",
+                recipient_email=current_user.email,
+                recipient_name=buyer_name,
+                variables={
+                    "request_code": request["id"][:8].upper(),
+                    "request_url": request_url
+                },
+                tags=["E54", "buy-requests", "posted"]
+            )
+            await email_notification_service.send_email(notification)
+            logger.info(f"Buy request posted email sent for request {request['id']}")
+        except Exception as e:
+            logger.warning(f"Failed to send buy request posted email for {request['id']}: {e}")
+        
         return {
             "ok": True,
             "id": request["id"],
