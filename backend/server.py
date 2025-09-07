@@ -1865,6 +1865,19 @@ async def register_user(user_data: UserCreate, request: Request):
                 logger.warning(f"Referral attribution failed: {e}")
                 # Don't fail registration if referral attribution fails
         
+        # 📧 Send welcome email (E01)
+        try:
+            verify_url = f"https://stocklot.farm/verify-email?user_id={user.id}"
+            await email_notification_service.send_welcome_email(
+                user_email=user.email,
+                first_name=user.full_name.split()[0] if user.full_name else "there",
+                verify_url=verify_url
+            )
+            logger.info(f"Welcome email sent to {user.email}")
+        except Exception as e:
+            logger.warning(f"Failed to send welcome email to {user.email}: {e}")
+            # Don't fail registration if email fails
+        
         return {"message": "User registered successfully", "user_id": user.id}
     
     except HTTPException:
