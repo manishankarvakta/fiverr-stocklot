@@ -24,6 +24,8 @@ import asyncio
 # Add services directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'services'))
 from email_service import EmailService
+from email_notification_service import EmailNotificationService, EmailNotification
+from email_preferences_service import EmailPreferencesService, EmailPreferenceStatus
 from notification_service import NotificationService, NotificationChannel, NotificationTopic, send_welcome_email, send_order_confirmation, send_login_alert
 from blog_service import BlogService, BlogStatus, AIModel
 from referral_service import ReferralService, ReferralStage, RewardType
