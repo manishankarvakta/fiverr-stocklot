@@ -90,6 +90,10 @@ referral_service_extended = ExtendedReferralService(db)
 notification_service_extended = ExtendedNotificationService(db)
 paystack_service = PaystackService(db)
 
+# Initialize comprehensive email system
+email_notification_service = EmailNotificationService(db)
+email_preferences_service = EmailPreferencesService(db)
+
 # Initialize AI & Mapping enhanced services
 enhanced_buy_request_service = EnhancedBuyRequestService(db)
 ai_enhanced_service = AIEnhancedService()
