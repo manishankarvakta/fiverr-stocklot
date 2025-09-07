@@ -6358,6 +6358,28 @@ async def create_offer(
                     "offer_price": data.offer_price
                 }
             )
+            
+            # 📧 Send offer received email (E56)
+            try:
+                buyer_doc = await db.users.find_one({"id": buy_request["buyer_id"]})
+                if buyer_doc:
+                    offer_url = f"https://stocklot.farm/offers-received#{offer['id']}"
+                    
+                    notification = EmailNotification(
+                        template_id="E56",
+                        recipient_email=buyer_doc["email"],
+                        recipient_name=buyer_doc.get("full_name", "Customer"),
+                        variables={
+                            "request_code": request_id[:8].upper(),
+                            "offer_price": f"R{data.offer_price:,.2f}",
+                            "offer_url": offer_url
+                        },
+                        tags=["E56", "offers", "received"]
+                    )
+                    await email_notification_service.send_email(notification)
+                    logger.info(f"Offer received email sent for offer {offer['id']}")
+            except Exception as e:
+                logger.warning(f"Failed to send offer received email for {offer['id']}: {e}")
         
         # Auto-create conversation for this offer
         try:
