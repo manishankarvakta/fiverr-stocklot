@@ -115,8 +115,8 @@ class MarketplaceListingsTester:
                     content_type = response.headers.get('content-type', '')
                     if 'application/json' in content_type:
                         data = await response.json()
-                        if isinstance(data, dict) and "buy_requests" in data:
-                            buy_requests = data["buy_requests"]
+                        if isinstance(data, dict) and "items" in data:
+                            buy_requests = data["items"]
                             logger.info(f"✅ Public buy requests endpoint returns JSON with {len(buy_requests)} requests")
                             
                             # Store sample for comparison
