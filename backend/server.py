@@ -94,6 +94,8 @@ paystack_service = PaystackService(db)
 # Initialize comprehensive email system
 email_notification_service = EmailNotificationService(db)
 email_preferences_service = EmailPreferencesService(db)
+from mailgun_webhook_service import MailgunWebhookService
+mailgun_webhook_service = MailgunWebhookService(db, email_preferences_service)
 
 # Initialize AI & Mapping enhanced services
 enhanced_buy_request_service = EnhancedBuyRequestService(db)
