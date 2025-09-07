@@ -10,7 +10,7 @@ import {
   Activity, Bell, Settings, RefreshCw, Download, Upload, Search, Filter
 } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com/api';
+const API = process.env.REACT_APP_BACKEND_URL || '/api';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
