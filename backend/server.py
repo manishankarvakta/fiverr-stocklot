@@ -3316,6 +3316,27 @@ async def create_listing(
         listing_dict["price_per_unit"] = float(listing_dict["price_per_unit"])
         await db.listings.insert_one(listing_dict)
         
+        # 📧 Send listing submitted email (E15)
+        try:
+            seller_name = current_user.full_name or "Seller"
+            listing_url = f"https://stocklot.farm/listings/{listing.id}"
+            
+            notification = EmailNotification(
+                template_id="E15",
+                recipient_email=current_user.email,
+                recipient_name=seller_name,
+                variables={
+                    "seller_name": seller_name,
+                    "listing_title": listing.title,
+                    "listing_url": listing_url
+                },
+                tags=["E15", "listings", "submission"]
+            )
+            await email_notification_service.send_email(notification)
+            logger.info(f"Listing submitted email sent for listing {listing.id}")
+        except Exception as e:
+            logger.warning(f"Failed to send listing submitted email for {listing.id}: {e}")
+        
         return listing
     
     except HTTPException:
