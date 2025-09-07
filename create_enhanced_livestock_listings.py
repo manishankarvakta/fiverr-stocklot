@@ -47,9 +47,8 @@ async def create_enhanced_listings():
             ]
         },
         {
-            "species_id": "poultry",
-            "breed_id": "ross_308", 
-            "product_type_id": "commercial",
+            "species_id": "269b6706-c56a-4c52-8e8d-b7d3613853ea",  # Commercial Broilers
+            "product_type_id": "4fc409b3-7ea3-4112-b2fc-e23c35e44006",  # Day-Old
             "title": "Ross 308 Broiler Chickens - Day Old Chicks",
             "description": "Premium Ross 308 day-old broiler chicks from parent stock. Excellent feed conversion ratio and growth rate. Suitable for commercial meat production.",
             "quantity": 5000,
