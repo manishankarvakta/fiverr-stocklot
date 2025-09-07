@@ -3908,6 +3908,32 @@ async def reject_listing(listing_id: str, request_data: dict = {}, current_user:
             "admin_name": current_user.full_name
         })
         
+        # 📧 Send listing rejected email (E17)
+        try:
+            # Get listing and seller details
+            listing_doc = await db.listings.find_one({"id": listing_id})
+            if listing_doc:
+                seller_doc = await db.users.find_one({"id": listing_doc.get("seller_id")})
+                if seller_doc:
+                    listing_title = listing_doc.get("title", "Your listing")
+                    edit_url = f"https://stocklot.farm/dashboard/listings/{listing_id}/edit"
+                    
+                    notification = EmailNotification(
+                        template_id="E17",
+                        recipient_email=seller_doc["email"],
+                        recipient_name=seller_doc.get("full_name", "Seller"),
+                        variables={
+                            "listing_title": listing_title,
+                            "reason": reason,
+                            "edit_url": edit_url
+                        },
+                        tags=["E17", "listings", "rejected"]
+                    )
+                    await email_notification_service.send_email(notification)
+                    logger.info(f"Listing rejected email sent for listing {listing_id}")
+        except Exception as e:
+            logger.warning(f"Failed to send listing rejected email for {listing_id}: {e}")
+        
         return {"message": "Listing rejected successfully", "reason": reason}
     except HTTPException:
         raise
