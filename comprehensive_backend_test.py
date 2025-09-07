@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 class StockLotAPITester:
-    def __init__(self, base_url="https://easy-signin-1.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://buy-request-fix.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0

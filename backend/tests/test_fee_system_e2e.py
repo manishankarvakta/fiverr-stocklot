@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class FeeSystemE2ETester:
     """End-to-end testing for complete fee system flow"""
     
-    def __init__(self, base_url: str = "https://easy-signin-1.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "https://buy-request-fix.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.session = None

@@ -25,7 +25,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # Test Configuration - Use environment variable for backend URL
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://easy-signin-1.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://buy-request-fix.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 class SocialAuthDebugger:
