@@ -12,6 +12,7 @@ const BuyRequestsList = ({
   canRespond = false,   // set true in seller contexts to show Respond button
   defaultCountry = 'ZA'
 }) => {
+  const { toast } = useToast();
   const [speciesOpts, setSpeciesOpts] = useState([]);
   const [species, setSpecies] = useState('');
   const [query, setQuery] = useState('');
