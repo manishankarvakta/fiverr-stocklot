@@ -3550,7 +3550,7 @@ async def get_email_preferences(user_id: str, current_user: User = Depends(get_c
 @api_router.put("/email-preferences/{user_id}")
 async def update_email_preferences(
     user_id: str, 
-    updates: Dict[str, any], 
+    updates: Dict[str, Any], 
     current_user: User = Depends(get_current_user)
 ):
     """Update user's email preferences"""
