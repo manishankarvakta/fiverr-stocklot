@@ -560,7 +560,7 @@ function Footer() {
   useEffect(() => {
     const loadSocialSettings = async () => {
       try {
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || '/api';
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
         const response = await fetch(`${backendUrl}/api/platform/config`);
         if (response.ok) {
           const config = await response.json();
@@ -568,17 +568,33 @@ function Footer() {
           const socialMedia = settings.social_media || {};
           console.log('Loaded social settings:', socialMedia); // Debug log
           setSocialSettings({
-            facebookUrl: socialMedia.facebook || socialMedia.facebook_url || '',
-            twitterUrl: socialMedia.twitter || socialMedia.x_url || '',
-            instagramUrl: socialMedia.instagram || socialMedia.instagram_url || '',
-            youtubeUrl: socialMedia.youtube || socialMedia.youtube_url || '',
-            linkedinUrl: socialMedia.linkedin || socialMedia.linkedin_url || ''
+            facebookUrl: socialMedia.facebook || socialMedia.facebook_url || 'https://facebook.com/stocklot',
+            twitterUrl: socialMedia.twitter || socialMedia.x_url || 'https://twitter.com/stocklot',
+            instagramUrl: socialMedia.instagram || socialMedia.instagram_url || 'https://instagram.com/stocklot',
+            youtubeUrl: socialMedia.youtube || socialMedia.youtube_url || 'https://youtube.com/@stocklot',
+            linkedinUrl: socialMedia.linkedin || socialMedia.linkedin_url || 'https://linkedin.com/company/stocklot'
           });
         } else {
           console.error('Failed to load platform config:', response.status);
+          // Set fallback social media URLs
+          setSocialSettings({
+            facebookUrl: 'https://facebook.com/stocklot',
+            twitterUrl: 'https://twitter.com/stocklot',
+            instagramUrl: 'https://instagram.com/stocklot',
+            youtubeUrl: 'https://youtube.com/@stocklot',
+            linkedinUrl: 'https://linkedin.com/company/stocklot'
+          });
         }
       } catch (error) {
         console.error('Failed to load social settings:', error);
+        // Set fallback social media URLs on error
+        setSocialSettings({
+          facebookUrl: 'https://facebook.com/stocklot',
+          twitterUrl: 'https://twitter.com/stocklot',
+          instagramUrl: 'https://instagram.com/stocklot',
+          youtubeUrl: 'https://youtube.com/@stocklot',
+          linkedinUrl: 'https://linkedin.com/company/stocklot'
+        });
       }
     };
     
