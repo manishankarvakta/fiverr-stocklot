@@ -251,7 +251,7 @@ export default function AdminWebhooksManagement() {
       webhook_id: 'webhook_1',
       webhook_name: 'Paystack Payment Webhook',
       event_type: 'payment.failed',
-      url: 'https://easy-signin-1.preview.emergentagent.com/api/payments/paystack/webhook',
+      url: `${process.env.REACT_APP_BACKEND_URL || '/api'}/payments/paystack/webhook`,
       status_code: 200,
       response_time: 203,
       delivered_at: '2025-08-29T11:15:44Z',
