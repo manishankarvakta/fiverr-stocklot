@@ -17,8 +17,8 @@ async def create_sample_buy_requests():
         {
             "title": "Premium Angus Cattle - Commercial Grade",
             "description": "Looking for high-quality Angus cattle for commercial beef production. Need healthy animals with proper health certificates.",
-            "species_id": "c6e8d249-e7c6-4a34-91e6-73e840de56b3",  # Cattle
-            "product_type_id": "e757be3b-ed94-47a4-a5bd-ce3d23d837dc",  # Market-Ready
+            "species": "Cattle",
+            "product_type": "Market-Ready",
             "qty": 25,
             "unit": "head",
             "target_price": 18000,
