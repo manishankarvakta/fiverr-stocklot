@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Buy Request Posted Successfully{% endblock %}
+
+{% block content %}
+<h2>Your buy request is now active! 🎯</h2>
+
+<p>Your livestock buy request <strong>{{request_code}}</strong> has been successfully posted and is now visible to thousands of verified sellers across South Africa.</p>
+
+<div class="info-box success">
+    <p><strong>✅ REQUEST ACTIVE</strong><br>
+    Sellers can now send you offers matching your requirements.</p>
+</div>
+
+<div class="livestock-card">
+    <h3>Buy Request {{request_code}}</h3>
+    <div class="spec-grid">
+        <div class="spec-item">
+            <span class="spec-label">Status:</span>
+            <span class="spec-value"><strong>ACTIVE</strong></span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-label">Visibility:</span>
+            <span class="spec-value">Live to Sellers</span>
+        </div>
+    </div>
+</div>
+
+<p><strong>What happens next:</strong></p>
+<ol>
+    <li>🔍 Sellers matching your criteria will see your request</li>
+    <li>📧 You'll receive email notifications for new offers</li>
+    <li>💬 Review offers and negotiate directly with sellers</li>
+    <li>✅ Accept the best offer and proceed to secure checkout</li>
+</ol>
+
+<div class="info-box">
+    <p><strong>💡 Getting Better Offers</strong><br>
+    • Be specific about your livestock requirements<br>
+    • Set realistic target prices<br>
+    • Allow inspection when possible<br>
+    • Respond quickly to seller messages</p>
+</div>
+
+<p style="text-align: center;">
+    <a href="{{request_url}}" class="button">View Your Request</a>
+    <a href="https://stocklot.farm/offers-received" class="button button-secondary">Check Offers</a>
+</p>
+
+<p>We'll notify you immediately when sellers start sending offers!</p>
+
+<p>Happy buying,<br>
+<strong>The StockLot Team</strong></p>
+{% endblock %}
