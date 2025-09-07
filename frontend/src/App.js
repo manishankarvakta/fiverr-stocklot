@@ -4643,7 +4643,7 @@ function Contact() {
     setIsSubmitting(true);
     
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com';
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
       const response = await fetch(`${backendUrl}/api/contact`, {
         method: 'POST',
         headers: {
