@@ -48,8 +48,9 @@ import PublicBuyRequestsPage from './pages/PublicBuyRequestsPage';
 import EnhancedPublicBuyRequestsPage from './pages/EnhancedPublicBuyRequestsPage';
 import EnhancedCreateBuyRequestForm from './components/buyRequests/EnhancedCreateBuyRequestForm';
 import BuyerOffersPage from './pages/BuyerOffersPage';
-import UnifiedInboxPage from './pages/UnifiedInboxPage';
+import InboxPage from './pages/InboxPage';
 import ReviewsTestPage from './pages/ReviewsTestPage';
+import LoginGate from './components/auth/LoginGate';
 import "./App.css";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -261,6 +262,16 @@ function Header() {
                 
                 <NotificationBell />
                 
+                {/* Messages/Inbox Button */}
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate('/inbox')}
+                  className="relative p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50"
+                  title="Messages & Conversations"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                </Button>
+                
                 {/* Profile Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -307,6 +318,10 @@ function Header() {
                     <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                       <LayoutDashboard className="mr-2 h-4 w-4" />
                       Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/inbox')}>
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Messages
                     </DropdownMenuItem>
                     
                     {user.roles.includes('buyer') && (
@@ -545,20 +560,22 @@ function Footer() {
   useEffect(() => {
     const loadSocialSettings = async () => {
       try {
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com';
-        const response = await fetch(`${backendUrl}/api/platform/config`);
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || '/api';
+        const response = await fetch(`${backendUrl}/platform/config`);
         if (response.ok) {
           const config = await response.json();
           const settings = config.settings || {};
           const socialMedia = settings.social_media || {};
-          console.log('Loaded social settings:', settings); // Debug log
+          console.log('Loaded social settings:', socialMedia); // Debug log
           setSocialSettings({
-            facebookUrl: socialMedia.facebook_url || '',
-            twitterUrl: socialMedia.x_url || '',  // Note: using x_url for Twitter/X
-            instagramUrl: socialMedia.instagram_url || '',
-            youtubeUrl: socialMedia.youtube_url || '',
-            linkedinUrl: socialMedia.linkedin_url || ''
+            facebookUrl: socialMedia.facebook || socialMedia.facebook_url || '',
+            twitterUrl: socialMedia.twitter || socialMedia.x_url || '',
+            instagramUrl: socialMedia.instagram || socialMedia.instagram_url || '',
+            youtubeUrl: socialMedia.youtube || socialMedia.youtube_url || '',
+            linkedinUrl: socialMedia.linkedin || socialMedia.linkedin_url || ''
           });
+        } else {
+          console.error('Failed to load platform config:', response.status);
         }
       } catch (error) {
         console.error('Failed to load social settings:', error);
@@ -3557,7 +3574,7 @@ function ListingCard({ listing, onViewDetails, onBidPlaced, showNotification, on
           </div>
 
           {/* Seller Info */}
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-3">
             <Avatar className="h-6 w-6">
               <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xs">
                 {listing.seller_name?.charAt(0) || 'S'}
@@ -3569,6 +3586,71 @@ function ListingCard({ listing, onViewDetails, onBidPlaced, showNotification, on
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Vet Certified
               </Badge>
+            )}
+          </div>
+
+          {/* Livestock Specifications */}
+          <div className="mb-4 space-y-2">
+            {/* Weight and Age Information */}
+            {(listing.weight_kg || listing.age_weeks || listing.age_days || listing.breed) && (
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {listing.weight_kg && (
+                  <div>
+                    <span className="font-semibold text-gray-700">Weight:</span> {listing.weight_kg} kg
+                  </div>
+                )}
+                {(listing.age_weeks || listing.age_days) && (
+                  <div>
+                    <span className="font-semibold text-gray-700">Age:</span> 
+                    {listing.age_weeks ? ` ${listing.age_weeks} weeks` : ''}
+                    {listing.age_days ? ` ${listing.age_days} days` : ''}
+                    {!listing.age_weeks && !listing.age_days && listing.age ? ` ${listing.age}` : ''}
+                  </div>
+                )}
+                {listing.breed && (
+                  <div className="col-span-2">
+                    <span className="font-semibold text-gray-700">Breed:</span> {listing.breed}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Health and Vaccination Information */}
+            {(listing.vaccination_status || listing.health_certificates || listing.description?.includes('vaccin') || listing.description?.includes('health')) && (
+              <div className="flex flex-wrap gap-1">
+                {listing.vaccination_status && (
+                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                    {listing.vaccination_status}
+                  </Badge>
+                )}
+                {listing.health_certificates && (
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                    Health Certificate
+                  </Badge>
+                )}
+                {listing.description?.toLowerCase().includes('marek') && (
+                  <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                    Marek's Vaccinated
+                  </Badge>
+                )}
+                {listing.description?.toLowerCase().includes('newcastle') && (
+                  <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                    Newcastle Vaccinated
+                  </Badge>
+                )}
+                {listing.has_vet_certificate && (
+                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                    Inspection OK
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Additional Specifications */}
+            {listing.description && listing.description.length > 0 && (
+              <div className="text-xs text-gray-600 line-clamp-2">
+                {listing.description}
+              </div>
             )}
           </div>
 
@@ -4703,9 +4785,9 @@ function Contact() {
 }
 
 // Buy Requests Public Page - Enhanced with images, requirements, and comprehensive details
-function BuyRequestsPage() {
+function BuyRequestsPage({ onLogin }) {
   const { user } = useAuth();
-  return <EnhancedPublicBuyRequestsPage user={user} />;
+  return <EnhancedPublicBuyRequestsPage user={user} onLogin={onLogin} />;
 }
 
 // Create Buy Request Page  
@@ -4755,6 +4837,22 @@ function CreateBuyRequestPage() {
 
 // Main App component
 function App() {
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const handleOpenLogin = () => {
+    setShowLoginModal(true);
+  };
+
+  const handleCloseLogin = () => {
+    setShowLoginModal(false);
+  };
+
+  const handleLoginSuccess = (userData) => {
+    setShowLoginModal(false);
+    // Refresh page or update auth state
+    window.location.reload();
+  };
+
   return (
     <AuthProvider>
       <Router>
@@ -4785,7 +4883,7 @@ function App() {
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/referrals" element={<ReferralDashboard />} />
-              <Route path="/buy-requests" element={<BuyRequestsPage />} />
+              <Route path="/buy-requests" element={<BuyRequestsPage onLogin={handleOpenLogin} />} />
               <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
               <Route path="/inbox" element={<UnifiedInbox />} />
               <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
@@ -4798,6 +4896,13 @@ function App() {
         
         {/* Global FAQ Chatbot */}
         <FAQChatbot />
+        
+        {/* Login Modal */}
+        <LoginGate
+          open={showLoginModal}
+          onClose={handleCloseLogin}
+          onLogin={handleLoginSuccess}
+        />
       </Router>
     </AuthProvider>
   );
@@ -4808,6 +4913,14 @@ function ProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(user || {});
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      setProfilePhoto(user.profile_photo || null);
+    }
+  }, [user]);
 
   const updateProfile = async (data) => {
     setLoading(true);
@@ -4819,6 +4932,55 @@ function ProfilePage() {
       alert('Failed to update profile');
     }
     setLoading(false);
+  };
+
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (JPG, PNG)');
+      return;
+    }
+
+    setUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/profile/photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setProfilePhoto(result.photo_url);
+        // Update user data in localStorage
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        userData.profile_photo = result.photo_url;
+        localStorage.setItem('user', JSON.stringify(userData));
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -4833,12 +4995,29 @@ function ProfilePage() {
             <CardContent className="space-y-6">
               <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl font-bold">
-                    {profile.full_name?.charAt(0) || 'U'}
-                  </AvatarFallback>
+                  {profilePhoto ? (
+                    <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl font-bold">
+                      {profile.full_name?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <div>
-                  <Button variant="outline">Upload Photo</Button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    id="photo-upload"
+                  />
+                  <Button 
+                    variant="outline" 
+                    onClick={() => document.getElementById('photo-upload').click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? 'Uploading...' : 'Upload Photo'}
+                  </Button>
                   <p className="text-sm text-gray-500 mt-1">JPG, PNG up to 5MB</p>
                 </div>
               </div>
@@ -6072,6 +6251,6 @@ function BuyerOffersInbox() {
 // Unified Inbox Page - All notifications and messages
 function UnifiedInbox() {
   const { user } = useAuth();
-  return <UnifiedInboxPage user={user} />;
+  return <InboxPage user={user} />;
 }
 export default App;

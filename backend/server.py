@@ -44,8 +44,19 @@ from services.ml_faq_service import MLFAQService
 from services.ml_matching_service import MLMatchingService
 from services.ml_engine_service import MLEngineService
 from services.photo_intelligence_service import PhotoIntelligenceService
+from services.social_auth_service import SocialAuthService
+from services.unified_inbox_service import UnifiedInboxService
+from services.sse_service import sse_service
+from services.recaptcha_service import recaptcha_service
 
-# Import new models
+# Import inbox models
+from inbox_models.inbox_models import (
+    SendMessageBody, CreateConversationRequest, UpdateConversationRequest,
+    ConversationType, SystemMessageType
+)
+
+# Import new models from models.py file
+import models
 from models import (
     MessageCreate, ThreadCreate, MessageThread, Message, MessageParticipant,
     ReferralCode, ReferralClick, ReferralAttribution, ReferralReward, ReferralSummary,
@@ -87,6 +98,12 @@ ml_matching_service = MLMatchingService(db)
 ml_engine_service = MLEngineService(db)
 photo_intelligence_service = PhotoIntelligenceService(db)
 
+# Initialize Social Authentication service
+social_auth_service = SocialAuthService(db)
+
+# Initialize Unified Inbox service
+unified_inbox_service = UnifiedInboxService(db)
+
 # Initialize Review System services
 from services.review_cron_service import get_review_cron_service
 from services.review_db_setup import setup_review_database
@@ -120,6 +137,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Health check endpoint
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 # Enums
 class UserRole(str, Enum):
@@ -173,10 +196,29 @@ class UserCreate(BaseModel):
     full_name: str
     phone: Optional[str] = None
     role: UserRole = UserRole.BUYER
+    recaptcha_token: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    recaptcha_token: Optional[str] = None
+
+# Social Authentication Models
+class SocialAuthRequest(BaseModel):
+    provider: str = Field(..., pattern="^(google|facebook)$")
+    token: str
+    role: Optional[UserRole] = None
+    recaptcha_token: Optional[str] = None
+
+class SocialAuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: Dict[str, Any]
+    is_new_user: bool
+    needs_role_selection: bool
+
+class UpdateRoleRequest(BaseModel):
+    role: UserRole
 
 # Organization Models
 class OrganizationType(str, Enum):
@@ -326,6 +368,16 @@ class Listing(BaseModel):
     has_vet_certificate: bool = False
     vet_certificate_url: Optional[str] = None
     health_notes: Optional[str] = None
+    
+    # Livestock Specification Fields
+    weight_kg: Optional[float] = None
+    age_weeks: Optional[int] = None
+    age_days: Optional[int] = None
+    age: Optional[str] = None
+    breed: Optional[str] = None  # Resolved breed name
+    vaccination_status: Optional[str] = None
+    health_certificates: Optional[List[str]] = []
+    
     country: str = "South Africa"
     region: Optional[str] = None
     city: Optional[str] = None
@@ -348,6 +400,15 @@ class ListingCreate(BaseModel):
     delivery_available: bool = False
     has_vet_certificate: bool = False
     health_notes: Optional[str] = None
+    
+    # Livestock Specification Fields
+    weight_kg: Optional[float] = None
+    age_weeks: Optional[int] = None
+    age_days: Optional[int] = None
+    age: Optional[str] = None
+    vaccination_status: Optional[str] = None
+    health_certificates: Optional[List[str]] = []
+    
     region: Optional[str] = None
     city: Optional[str] = None
     images: List[str] = []
@@ -1750,6 +1811,19 @@ async def create_sample_listings():
 async def register_user(user_data: UserCreate, request: Request):
     """Register a new user with referral attribution"""
     try:
+        # Verify reCAPTCHA token if provided
+        if user_data.recaptcha_token:
+            client_ip = request.client.host if request.client else None
+            recaptcha_result = await recaptcha_service.verify_token(
+                user_data.recaptcha_token, 
+                'REGISTER',
+                client_ip
+            )
+            
+            if not recaptcha_result.get('success', True):
+                logger.warning(f"reCAPTCHA verification failed for registration: {recaptcha_result}")
+                # For now, log but don't block - can be made stricter later
+        
         # Check if user exists
         existing_user = await db.users.find_one({"email": user_data.email})
         if existing_user:
@@ -1794,9 +1868,22 @@ async def register_user(user_data: UserCreate, request: Request):
         raise HTTPException(status_code=500, detail="Registration failed")
 
 @api_router.post("/auth/login")
-async def login_user(login_data: UserLogin):
+async def login_user(login_data: UserLogin, request: Request):
     """Login user"""
     try:
+        # Verify reCAPTCHA token if provided
+        if login_data.recaptcha_token:
+            client_ip = request.client.host if request.client else None
+            recaptcha_result = await recaptcha_service.verify_token(
+                login_data.recaptcha_token, 
+                'LOGIN',
+                client_ip
+            )
+            
+            if not recaptcha_result.get('success', True):
+                logger.warning(f"reCAPTCHA verification failed for login: {recaptcha_result}")
+                # For now, log but don't block - can be made stricter later
+        
         # Find user
         user_doc = await db.users.find_one({"email": login_data.email})
         if not user_doc:
@@ -1820,6 +1907,303 @@ async def login_user(login_data: UserLogin):
     except Exception as e:
         logger.error(f"Error logging in user: {e}")
         raise HTTPException(status_code=500, detail="Login failed")
+
+# Social Authentication endpoints
+@api_router.post("/auth/social", response_model=SocialAuthResponse)
+async def social_auth(auth_request: SocialAuthRequest, request: Request):
+    """Authenticate user with Google or Facebook"""
+    try:
+        # Verify reCAPTCHA token if provided
+        if auth_request.recaptcha_token:
+            client_ip = request.client.host if request.client else None
+            recaptcha_result = await recaptcha_service.verify_token(
+                auth_request.recaptcha_token, 
+                'SOCIAL_LOGIN',
+                client_ip
+            )
+            
+            if not recaptcha_result.get('success', True):
+                logger.warning(f"reCAPTCHA verification failed for social login: {recaptcha_result}")
+                # For now, log but don't block - can be made stricter later
+        
+        # Verify the social token based on provider
+        if auth_request.provider == "google":
+            user_info = await social_auth_service.verify_google_token(auth_request.token)
+        elif auth_request.provider == "facebook":
+            user_info = await social_auth_service.verify_facebook_token(auth_request.token)
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported provider")
+        
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid social token")
+        
+        # Find or create user
+        user_result = await social_auth_service.find_or_create_user(
+            user_info, 
+            auth_request.role
+        )
+        
+        # Create access token (using email for now, should be JWT in production)
+        access_token = user_result['email']
+        
+        return SocialAuthResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user={
+                "id": user_result['user_id'],
+                "email": user_result['email'],
+                "full_name": user_result['full_name'],
+                "roles": user_result['roles']
+            },
+            is_new_user=user_result['is_new_user'],
+            needs_role_selection=user_result['needs_role_selection']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in social authentication: {e}")
+        raise HTTPException(status_code=500, detail="Social authentication failed")
+
+@api_router.put("/auth/update-role")
+async def update_user_role(
+    role_request: UpdateRoleRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user role after social signup"""
+    try:
+        success = await social_auth_service.update_user_role(
+            current_user.id, 
+            role_request.role
+        )
+        
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to update user role")
+        
+        return {"message": "Role updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating user role: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update role")
+
+# Unified Inbox API Endpoints
+@api_router.get("/inbox/events")
+async def inbox_sse_stream(request: Request, current_user: User = Depends(get_current_user)):
+    """SSE stream for real-time inbox updates"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    return await sse_service.create_event_stream(request, current_user.id)
+
+@api_router.get("/inbox/summary")
+async def get_inbox_summary(current_user: User = Depends(get_current_user)):
+    """Get unread counts by bucket"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        summary = await unified_inbox_service.get_inbox_summary(current_user.id)
+        return summary
+    except Exception as e:
+        logger.error(f"Error getting inbox summary: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get inbox summary")
+
+@api_router.get("/inbox")
+async def get_inbox(
+    bucket: str = "ALL",
+    page: int = 1,
+    current_user: User = Depends(get_current_user)
+):
+    """Get paginated inbox with bucket filtering"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        conversations = await unified_inbox_service.get_inbox(
+            user_id=current_user.id,
+            bucket=bucket,
+            page=page
+        )
+        return conversations
+    except Exception as e:
+        logger.error(f"Error getting inbox: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get inbox")
+
+@api_router.post("/inbox/conversations")
+async def create_conversation(
+    conversation_data: CreateConversationRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new conversation"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        conversation_id = await unified_inbox_service.ensure_conversation(
+            type=conversation_data.type,
+            subject=conversation_data.subject,
+            participants=conversation_data.participants,
+            order_group_id=conversation_data.order_group_id,
+            buy_request_id=conversation_data.buy_request_id,
+            offer_id=conversation_data.offer_id,
+            consignment_id=conversation_data.consignment_id
+        )
+        return {"id": conversation_id}
+    except Exception as e:
+        logger.error(f"Error creating conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create conversation")
+
+@api_router.get("/inbox/conversations/{conversation_id}")
+async def get_conversation(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get conversation details"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        conversation = await unified_inbox_service.get_conversation(conversation_id, current_user.id)
+        return conversation
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get conversation")
+
+@api_router.get("/inbox/conversations/{conversation_id}/messages")
+async def get_messages(
+    conversation_id: str,
+    page: int = 1,
+    current_user: User = Depends(get_current_user)
+):
+    """Get paginated messages for conversation"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        messages = await unified_inbox_service.get_messages(
+            conversation_id=conversation_id,
+            user_id=current_user.id,
+            page=page
+        )
+        return messages
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting messages: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get messages")
+
+@api_router.post("/inbox/conversations/{conversation_id}/messages")
+async def send_message(
+    conversation_id: str,
+    message_data: SendMessageBody,
+    current_user: User = Depends(get_current_user)
+):
+    """Send a message to conversation"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        message_id = await unified_inbox_service.send_message(
+            conversation_id=conversation_id,
+            sender_id=current_user.id,
+            body=message_data.body,
+            attachments=message_data.attachments
+        )
+        return {"id": message_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error sending message: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send message")
+
+@api_router.post("/inbox/conversations/{conversation_id}/read")
+async def mark_conversation_read(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Mark conversation as read"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        await unified_inbox_service.mark_conversation_read(conversation_id, current_user.id)
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error marking conversation read: {e}")
+        raise HTTPException(status_code=500, detail="Failed to mark as read")
+
+@api_router.patch("/inbox/conversations/{conversation_id}")
+async def update_conversation(
+    conversation_id: str,
+    update_data: UpdateConversationRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Update conversation settings (mute/archive)"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        await unified_inbox_service.update_conversation(
+            conversation_id=conversation_id,
+            user_id=current_user.id,
+            muted=update_data.muted,
+            archived=update_data.archived
+        )
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error updating conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update conversation")
+
+# Profile Photo Upload Endpoint
+@api_router.post("/profile/photo")
+async def upload_profile_photo(
+    photo: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload profile photo"""
+    try:
+        # Validate file type
+        if not photo.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Validate file size (5MB max)
+        if photo.size > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File size must be less than 5MB")
+        
+        # Create uploads directory if it doesn't exist
+        import os
+        upload_dir = "/app/frontend/public/uploads/profiles"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        import uuid
+        file_extension = photo.filename.split('.')[-1]
+        unique_filename = f"{current_user.id}_{uuid.uuid4()}.{file_extension}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save file
+        with open(file_path, "wb") as buffer:
+            content = await photo.read()
+            buffer.write(content)
+        
+        # Update user profile with photo URL
+        photo_url = f"/uploads/profiles/{unique_filename}"
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"profile_photo": photo_url}}
+        )
+        
+        return {"photo_url": photo_url, "message": "Profile photo uploaded successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading profile photo: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload photo")
 
 # Species and taxonomy routes
 @api_router.get("/category-groups", response_model=List[CategoryGroup])
@@ -2958,10 +3342,39 @@ async def get_listings(
         
         listings_docs = await db.listings.find(filter_query).to_list(length=None)
         
-        # Convert price back to Decimal for Pydantic
+        # Enhance listings with breed names and seller information
         listings = []
         for doc in listings_docs:
+            # Convert price back to Decimal for Pydantic
             doc["price_per_unit"] = Decimal(str(doc["price_per_unit"]))
+            
+            # Resolve breed name if breed_id exists
+            if doc.get("breed_id"):
+                try:
+                    breed_doc = await db.breeds.find_one({"id": doc["breed_id"]})
+                    if breed_doc:
+                        doc["breed"] = breed_doc.get("name", "Unknown Breed")
+                except Exception as e:
+                    logger.warning(f"Failed to resolve breed for listing {doc.get('id')}: {e}")
+                    doc["breed"] = "Unknown Breed"
+            
+            # Add seller name for display
+            try:
+                if doc.get("seller_id"):
+                    seller_doc = await db.users.find_one({"id": doc["seller_id"]})
+                    if seller_doc:
+                        doc["seller_name"] = seller_doc.get("full_name", "Verified Seller")
+                elif doc.get("org_id"):
+                    org_doc = await db.organizations.find_one({"id": doc["org_id"]})
+                    if org_doc:
+                        doc["seller_name"] = org_doc.get("name", "Verified Organization")
+            except Exception as e:
+                logger.warning(f"Failed to resolve seller for listing {doc.get('id')}: {e}")
+            
+            # Set default seller name if not found
+            if "seller_name" not in doc:
+                doc["seller_name"] = "Verified Seller"
+            
             listings.append(Listing(**doc))
         
         return listings
@@ -3034,6 +3447,20 @@ async def create_order(order_data: OrderCreate, current_user: User = Depends(get
             order_dict[field] = float(order_dict[field])
         
         await db.orders.insert_one(order_dict)
+        
+        # Auto-create conversation for this order
+        try:
+            conversation_title = f"{listing.title} - {order_data.quantity} units"
+            conversation_id = await unified_inbox_service.create_order_conversation(
+                order_group_id=order.id,
+                buyer_id=current_user.id,
+                seller_id=listing.seller_id,
+                order_title=conversation_title
+            )
+            logger.info(f"Created conversation {conversation_id} for order {order.id}")
+        except Exception as e:
+            logger.warning(f"Failed to create conversation for order {order.id}: {e}")
+            # Don't fail the order creation if conversation creation fails
         
         return order
     
@@ -3133,15 +3560,14 @@ async def confirm_delivery(
 @api_router.get("/admin/stats")
 async def get_admin_stats(current_user: User = Depends(get_current_user)):
     """Get admin dashboard statistics"""
-    if not current_user or UserRole.ADMIN not in current_user.roles:
+    if not current_user or "admin" not in current_user.roles:
         raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
-        # Get total counts
         total_users = await db.users.count_documents({})
         total_listings = await db.listings.count_documents({})
         total_orders = await db.orders.count_documents({})
-        pending_approvals = await db.listings.count_documents({"status": ListingStatus.PENDING_APPROVAL})
+        pending_approvals = await db.listings.count_documents({"status": "PENDING_APPROVAL"})
         
         return {
             "total_users": total_users,
@@ -3152,6 +3578,12 @@ async def get_admin_stats(current_user: User = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Error fetching admin stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch admin stats")
+
+# Add the dashboard stats endpoint that frontend expects
+@api_router.get("/admin/dashboard/stats")
+async def get_admin_dashboard_stats(current_user: User = Depends(get_current_user)):
+    """Get admin dashboard statistics - frontend endpoint"""
+    return await get_admin_stats(current_user)
 
 @api_router.get("/admin/listings/pending", response_model=List[Listing])
 async def get_pending_listings(current_user: User = Depends(get_current_user)):
@@ -5645,6 +6077,22 @@ async def create_offer(
                 }
             )
         
+        # Auto-create conversation for this offer
+        try:
+            if buy_request:
+                request_title = f"{buy_request.get('breed', '')} {buy_request['species']}".strip() or buy_request['species']
+                conversation_title = f"Offer: {request_title} - R{data.offer_price:,.2f}"
+                conversation_id = await unified_inbox_service.create_offer_conversation(
+                    offer_id=offer["id"],
+                    buyer_id=buy_request["buyer_id"],
+                    seller_id=current_user.id,
+                    request_title=conversation_title
+                )
+                logger.info(f"Created conversation {conversation_id} for offer {offer['id']}")
+        except Exception as e:
+            logger.warning(f"Failed to create conversation for offer {offer['id']}: {e}")
+            # Don't fail the offer creation if conversation creation fails
+        
         return {"ok": True, "offer_id": offer["id"]}
         
     except ValueError as e:
@@ -5706,6 +6154,30 @@ async def accept_offer(
             order_id = order_response.get("order_id")
             
             logger.info(f"Auto-created order {order_id} from accepted offer {offer_id}")
+            
+            # Add system messages to conversations
+            try:
+                # Find the offer conversation and add system message
+                from services.unified_inbox_service import UnifiedInboxService
+                from inbox_models.inbox_models import SystemMessageType
+                
+                # Send system message to offer conversation
+                offer_conversations = await db.conversations.find({
+                    "type": "OFFER", 
+                    "offer_id": offer_id
+                }).to_list(length=None)
+                
+                for conv in offer_conversations:
+                    await unified_inbox_service.send_system_message(
+                        conversation_id=conv["id"],
+                        system_type=SystemMessageType.ORDER_STATUS,
+                        message=f"🎉 Offer accepted! Order #{order_id[:8]} has been created and is ready for payment.",
+                        meta={"order_id": order_id, "status": "offer_accepted"}
+                    )
+                
+                logger.info(f"Added system messages for accepted offer {offer_id}")
+            except Exception as e:
+                logger.warning(f"Failed to add system messages for accepted offer: {e}")
             
             return {
                 "ok": True,
@@ -8973,8 +9445,38 @@ async def get_platform_config(force_refresh: bool = False):
         social_config = await db.admin_settings.find_one({"type": "social_media"})
         if social_config and "config" in social_config:
             social_media_settings = social_config["config"]
+        else:
+            # Set default social media links if none exist
+            default_social_media = {
+                "facebook": "https://facebook.com/stocklot",
+                "twitter": "https://twitter.com/stocklot", 
+                "instagram": "https://instagram.com/stocklot",
+                "linkedin": "https://linkedin.com/company/stocklot",
+                "youtube": "https://youtube.com/@stocklot"
+            }
+            
+            # Insert default social media settings
+            await db.admin_settings.update_one(
+                {"type": "social_media"},
+                {
+                    "$set": {
+                        "type": "social_media",
+                        "config": default_social_media,
+                        "updated_at": datetime.now(timezone.utc)
+                    }
+                },
+                upsert=True
+            )
+            social_media_settings = default_social_media
+            logger.info("Created default social media settings")
     except Exception as e:
         logger.error(f"Error fetching social media settings: {e}")
+        # Fallback to default settings on error
+        social_media_settings = {
+            "facebook": "https://facebook.com/stocklot",
+            "twitter": "https://twitter.com/stocklot",
+            "instagram": "https://instagram.com/stocklot"
+        }
     
     if not TRANSFER_SERVICES_AVAILABLE:
         # Return basic config even if transfer services are unavailable

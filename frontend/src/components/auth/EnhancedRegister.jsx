@@ -14,6 +14,7 @@ import {
   Crown, Users, Package, TrendingUp 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import SocialLoginButtons from './SocialLoginButtons';
 
 const ORGANIZATION_TYPES = [
   { 
@@ -123,6 +124,26 @@ export default function EnhancedRegister() {
         }));
       }
     }
+  };
+
+  // Handle social login success
+  const handleSocialSuccess = (data) => {
+    try {
+      // Social login successful, redirect to dashboard
+      localStorage.setItem('token', data.access_token);
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Social login success handler error:', error);
+      setError('Login successful but there was an error. Please try again.');
+    }
+  };
+
+  // Handle social login error
+  const handleSocialError = (errorMessage) => {
+    setError(errorMessage || 'Social login failed');
   };
 
   const handleSubmit = async (e) => {
@@ -557,6 +578,14 @@ export default function EnhancedRegister() {
                     </div>
                   </div>
                 </TabsContent>
+
+                {/* Social Login Section */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <SocialLoginButtons
+                    onSuccess={handleSocialSuccess}
+                    onError={handleSocialError}
+                  />
+                </div>
 
                 <div className="flex items-center justify-between pt-6 border-t">
                   <p className="text-sm text-gray-600">

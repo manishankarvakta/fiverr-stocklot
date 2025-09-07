@@ -7,6 +7,8 @@ import {
 import {
   LogIn, UserPlus, AlertCircle, Mail, Lock, User, Phone
 } from 'lucide-react';
+import SocialLoginButtons from './SocialLoginButtons';
+import recaptchaService from '../../services/recaptchaService';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -37,12 +39,25 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
     setError(null);
 
     try {
+      // Execute reCAPTCHA before login
+      const recaptchaToken = await recaptchaService.executeLogin();
+      
+      const requestBody = {
+        email: loginData.email,
+        password: loginData.password
+      };
+
+      // Add reCAPTCHA token if available
+      if (recaptchaToken) {
+        requestBody.recaptcha_token = recaptchaToken;
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(loginData)
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -94,17 +109,27 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
         throw new Error('Password must be at least 6 characters');
       }
 
+      // Execute reCAPTCHA before registration
+      const recaptchaToken = await recaptchaService.executeRegister();
+      
+      const requestBody = {
+        email: registerData.email,
+        password: registerData.password,
+        full_name: registerData.full_name,
+        role: registerData.role
+      };
+
+      // Add reCAPTCHA token if available
+      if (recaptchaToken) {
+        requestBody.recaptcha_token = recaptchaToken;
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          email: registerData.email,
-          password: registerData.password,
-          full_name: registerData.full_name,
-          role: registerData.role
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -142,6 +167,39 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle social login success
+  const handleSocialSuccess = (data) => {
+    try {
+      // Store token and user data if not already stored by social auth hook
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+      }
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      
+      // Call parent login handler
+      if (onLogin) {
+        onLogin(data);
+      }
+      
+      // Handle return URL
+      if (returnTo) {
+        window.location.href = returnTo;
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Social login success handler error:', error);
+      setError('Login successful but there was an error. Please try again.');
+    }
+  };
+
+  // Handle social login error
+  const handleSocialError = (errorMessage) => {
+    setError(errorMessage || 'Social login failed');
   };
 
   return (
@@ -207,6 +265,11 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
+
+              <SocialLoginButtons
+                onSuccess={handleSocialSuccess}
+                onError={handleSocialError}
+              />
 
               <p className="text-center text-sm text-gray-600">
                 Don't have an account?{' '}
@@ -316,6 +379,11 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
                 <UserPlus className="h-4 w-4 mr-2" />
                 {loading ? 'Creating account...' : 'Create Account'}
               </Button>
+
+              <SocialLoginButtons
+                onSuccess={handleSocialSuccess}
+                onError={handleSocialError}
+              />
 
               <p className="text-center text-sm text-gray-600">
                 Already have an account?{' '}
