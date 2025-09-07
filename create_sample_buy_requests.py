@@ -57,8 +57,8 @@ async def create_sample_buy_requests():
         {
             "title": "Boer Goat Kids - 3 Month Old",
             "description": "Looking for healthy Boer goat kids for breeding purposes. Must be from registered breeding stock.",
-            "species_id": "0311ccf3-cf6e-497a-bb10-95bec2cbc5d6",  # Goats
-            "product_type_id": "ea9d426a-c181-4ac8-8dec-d7d2c5062fde",  # Calves/Kids/Lambs
+            "species": "Goats",
+            "product_type": "Calves/Kids/Lambs",
             "qty": 15,
             "unit": "head",
             "target_price": 2000,
