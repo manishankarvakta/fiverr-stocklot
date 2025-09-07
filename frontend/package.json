@@ -66,6 +66,7 @@
   },
   "scripts": {
     "start": "craco start",
+    "start:prod": "serve -s build -l 3000",
     "build": "craco build",
     "test": "craco test"
   },
