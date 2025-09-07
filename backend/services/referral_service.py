@@ -401,7 +401,7 @@ class ReferralService:
         
         code = await self.get_or_create_referral_code(user_id)
         
-        base_url = os.getenv("FRONTEND_URL", "https://farm-admin.preview.emergentagent.com")
+        base_url = os.getenv("FRONTEND_URL", "https://easy-signin-1.preview.emergentagent.com")
         
         return f"{base_url}/api/referrals/click?code={code}&to=/signup&utm_source={utm_source}&utm_medium={utm_medium}"
     

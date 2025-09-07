@@ -11,7 +11,7 @@ import {
   FileText, MapPin, Phone, Mail, Users, Star
 } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL || 'https://farm-admin.preview.emergentagent.com/api';
+const API = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com/api';
 
 export default function AdminOrganizationsManagement() {
   const [organizations, setOrganizations] = useState([]);

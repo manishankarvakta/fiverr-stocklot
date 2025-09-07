@@ -11,7 +11,7 @@ import {
   Star, MapPin, DollarSign, Calendar, AlertTriangle
 } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL || 'https://farm-admin.preview.emergentagent.com/api';
+const API = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com/api';
 
 export default function AdminListingsManagement() {
   const [listings, setListings] = useState([]);

@@ -7,7 +7,7 @@ import base64
 from datetime import datetime
 
 class ReviewRequestTester:
-    def __init__(self, base_url="https://farm-admin.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://easy-signin-1.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.buyer_token = None
         self.seller_token = None

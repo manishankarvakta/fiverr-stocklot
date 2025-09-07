@@ -545,7 +545,7 @@ function Footer() {
   useEffect(() => {
     const loadSocialSettings = async () => {
       try {
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://farm-admin.preview.emergentagent.com';
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com';
         const response = await fetch(`${backendUrl}/api/platform/config`);
         if (response.ok) {
           const config = await response.json();
@@ -4561,7 +4561,7 @@ function Contact() {
     setIsSubmitting(true);
     
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://farm-admin.preview.emergentagent.com';
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://easy-signin-1.preview.emergentagent.com';
       const response = await fetch(`${backendUrl}/api/contact`, {
         method: 'POST',
         headers: {
