@@ -144,8 +144,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_origins=[
         "http://localhost:3000",
-        "https://www.stocklot.farm",
-        "https://stocklot.farm"
+        "https://stocklot.farm",
+        "https://www.stocklot.farm"
     ],
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
