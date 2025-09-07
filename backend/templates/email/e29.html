@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Received - Escrow Secured{% endblock %}
+
+{% block content %}
+<h2>Payment Received - Escrow Secured 💰</h2>
+
+<p>Great news! Your payment for <strong>Order {{order_code}}</strong> has been successfully received and is now securely held in escrow.</p>
+
+<div class="info-box success">
+    <p><strong>✅ Payment Confirmed</strong><br>
+    Amount: <strong>{{amount}}</strong><br>
+    Status: <strong>Escrow Held</strong><br>
+    Order: <strong>{{order_code}}</strong></p>
+</div>
+
+<p><strong>What happens next?</strong></p>
+<ol>
+    <li>🏪 The seller prepares your livestock for dispatch</li>
+    <li>🚚 You'll receive shipping/pickup details when ready</li>
+    <li>📦 Delivery confirmation releases funds to the seller</li>
+    <li>⭐ You can leave a review after receiving your livestock</li>
+</ol>
+
+<div class="info-box">
+    <p><strong>🔒 Secure & Protected</strong><br>
+    Your payment is protected by StockLot's escrow system. Funds are only released to the seller after you confirm successful delivery.</p>
+</div>
+
+<p style="text-align: center;">
+    <a href="{{order_url}}" class="button">Track Your Order</a>
+</p>
+
+<p>We'll keep you updated on your order status. If you have any questions, don't hesitate to reach out!</p>
+
+<p>Happy trading,<br>
+<strong>The StockLot Team</strong></p>
+{% endblock %}
