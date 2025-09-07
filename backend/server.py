@@ -3526,6 +3526,140 @@ async def create_order(order_data: OrderCreate, current_user: User = Depends(get
         logger.error(f"Error creating order: {e}")
         raise HTTPException(status_code=500, detail="Failed to create order")
 
+# =============================================================================
+# EMAIL PREFERENCES & NOTIFICATION MANAGEMENT API ROUTES
+# =============================================================================
+
+@api_router.get("/email-preferences/{user_id}")
+async def get_email_preferences(user_id: str, current_user: User = Depends(get_current_user)):
+    """Get user's email preferences"""
+    if not current_user or (current_user.id != user_id and UserRole.ADMIN not in current_user.roles):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        preferences = await email_preferences_service.get_user_preferences(user_id)
+        return {
+            "preferences": asdict(preferences),
+            "unsubscribe_url": email_preferences_service.generate_unsubscribe_url(user_id),
+            "manage_url": email_preferences_service.generate_preferences_url(user_id)
+        }
+    except Exception as e:
+        logger.error(f"Error getting email preferences for {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get email preferences")
+
+@api_router.put("/email-preferences/{user_id}")
+async def update_email_preferences(
+    user_id: str, 
+    updates: Dict[str, any], 
+    current_user: User = Depends(get_current_user)
+):
+    """Update user's email preferences"""
+    if not current_user or (current_user.id != user_id and UserRole.ADMIN not in current_user.roles):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        success = await email_preferences_service.update_preferences(user_id, updates)
+        if success:
+            return {"message": "Email preferences updated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update preferences")
+    except Exception as e:
+        logger.error(f"Error updating email preferences for {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update email preferences")
+
+@api_router.post("/email-preferences/{user_id}/unsubscribe")
+async def unsubscribe_user(
+    user_id: str, 
+    categories: Optional[List[str]] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Unsubscribe user from email categories"""
+    if not current_user or (current_user.id != user_id and UserRole.ADMIN not in current_user.roles):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        success = await email_preferences_service.unsubscribe_user(user_id, categories)
+        if success:
+            return {"message": "Successfully unsubscribed from email notifications"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to unsubscribe")
+    except Exception as e:
+        logger.error(f"Error unsubscribing user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to unsubscribe")
+
+@api_router.get("/email-templates/catalog")
+async def get_email_template_catalog(current_user: User = Depends(get_current_user)):
+    """Get complete email template catalog (admin only)"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        catalog = email_notification_service.get_template_catalog()
+        return {
+            "templates": catalog,
+            "total_templates": len(catalog),
+            "categories": list(set(template["category"] for template in catalog.values()))
+        }
+    except Exception as e:
+        logger.error(f"Error getting email template catalog: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get template catalog")
+
+@api_router.post("/email-notifications/send")
+async def send_test_email(
+    template_id: str,
+    recipient_email: str,
+    variables: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+):
+    """Send test email notification (admin only)"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        notification = EmailNotification(
+            template_id=template_id,
+            recipient_email=recipient_email,
+            recipient_name=variables.get("first_name", "Test User"),
+            variables=variables,
+            tags=["test", template_id]
+        )
+        
+        success = await email_notification_service.send_email(notification)
+        if success:
+            return {"message": f"Test email {template_id} sent successfully to {recipient_email}"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to send test email")
+    except Exception as e:
+        logger.error(f"Error sending test email: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send test email")
+
+@api_router.get("/admin/email-stats")
+async def get_email_statistics(current_user: User = Depends(get_current_user)):
+    """Get email system statistics (admin only)"""
+    if not current_user or UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        unsubscribe_stats = await email_preferences_service.get_unsubscribe_stats()
+        
+        return {
+            "email_system": {
+                "total_templates": len(email_notification_service.templates),
+                "mailgun_configured": bool(email_notification_service.mailgun_api_key),
+                "domain": email_notification_service.mailgun_domain
+            },
+            "user_preferences": unsubscribe_stats,
+            "template_categories": {
+                "transactional": len([t for t in email_notification_service.templates.values() 
+                                   if not t.can_unsubscribe]),
+                "marketing": len([t for t in email_notification_service.templates.values() 
+                                if t.can_unsubscribe])
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting email statistics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get email statistics")
+
 @api_router.get("/orders")
 async def get_user_orders(current_user: User = Depends(get_current_user)):
     """Get orders for current user"""
