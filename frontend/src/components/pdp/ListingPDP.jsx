@@ -25,6 +25,13 @@ const ListingPDP = () => {
     fetchListing();
   }, [id]);
 
+  useEffect(() => {
+    // Track PDP view
+    if (data) {
+      trackAnalytics('pdp_view', { listing_id: data.id });
+    }
+  }, [data]);
+
   const fetchListing = async () => {
     try {
       setLoading(true);
