@@ -31,7 +31,7 @@ export default function CartPage() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [guestCart, setGuestCart] = useState([]);
-  const [isGuest, setIsGuest] = useState(false);
+  const [isGuest, setIsGuest] = useState(!isAuthenticated);
   const [shippingAddress, setShippingAddress] = useState({
     full_name: '',
     phone: '',
