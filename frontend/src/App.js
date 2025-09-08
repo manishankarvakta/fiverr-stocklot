@@ -4923,6 +4923,7 @@ function App() {
               <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
               <Route path="/reviews-test" element={<ReviewsTestPage />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="*" element={<div>Route not found: {window.location.pathname}</div>} />
             </Routes>
           </main>
           <Footer />
