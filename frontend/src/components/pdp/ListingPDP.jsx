@@ -16,6 +16,7 @@ const ListingPDP = () => {
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [error, setError] = useState(null);
+  const [abConfig, setAbConfig] = useState(null);
 
   const priceFmt = useMemo(() => 
     new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }), []
