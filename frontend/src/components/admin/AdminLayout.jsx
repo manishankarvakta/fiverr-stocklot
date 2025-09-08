@@ -66,13 +66,18 @@ const menuItems = [
   { id: 'logistics', label: 'Logistics Partners', icon: Truck, component: AdminLogisticsManagement },
   { id: 'auctions', label: 'Live Auctions', icon: Gavel, component: AdminAuctionsManagement },
   
+  // Analytics & Optimization Section
+  { id: 'divider4', type: 'divider', label: 'Analytics & Optimization' },
+  { id: 'pdp-analytics', label: 'PDP Analytics', icon: BarChart3, component: AdminPDPAnalytics },
+  { id: 'ab-testing', label: 'A/B Testing', icon: FlaskConical, component: AdminABTesting },
+  { id: 'analytics', label: 'Business Analytics', icon: TrendingUp, component: AdminAnalyticsDashboard },
+
   // Content & System Section
-  { id: 'divider4', type: 'divider', label: 'Content & System' },
+  { id: 'divider5', type: 'divider', label: 'Content & System' },
   { id: 'cms', label: 'Blog & Content', icon: BookOpen, component: AdminCMSManagement },
   { id: 'suggestions', label: 'User Suggestions', icon: Lightbulb, component: AdminSuggestionsManagement },
   { id: 'roles', label: 'Admin Roles', icon: UserCog, component: AdminRolesManagement },
-  { id: 'settings', label: 'Platform Settings', icon: Settings, component: AdminSettingsControls },
-  { id: 'analytics', label: 'Business Analytics', icon: BarChart3, component: AdminAnalyticsDashboard }
+  { id: 'settings', label: 'Platform Settings', icon: Settings, component: AdminSettingsControls }
 ];
 
 export default function AdminLayoutWithSidebar({ user }) {
