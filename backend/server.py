@@ -4461,6 +4461,116 @@ async def get_reviews(
         logger.error(f"Error fetching reviews: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch reviews")
 
+# A/B Testing Routes
+@api_router.get("/ab-test/pdp-config/{listing_id}")
+async def get_pdp_ab_config(
+    listing_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Get A/B test configuration for PDP"""
+    try:
+        from services.ab_testing_service import ABTestingService
+        ab_service = ABTestingService(db)
+        
+        # Create user identifier
+        user_identifier = current_user.id if current_user else request.client.host
+        
+        config = await ab_service.get_pdp_variant_config(listing_id, user_identifier)
+        return config
+    
+    except Exception as e:
+        logger.error(f"Error getting A/B config: {e}")
+        return {"layout": "default", "experiment_tracking": []}
+
+@api_router.post("/ab-test/track-event")
+async def track_ab_event(
+    event_data: dict,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Track A/B test events"""
+    try:
+        from services.ab_testing_service import ABTestingService
+        ab_service = ABTestingService(db)
+        
+        await ab_service.track_experiment_event(
+            experiment_id=event_data.get("experiment_id"),
+            variant=event_data.get("variant"),
+            user_identifier=event_data.get("user_identifier"),
+            event_type=event_data.get("event_type"),
+            metadata=event_data.get("metadata", {})
+        )
+        
+        return {"status": "tracked"}
+    
+    except Exception as e:
+        logger.error(f"Error tracking A/B event: {e}")
+        return {"status": "error"}
+
+@api_router.get("/admin/ab-tests")
+async def get_ab_experiments(current_user: User = Depends(get_current_user)):
+    """Get all A/B experiments"""
+    if not current_user or current_user.user_type != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from services.ab_testing_service import ABTestingService
+        ab_service = ABTestingService(db)
+        
+        experiments = await ab_service.db.ab_experiments.find().to_list(length=100)
+        return {"experiments": experiments}
+    
+    except Exception as e:
+        logger.error(f"Error fetching experiments: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch experiments")
+
+@api_router.post("/admin/ab-tests")
+async def create_ab_experiment(
+    experiment_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Create new A/B experiment"""
+    if not current_user or current_user.user_type != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from services.ab_testing_service import ABTestingService
+        ab_service = ABTestingService(db)
+        
+        experiment = await ab_service.create_experiment(
+            name=experiment_data.get("name"),
+            description=experiment_data.get("description"),
+            variants=experiment_data.get("variants"),
+            traffic_split=experiment_data.get("traffic_split"),
+            duration_days=experiment_data.get("duration_days", 30)
+        )
+        
+        return experiment
+    
+    except Exception as e:
+        logger.error(f"Error creating experiment: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create experiment")
+
+@api_router.get("/admin/ab-tests/{experiment_id}/results")
+async def get_experiment_results(
+    experiment_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get A/B test results"""
+    if not current_user or current_user.user_type != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from services.ab_testing_service import ABTestingService
+        ab_service = ABTestingService(db)
+        
+        results = await ab_service.get_experiment_results(experiment_id)
+        return results
+    
+    except Exception as e:
+        logger.error(f"Error fetching experiment results: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch results")
+
 # Messaging Routes
 @api_router.post("/inbox/ask")
 async def create_conversation(request_data: dict, current_user: User = Depends(get_current_user)):
