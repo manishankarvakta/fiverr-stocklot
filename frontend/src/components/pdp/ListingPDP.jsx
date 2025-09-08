@@ -54,8 +54,29 @@ const ListingPDP = () => {
     }
   };
 
+  const trackAnalytics = async (eventType, eventData = {}) => {
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+      await fetch(`${backendUrl}/api/analytics/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          event_type: eventType,
+          listing_id: data?.id,
+          session_id: sessionStorage.getItem('session_id') || Date.now().toString(),
+          metadata: eventData
+        })
+      });
+    } catch (err) {
+      console.error('Analytics tracking failed:', err);
+    }
+  };
+
   const addToCart = async () => {
     try {
+      trackAnalytics('add_to_cart', { quantity: qty, price: data.price });
+      
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
       const response = await fetch(`${backendUrl}/api/cart/add`, {
         method: 'POST',
