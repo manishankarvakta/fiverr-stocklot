@@ -6,7 +6,7 @@ The error "Google login failed" is caused by a **domain restriction** in your Go
 
 ### 🔍 **Root Cause:**
 - **Error**: `idpiframe_initialization_failed: Not a valid origin for the client`
-- **Issue**: The domain `https://pdp-cart-bug.preview.emergentagent.com` is not authorized in your Google OAuth client settings
+- **Issue**: The domain `https://farmstock-hub-1.preview.emergentagent.com` is not authorized in your Google OAuth client settings
 - **Impact**: Google OAuth popup fails to initialize, preventing social login
 
 ## 🛠️ **IMMEDIATE FIX REQUIRED:**
@@ -19,12 +19,12 @@ The error "Google login failed" is caused by a **domain restriction** in your Go
 4. **Click on the Client ID to edit**
 5. **Add Authorized JavaScript Origins**:
    ```
-   https://pdp-cart-bug.preview.emergentagent.com
+   https://farmstock-hub-1.preview.emergentagent.com
    http://localhost:3000 (for development)
    ```
 6. **Add Authorized Redirect URIs**:
    ```
-   https://pdp-cart-bug.preview.emergentagent.com/auth/google/callback
+   https://farmstock-hub-1.preview.emergentagent.com/auth/google/callback
    http://localhost:3000/auth/google/callback (for development)
    ```
 7. **Save changes**

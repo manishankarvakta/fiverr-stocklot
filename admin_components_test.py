@@ -15,7 +15,7 @@ import sys
 from datetime import datetime, timezone
 
 # Backend URL configuration
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://pdp-cart-bug.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://farmstock-hub-1.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 # Test credentials

@@ -7,7 +7,7 @@ from datetime import datetime
 import time
 
 class StockLotProductionTester:
-    def __init__(self, base_url="https://pdp-cart-bug.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://farmstock-hub-1.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.admin_token = None
@@ -154,7 +154,7 @@ class StockLotProductionTester:
         payment_data = {
             "amount": 1000.00,  # R10.00 test amount
             "email": "test@example.com",
-            "callback_url": "https://pdp-cart-bug.preview.emergentagent.com/payment-callback"
+            "callback_url": "https://farmstock-hub-1.preview.emergentagent.com/payment-callback"
         }
         
         success, response = self.test_api_endpoint('POST', '/payments/initialize', 200, payment_data,
