@@ -4894,7 +4894,7 @@ function App() {
               <Route path="/create-organization" element={<CreateOrganizationPage />} />
               <Route path="/orgs/:handle/dashboard" element={<OrganizationDashboard />} />
               <Route path="/checkout/guest" element={<GuestCheckout />} />
-              <Route path="/cart" element={<CartPage />} />
+              <Route path="/cart" element={<TestCartPage />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/about" element={<AboutUs />} />
               <Route path="/pricing" element={<Pricing />} />
