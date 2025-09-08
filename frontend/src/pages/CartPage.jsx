@@ -1,40 +1,28 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft } from 'lucide-react';
 
-export default function CartPage() {
-  const navigate = useNavigate();
-
+function CartPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <button 
-              onClick={() => navigate(-1)} 
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span>Continue Shopping</span>
-            </button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
-                <ShoppingCart className="h-8 w-8" />
-                <span>Shopping Cart</span>
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Empty Cart State */}
-        <div className="text-center py-16">
-          <ShoppingCart className="h-24 w-24 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Your cart is empty</h2>
-          <p className="text-gray-600 mb-6">Browse our marketplace to find livestock for your farm.</p>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', padding: '2rem' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '2rem', display: 'flex', alignItems: 'center' }}>
+          🛒 Shopping Cart
+        </h1>
+        
+        <div style={{ textAlign: 'center', padding: '4rem 0' }}>
+          <div style={{ fontSize: '6rem', marginBottom: '1rem' }}>🛒</div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>Your cart is empty</h2>
+          <p style={{ color: '#6b7280', marginBottom: '2rem' }}>Browse our marketplace to find livestock for your farm.</p>
           <button 
-            onClick={() => navigate('/marketplace')} 
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium"
+            onClick={() => window.location.href = '/marketplace'}
+            style={{
+              backgroundColor: '#16a34a',
+              color: 'white',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              fontSize: '1rem',
+              cursor: 'pointer'
+            }}
           >
             Browse Marketplace
           </button>
@@ -43,3 +31,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+export default CartPage;
