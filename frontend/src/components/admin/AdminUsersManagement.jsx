@@ -272,6 +272,16 @@ export default function AdminUsersManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
+                      {user.user_type === 'seller' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(`/seller/${user.id}`, '_blank')}
+                          title="View Seller Profile"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
