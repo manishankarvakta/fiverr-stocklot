@@ -51,6 +51,11 @@ import BuyerOffersPage from './pages/BuyerOffersPage';
 import InboxPage from './pages/InboxPage';
 import ReviewsTestPage from './pages/ReviewsTestPage';
 import LoginGate from './components/auth/LoginGate';
+
+// PDP and Seller Profile imports
+import ListingPDP from './components/pdp/ListingPDP';
+import SellerProfile from './components/seller/SellerProfile';
+
 import "./App.css";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
