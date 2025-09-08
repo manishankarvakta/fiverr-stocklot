@@ -8463,6 +8463,9 @@ async def ingest_faq_questions(
     current_user: User = Depends(get_current_admin_user)
 ):
     """Ingest questions from various sources for FAQ generation"""
+    if not AI_SERVICES_AVAILABLE or not ml_faq_service:
+        raise HTTPException(status_code=503, detail="ML FAQ services are currently unavailable")
+        
     try:
         result = await ml_faq_service.ingest_questions_from_sources()
         
