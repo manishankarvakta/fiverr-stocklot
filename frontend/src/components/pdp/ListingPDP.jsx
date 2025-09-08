@@ -252,14 +252,14 @@ const ListingPDP = () => {
         <span className="text-gray-900">{data.breed}</span>
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Gallery */}
         <div className="lg:col-span-6">
           <ImageGallery media={data.media || []} />
         </div>
 
         {/* Summary / CTA */}
-        <div className="lg:col-span-6 space-y-4">
+        <div className="lg:col-span-6 space-y-3 lg:space-y-4">
           <h1 className="text-3xl font-bold text-gray-900">{data.title}</h1>
           
           <div className="text-sm text-gray-600">
