@@ -57,6 +57,49 @@ const ListingPDP = () => {
     }
   };
 
+  const fetchABConfig = async () => {
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+      const response = await fetch(`${backendUrl}/api/ab-test/pdp-config/${id}`, {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const config = await response.json();
+        setAbConfig(config);
+      }
+    } catch (err) {
+      console.error('Error fetching A/B config:', err);
+      // Continue with default config
+      setAbConfig({ layout: 'default', experiment_tracking: [] });
+    }
+  };
+
+  const trackABEvents = async (eventType) => {
+    if (!abConfig?.experiment_tracking) return;
+
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+      
+      for (const experiment of abConfig.experiment_tracking) {
+        await fetch(`${backendUrl}/api/ab-test/track-event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            experiment_id: experiment.experiment_id,
+            variant: experiment.variant,
+            user_identifier: sessionStorage.getItem('user_id') || 'anonymous',
+            event_type: eventType,
+            metadata: { listing_id: id }
+          })
+        });
+      }
+    } catch (err) {
+      console.error('A/B tracking failed:', err);
+    }
+  };
+
   const trackAnalytics = async (eventType, eventData = {}) => {
     try {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
