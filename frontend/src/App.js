@@ -3716,7 +3716,7 @@ function ListingCard({ listing, onViewDetails, onBidPlaced, showNotification, on
                 <Button 
                   variant="outline"
                   className="border-emerald-500 text-emerald-600 hover:bg-emerald-50"
-                  onClick={() => handleBuyNow(listing)}
+                  onClick={() => handleViewDetails(listing)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   View Details
