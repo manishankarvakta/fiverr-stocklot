@@ -4505,7 +4505,7 @@ function CreateListing() {
                         <p className="text-sm text-gray-700">
                           <span className="font-semibold">Upload certificates</span>
                         </p>
-                        <p className="text-xs text-gray-500">Vet certificates, health records (PDF, JPG, PNG)</p>
+                        <p className="text-xs text-gray-500">Vet certificates, health records (PDF, JPG, PNG) - Max 5 files</p>
                       </div>
                       <input 
                         id="certificates" 
