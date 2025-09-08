@@ -4204,6 +4204,174 @@ async def confirm_delivery(
         logger.error(f"Error confirming delivery: {e}")
         raise HTTPException(status_code=500, detail="Failed to confirm delivery")
 
+# Seller Profile Routes
+@api_router.get("/sellers/{seller_handle}")
+async def get_seller_profile(seller_handle: str, current_user: User = Depends(get_current_user_optional)):
+    """Get seller profile with listings and reviews"""
+    try:
+        # Find seller by handle or ID
+        seller_doc = await db.users.find_one({
+            "$or": [
+                {"username": seller_handle},
+                {"id": seller_handle}
+            ]
+        })
+        
+        if not seller_doc:
+            raise HTTPException(status_code=404, detail="Seller not found")
+        
+        # Get seller's active listings
+        listings_cursor = db.listings.find({
+            "seller_id": seller_doc["id"],
+            "status": "active"
+        }).sort("created_at", -1).limit(12)
+        
+        active_listings = []
+        async for listing in listings_cursor:
+            media = listing.get("images", [{}])[0].get("url") if listing.get("images") else None
+            active_listings.append({
+                "id": listing["id"],
+                "title": listing["title"],
+                "price": float(listing["price_per_unit"]),
+                "unit": "head",
+                "media": media,
+                "province": listing.get("province", "")
+            })
+        
+        # Get recent reviews
+        reviews_cursor = db.reviews.find({
+            "seller_id": seller_doc["id"]
+        }).sort("created_at", -1).limit(6)
+        
+        recent_reviews = []
+        async for review in reviews_cursor:
+            recent_reviews.append({
+                "id": review.get("id", str(review.get("_id"))),
+                "stars": review.get("rating", 0),
+                "comment": review.get("comment", ""),
+                "images": review.get("images", []),
+                "buyer_handle": review.get("buyer_name", "Anonymous"),
+                "created_at": review.get("created_at", datetime.now(timezone.utc)).isoformat()
+            })
+        
+        # Calculate stats
+        review_stats = await db.reviews.aggregate([
+            {"$match": {"seller_id": seller_doc["id"]}},
+            {"$group": {
+                "_id": None,
+                "average_rating": {"$avg": "$rating"},
+                "review_count": {"$sum": 1}
+            }}
+        ]).to_list(length=1)
+        
+        avg_rating = 0
+        review_count = 0
+        if review_stats:
+            avg_rating = round(review_stats[0].get("average_rating", 0), 1)
+            review_count = review_stats[0].get("review_count", 0)
+        
+        # Calculate years active
+        years_active = 0
+        if seller_doc.get("created_at"):
+            years_active = max(0, (datetime.now(timezone.utc) - seller_doc["created_at"]).days // 365)
+        
+        # Check contact visibility
+        can_view_contact = False
+        if current_user and current_user.id == seller_doc["id"]:
+            can_view_contact = True
+        
+        contact = {
+            "phone_masked": seller_doc.get("phone", "Hidden until purchase") if not can_view_contact else seller_doc.get("phone"),
+            "email_masked": seller_doc.get("email", "Hidden until purchase") if not can_view_contact else seller_doc.get("email")
+        }
+        
+        return {
+            "id": seller_doc["id"],
+            "handle": seller_doc.get("username", seller_doc["id"]),
+            "name": seller_doc.get("display_name", seller_doc.get("full_name", "Unknown")),
+            "avatar": seller_doc.get("profile_picture"),
+            "is_verified": seller_doc.get("is_verified", False),
+            "rating": avg_rating,
+            "review_count": review_count,
+            "years_active": years_active,
+            "province": seller_doc.get("province", ""),
+            "about": seller_doc.get("bio", ""),
+            "contact": contact,
+            "active_listings": active_listings,
+            "recent_reviews": recent_reviews
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching seller profile: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch seller profile")
+
+# Messaging Routes
+@api_router.post("/inbox/ask")
+async def create_conversation(request_data: dict, current_user: User = Depends(get_current_user)):
+    """Create a conversation between buyer and seller"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        seller_id = request_data.get("seller_id")
+        listing_id = request_data.get("listing_id")
+        
+        # If only listing_id provided, get seller_id
+        if not seller_id and listing_id:
+            listing_doc = await db.listings.find_one({"id": listing_id})
+            if not listing_doc:
+                raise HTTPException(status_code=404, detail="Listing not found")
+            seller_id = listing_doc["seller_id"]
+        
+        if not seller_id:
+            raise HTTPException(status_code=400, detail="seller_id or listing_id required")
+        
+        # Check if conversation already exists
+        existing = await db.conversations.find_one({
+            "participants": {"$all": [current_user.id, seller_id]},
+            "listing_id": listing_id
+        })
+        
+        if existing:
+            return {"conversation_id": existing["id"]}
+        
+        # Create new conversation
+        conversation_id = str(uuid.uuid4())
+        conversation = {
+            "id": conversation_id,
+            "participants": [current_user.id, seller_id],
+            "listing_id": listing_id,
+            "created_at": datetime.now(timezone.utc),
+            "last_message_at": datetime.now(timezone.utc),
+            "status": "active"
+        }
+        
+        await db.conversations.insert_one(conversation)
+        
+        # Send initial message if listing_id provided
+        if listing_id:
+            listing_doc = await db.listings.find_one({"id": listing_id})
+            if listing_doc:
+                message = {
+                    "id": str(uuid.uuid4()),
+                    "conversation_id": conversation_id,
+                    "sender_id": current_user.id,
+                    "content": f"Hi, I'm interested in your listing: {listing_doc['title']}",
+                    "created_at": datetime.now(timezone.utc),
+                    "message_type": "text"
+                }
+                await db.messages.insert_one(message)
+        
+        return {"conversation_id": conversation_id}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create conversation")
+
 # Admin routes
 @api_router.get("/admin/stats")
 async def get_admin_stats(current_user: User = Depends(get_current_user)):
