@@ -3447,6 +3447,153 @@ async def get_listing(listing_id: str):
         logger.error(f"Error fetching listing: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch listing")
 
+@api_router.get("/listings/{listing_id}/pdp")
+async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_current_user_optional)):
+    """Get comprehensive listing data for Product Detail Page"""
+    try:
+        # Get listing
+        listing_doc = await db.listings.find_one({"id": listing_id})
+        if not listing_doc:
+            raise HTTPException(status_code=404, detail="Listing not found")
+        
+        # Get seller info
+        seller_doc = await db.users.find_one({"id": listing_doc["seller_id"]})
+        if not seller_doc:
+            raise HTTPException(status_code=404, detail="Seller not found")
+        
+        # Get seller statistics
+        seller_stats = await db.reviews.aggregate([
+            {"$match": {"seller_id": listing_doc["seller_id"]}},
+            {"$group": {
+                "_id": None,
+                "average_rating": {"$avg": "$rating"},
+                "review_count": {"$sum": 1},
+                "breakdown": {
+                    "$push": {
+                        "$switch": {
+                            "branches": [
+                                {"case": {"$eq": ["$rating", 5]}, "then": "5"},
+                                {"case": {"$eq": ["$rating", 4]}, "then": "4"},
+                                {"case": {"$eq": ["$rating", 3]}, "then": "3"},
+                                {"case": {"$eq": ["$rating", 2]}, "then": "2"},
+                                {"case": {"$eq": ["$rating", 1]}, "then": "1"}
+                            ],
+                            "default": "other"
+                        }
+                    }
+                }
+            }}
+        ]).to_list(length=1)
+        
+        # Process rating breakdown
+        review_summary = {"average": 0, "count": 0, "breakdown": {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}}
+        if seller_stats:
+            stat = seller_stats[0]
+            review_summary["average"] = round(stat.get("average_rating", 0), 1)
+            review_summary["count"] = stat.get("review_count", 0)
+            breakdown = {}
+            for rating in stat.get("breakdown", []):
+                breakdown[rating] = breakdown.get(rating, 0) + 1
+            review_summary["breakdown"] = {str(i): breakdown.get(str(i), 0) for i in range(1, 6)}
+        
+        # Get similar listings (same species/breed, different seller)
+        similar_cursor = db.listings.find({
+            "species": listing_doc.get("species"),
+            "breed": listing_doc.get("breed", listing_doc.get("species")),
+            "seller_id": {"$ne": listing_doc["seller_id"]},
+            "status": "active",
+            "id": {"$ne": listing_id}
+        }).limit(6)
+        
+        similar_listings = []
+        async for sim in similar_cursor:
+            similar_listings.append({
+                "id": sim["id"],
+                "title": sim["title"],
+                "price": float(sim["price_per_unit"]),
+                "media": sim.get("images", [{}])[0].get("url") if sim.get("images") else None,
+                "province": sim.get("province", "Unknown")
+            })
+        
+        # Check if user is in delivery range (simplified - you can enhance this)
+        in_range = True  # Default to true, enhance with actual geofence logic
+        
+        # Prepare certificates
+        certificates = {
+            "vet": {"status": "VERIFIED"} if listing_doc.get("has_vet_certificate") else None,
+            "movement": {"status": "VERIFIED"} if listing_doc.get("has_movement_permit") else None,
+            "halal": {"status": "NA"}  # Default, can be enhanced
+        }
+        
+        # Calculate seller years active
+        years_active = 0
+        if seller_doc.get("created_at"):
+            years_active = max(0, (datetime.now(timezone.utc) - seller_doc["created_at"]).days // 365)
+        
+        # Check contact visibility (implement your policy here)
+        can_view_contact = False
+        if current_user and current_user.id == seller_doc["id"]:
+            can_view_contact = True
+        # Add escrow check logic here if needed
+        
+        contact = {
+            "phone_masked": seller_doc.get("phone", "Hidden until purchase") if not can_view_contact else seller_doc.get("phone"),
+            "email_masked": seller_doc.get("email", "Hidden until purchase") if not can_view_contact else seller_doc.get("email")
+        }
+        
+        # Build comprehensive response
+        pdp_data = {
+            "id": listing_doc["id"],
+            "title": listing_doc["title"],
+            "species": listing_doc.get("species", ""),
+            "breed": listing_doc.get("breed", listing_doc.get("species", "")),
+            "product_type": listing_doc.get("category", "Livestock"),
+            "unit": "head",  # Default unit, can be enhanced
+            "price": float(listing_doc["price_per_unit"]),
+            "qty_available": listing_doc.get("quantity", 1),
+            "media": [
+                {"url": img.get("url", ""), "type": "image"} 
+                for img in listing_doc.get("images", [])
+            ],
+            "location": {
+                "city": listing_doc.get("city", ""),
+                "province": listing_doc.get("province", ""),
+                "lat": listing_doc.get("latitude", 0),
+                "lng": listing_doc.get("longitude", 0)
+            },
+            "in_range": in_range,
+            "attributes": {
+                "Age": listing_doc.get("age", "Not specified"),
+                "Sex": listing_doc.get("sex", "Not specified"),
+                "Weight": f"{listing_doc.get('weight', 'Not specified')} kg" if listing_doc.get('weight') else "Not specified",
+                "Vaccinated": "Yes" if listing_doc.get("is_vaccinated") else "No",
+                "Health Status": listing_doc.get("health_status", "Good")
+            },
+            "description": listing_doc.get("description", ""),
+            "certificates": certificates,
+            "seller": {
+                "id": seller_doc["id"],
+                "name": seller_doc.get("display_name", seller_doc.get("full_name", "Unknown Seller")),
+                "handle": seller_doc.get("username", seller_doc["id"]),
+                "avatar": seller_doc.get("profile_picture"),
+                "is_verified": seller_doc.get("is_verified", False),
+                "rating": review_summary["average"],
+                "review_count": review_summary["count"],
+                "years_active": years_active,
+                "contact": contact
+            },
+            "reviewSummary": review_summary,
+            "similar": similar_listings
+        }
+        
+        return pdp_data
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching listing PDP: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch listing details")
+
 # Order and payment routes
 @api_router.post("/orders", response_model=Order)
 async def create_order(order_data: OrderCreate, current_user: User = Depends(get_current_user)):
