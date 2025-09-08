@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 def test_accept_offer_issue():
     """Test the specific accept offer issue"""
-    base_url = "https://email-system-test.preview.emergentagent.com/api"
+    base_url = "https://pdp-cart-bug.preview.emergentagent.com/api"
     
     print("🔍 Testing Accept Offer Issue...")
     

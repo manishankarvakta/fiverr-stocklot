@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class CriticalFixesTester:
     """Critical Backend Fixes Tester"""
     
-    def __init__(self, base_url: str = "https://email-system-test.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "https://pdp-cart-bug.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.session = None

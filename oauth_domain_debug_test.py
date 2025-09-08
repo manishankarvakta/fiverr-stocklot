@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # Test Configuration
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://email-system-test.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://pdp-cart-bug.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 class OAuthDomainDebugger:
@@ -175,7 +175,7 @@ class OAuthDomainDebugger:
         
         # Test with different Origin headers to simulate frontend requests
         origins_to_test = [
-            "https://email-system-test.preview.emergentagent.com",
+            "https://pdp-cart-bug.preview.emergentagent.com",
             "http://localhost:3000",
             "https://localhost:3000",
             None  # No origin header
@@ -356,8 +356,8 @@ class OAuthDomainDebugger:
                 },
                 "headers": {
                     "Content-Type": "application/json",
-                    "Origin": "https://email-system-test.preview.emergentagent.com",
-                    "Referer": "https://email-system-test.preview.emergentagent.com/",
+                    "Origin": "https://pdp-cart-bug.preview.emergentagent.com",
+                    "Referer": "https://pdp-cart-bug.preview.emergentagent.com/",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 }
             },
@@ -370,8 +370,8 @@ class OAuthDomainDebugger:
                 },
                 "headers": {
                     "Content-Type": "application/json",
-                    "Origin": "https://email-system-test.preview.emergentagent.com",
-                    "Referer": "https://email-system-test.preview.emergentagent.com/",
+                    "Origin": "https://pdp-cart-bug.preview.emergentagent.com",
+                    "Referer": "https://pdp-cart-bug.preview.emergentagent.com/",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 }
             }
