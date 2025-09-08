@@ -3528,7 +3528,10 @@ async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_curr
         # Calculate seller years active
         years_active = 0
         if seller_doc.get("created_at"):
-            years_active = max(0, (datetime.now(timezone.utc) - seller_doc["created_at"]).days // 365)
+            created_at = seller_doc["created_at"]
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            years_active = max(0, (datetime.now(timezone.utc) - created_at).days // 365)
         
         # Check contact visibility (implement your policy here)
         can_view_contact = False
