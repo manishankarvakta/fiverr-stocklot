@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Package, ShoppingCart, DollarSign, CreditCard,
   Building2, FileText, MessageSquare, Gift, Webhook, MapPin, Truck,
   Gavel, BookOpen, Settings, BarChart3, UserCog, Megaphone, Award,
-  Menu, X, Home, LogOut, Bell, Search, Lightbulb
+  Menu, X, Home, LogOut, Bell, Search, Lightbulb, FlaskConical, TrendingUp
 } from 'lucide-react';
 
 // Import all admin components
