@@ -4514,6 +4514,10 @@ function CreateListing() {
                         accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => {
                           const files = Array.from(e.target.files);
+                          if (files.length > 5) {
+                            alert('Maximum 5 certificates allowed');
+                            return;
+                          }
                           setFormData({...formData, certificates: files});
                         }}
                         className="hidden" 
