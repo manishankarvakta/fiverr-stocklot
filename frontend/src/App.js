@@ -4892,6 +4892,7 @@ function App() {
           <main className="min-h-screen">
             <Routes>
               <Route path="/" element={<Homepage />} />
+              <Route path="/debug-cart" element={<div>Debug cart route working!</div>} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<EnhancedRegister />} />
