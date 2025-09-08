@@ -48,6 +48,7 @@ from services.ml_matching_service import MLMatchingService
 from services.ml_engine_service import MLEngineService
 from services.photo_intelligence_service import PhotoIntelligenceService
 from services.social_auth_service import SocialAuthService
+from policies.contact_policy import can_view_seller_contact, mask_contact_info
 from services.unified_inbox_service import UnifiedInboxService
 from services.sse_service import sse_service
 from services.recaptcha_service import recaptcha_service
