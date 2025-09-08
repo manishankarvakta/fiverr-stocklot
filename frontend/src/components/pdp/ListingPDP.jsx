@@ -136,7 +136,13 @@ const ListingPDP = () => {
       });
 
       if (response.ok) {
-        navigate('/cart');
+        // Success - just show feedback, don't redirect
+        alert(`✅ Added ${qty} ${data.title} to cart!`);
+        // TODO: Replace alert with proper toast notification
+        
+        // Refresh cart count if you have a cart counter in header
+        // await refreshCartCount();
+        
       } else if (response.status === 401) {
         // User not authenticated - offer guest checkout option
         const shouldProceed = confirm('You can add items to cart as a guest and login later during checkout. Continue?');
@@ -158,7 +164,7 @@ const ListingPDP = () => {
           }
           
           localStorage.setItem('guest_cart', JSON.stringify(guestCart));
-          navigate('/cart');
+          alert(`✅ Added ${qty} ${data.title} to guest cart!`);
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -185,7 +191,7 @@ const ListingPDP = () => {
         }
         
         localStorage.setItem('guest_cart', JSON.stringify(guestCart));
-        navigate('/cart');
+        alert(`✅ Added ${qty} ${data.title} to guest cart!`);
       }
     }
   };
