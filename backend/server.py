@@ -6848,6 +6848,9 @@ async def generate_auto_description(
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
+    if not AI_SERVICES_AVAILABLE or not ai_enhanced_service:
+        raise HTTPException(status_code=503, detail="AI services are currently unavailable")
+    
     try:
         description_data = await ai_enhanced_service.generate_auto_description(
             species=data.get('species'),
