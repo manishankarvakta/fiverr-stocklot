@@ -303,7 +303,8 @@ export default function AdminListingsManagement() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => console.log('View listing:', listing.id)}
+                        onClick={() => window.open(`/listing/${listing.id}`, '_blank')}
+                        title="View PDP"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
