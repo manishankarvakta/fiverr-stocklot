@@ -197,28 +197,10 @@ const ListingPDP = () => {
   };
 
   const buyNow = async () => {
-    try {
-      trackAnalytics('buy_now_click', { quantity: qty, price: data.price });
-      
-      // For Buy Now, always go to guest checkout with the item
-      // This simplifies the flow and allows both logged-in users and guests
-      navigate('/checkout/guest', { 
-        state: { 
-          listing_id: data.id, 
-          qty: qty,
-          listing_data: {
-            title: data.title,
-            price: data.price,
-            seller: data.seller
-          }
-        } 
-      });
-    } catch (err) {
-      console.error('Error buying now:', err);
-      navigate('/checkout/guest', { 
-        state: { listing_id: data.id, qty } 
-      });
-    }
+    // First add to cart
+    await addToCart();
+    // Then redirect to cart (only for Buy Now)
+    navigate('/cart');
   };
 
   const requestDeliveryQuote = async () => {
