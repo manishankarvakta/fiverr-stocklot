@@ -3782,7 +3782,16 @@ function CreateListing() {
     region: '',
     city: '',
     images: [],
-    certificates: []
+    certificates: [],
+    // Animal Statistics Fields
+    age: '',
+    sex: '',
+    weight: '',
+    vaccination_status: '',
+    health_status: 'healthy',
+    veterinary_certificate: false,
+    animal_type: '',
+    survival_rate: ''
   });
 
   const [filteredSpecies, setFilteredSpecies] = useState([]);
