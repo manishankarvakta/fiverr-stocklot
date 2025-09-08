@@ -293,26 +293,35 @@ const ListingPDP = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 pt-4">
+          {/* Mobile-optimized action buttons with A/B testing support */}
+          <div className={`grid gap-3 pt-4 ${
+            abConfig?.cta_placement === 'bottom' 
+              ? 'grid-cols-1' 
+              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2'
+          }`}>
             <button 
               onClick={addToCart}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+              className={`px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors ${
+                abConfig?.cta_style === 'large' ? 'text-lg py-4' : ''
+              }`}
             >
               Add to Cart
             </button>
             <button 
               onClick={buyNow}
-              className="px-6 py-3 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 font-medium"
+              className="px-4 sm:px-6 py-3 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 font-medium transition-colors"
             >
               Buy Now
             </button>
             <button 
               onClick={requestDeliveryQuote}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+              className="px-4 sm:px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors sm:col-span-1"
             >
-              Request Delivery Quote
+              Request Quote
             </button>
-            <AskQuestionButton listingId={data.id} />
+            <div className="sm:col-span-1">
+              <AskQuestionButton listingId={data.id} />
+            </div>
           </div>
 
           {/* Seller */}
