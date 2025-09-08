@@ -1036,7 +1036,7 @@ function Homepage() {
           <div className="stock-grid">
             {featuredListings.length > 0 ? (
               featuredListings.map((listing, index) => (
-                <Card key={listing.id} className="stock-card border-emerald-200 hover:shadow-lg transition-shadow">
+                <Card key={listing.id} className="stock-card border-emerald-200 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/listing/${listing.id}`)}>
                   <div className="stock-badge">
                     {index === 0 ? 'Premium' : index === 1 ? 'New' : 'Popular'}
                   </div>
