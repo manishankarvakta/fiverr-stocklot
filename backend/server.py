@@ -450,7 +450,13 @@ class ListingCreate(BaseModel):
     age_weeks: Optional[int] = None
     age_days: Optional[int] = None
     age: Optional[str] = None
+    sex: Optional[str] = None
+    weight: Optional[str] = None
     vaccination_status: Optional[str] = None
+    health_status: Optional[str] = "healthy"
+    veterinary_certificate: Optional[bool] = False
+    animal_type: Optional[str] = None
+    survival_rate: Optional[str] = None
     health_certificates: Optional[List[str]] = []
     
     region: Optional[str] = None
