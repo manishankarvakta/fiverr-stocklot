@@ -98,20 +98,50 @@ from mailgun_webhook_service import MailgunWebhookService
 mailgun_webhook_service = MailgunWebhookService(db, email_preferences_service)
 
 # Initialize AI & Mapping enhanced services
-enhanced_buy_request_service = EnhancedBuyRequestService(db)
-ai_enhanced_service = AIEnhancedService()
-mapbox_service = MapboxService()
-order_management_service = OrderManagementService(db)
-ml_faq_service = MLFAQService(db)
-ml_matching_service = MLMatchingService(db)
-ml_engine_service = MLEngineService(db)
-photo_intelligence_service = PhotoIntelligenceService(db)
+try:
+    enhanced_buy_request_service = EnhancedBuyRequestService(db)
+    ai_enhanced_service = AIEnhancedService()
+    mapbox_service = MapboxService()
+    order_management_service = OrderManagementService(db)
+    ml_faq_service = MLFAQService(db)
+    ml_matching_service = MLMatchingService(db)
+    ml_engine_service = MLEngineService(db)
+    photo_intelligence_service = PhotoIntelligenceService(db)
+    
+    AI_SERVICES_AVAILABLE = True
+    logger.info("✅ AI & Mapping services initialized successfully")
+except (ImportError, ValueError, Exception) as e:
+    logger.warning(f"⚠️  AI & Mapping services not available: {e}")
+    # Initialize fallback services or set to None
+    enhanced_buy_request_service = None
+    ai_enhanced_service = None
+    mapbox_service = None
+    order_management_service = None
+    ml_faq_service = None
+    ml_matching_service = None
+    ml_engine_service = None
+    photo_intelligence_service = None
+    AI_SERVICES_AVAILABLE = False
 
 # Initialize Social Authentication service
-social_auth_service = SocialAuthService(db)
+try:
+    social_auth_service = SocialAuthService(db)
+    SOCIAL_AUTH_AVAILABLE = True
+    logger.info("✅ Social Authentication service initialized successfully")
+except (ImportError, ValueError, Exception) as e:
+    logger.warning(f"⚠️  Social Authentication service not available: {e}")
+    social_auth_service = None
+    SOCIAL_AUTH_AVAILABLE = False
 
 # Initialize Unified Inbox service
-unified_inbox_service = UnifiedInboxService(db)
+try:
+    unified_inbox_service = UnifiedInboxService(db)
+    UNIFIED_INBOX_AVAILABLE = True
+    logger.info("✅ Unified Inbox service initialized successfully")
+except (ImportError, ValueError, Exception) as e:
+    logger.warning(f"⚠️  Unified Inbox service not available: {e}")
+    unified_inbox_service = None
+    UNIFIED_INBOX_AVAILABLE = False
 
 # Initialize Review System services
 from services.review_cron_service import get_review_cron_service
