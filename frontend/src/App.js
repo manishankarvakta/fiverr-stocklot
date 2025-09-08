@@ -4265,6 +4265,123 @@ function CreateListing() {
                 )}
               </div>
 
+              {/* Animal Statistics */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-emerald-900 border-b border-emerald-200 pb-2">
+                  Animal Statistics & Health Information
+                </h3>
+                
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div>
+                    <Label className="text-emerald-800">Age</Label>
+                    <Input
+                      value={formData.age}
+                      onChange={(e) => setFormData({...formData, age: e.target.value})}
+                      placeholder="e.g., 6 months, 2 years"
+                      className="border-emerald-200"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-emerald-800">Sex</Label>
+                    <Select value={formData.sex} onValueChange={(value) => setFormData({...formData, sex: value})}>
+                      <SelectTrigger className="border-emerald-200">
+                        <SelectValue placeholder="Select sex" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="mixed">Mixed (for groups)</SelectItem>
+                        <SelectItem value="unknown">Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-emerald-800">Weight</Label>
+                    <Input
+                      value={formData.weight}
+                      onChange={(e) => setFormData({...formData, weight: e.target.value})}
+                      placeholder="e.g., 50kg, 2.5kg per bird"
+                      className="border-emerald-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div>
+                    <Label className="text-emerald-800">Vaccination Status</Label>
+                    <Select value={formData.vaccination_status} onValueChange={(value) => setFormData({...formData, vaccination_status: value})}>
+                      <SelectTrigger className="border-emerald-200">
+                        <SelectValue placeholder="Select vaccination status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fully_vaccinated">Fully Vaccinated</SelectItem>
+                        <SelectItem value="partially_vaccinated">Partially Vaccinated</SelectItem>
+                        <SelectItem value="not_vaccinated">Not Vaccinated</SelectItem>
+                        <SelectItem value="scheduled">Vaccination Scheduled</SelectItem>
+                        <SelectItem value="unknown">Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-emerald-800">Health Status</Label>
+                    <Select value={formData.health_status} onValueChange={(value) => setFormData({...formData, health_status: value})}>
+                      <SelectTrigger className="border-emerald-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="excellent">Excellent</SelectItem>
+                        <SelectItem value="healthy">Healthy</SelectItem>
+                        <SelectItem value="good">Good</SelectItem>
+                        <SelectItem value="fair">Fair</SelectItem>
+                        <SelectItem value="recovering">Recovering</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-emerald-800">Animal Type</Label>
+                    <Input
+                      value={formData.animal_type}
+                      onChange={(e) => setFormData({...formData, animal_type: e.target.value})}
+                      placeholder="e.g., Breeding stock, Commercial, Show quality"
+                      className="border-emerald-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <Label className="text-emerald-800">Survival Rate (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={formData.survival_rate}
+                      onChange={(e) => setFormData({...formData, survival_rate: e.target.value})}
+                      placeholder="e.g., 95"
+                      className="border-emerald-200"
+                    />
+                    <p className="text-xs text-emerald-600 mt-1">Expected survival rate (for young animals)</p>
+                  </div>
+
+                  <div className="flex items-center space-x-2 mt-6">
+                    <input
+                      type="checkbox"
+                      id="veterinary_certificate"
+                      checked={formData.veterinary_certificate}
+                      onChange={(e) => setFormData({...formData, veterinary_certificate: e.target.checked})}
+                      className="h-4 w-4 text-emerald-600"
+                    />
+                    <Label htmlFor="veterinary_certificate" className="text-emerald-800">
+                      Has Veterinary Certificate
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
               {/* Location */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
