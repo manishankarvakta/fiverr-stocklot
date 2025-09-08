@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Card, CardContent, CardHeader, CardTitle, Button, Badge,
@@ -12,20 +12,21 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Import useAuth hook from App.js
-function useAuth() {
-  // Since we can't directly import from App.js, we'll implement basic auth detection
-  const token = localStorage.getItem('token');
-  const userData = localStorage.getItem('user');
-  return {
-    user: token && userData ? JSON.parse(userData) : null,
-    isAuthenticated: !!token
-  };
-}
-
 export default function CartPage() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  
+  // Simple auth detection using localStorage directly
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    if (token && userData) {
+      setUser(JSON.parse(userData));
+      setIsAuthenticated(true);
+    }
+  }, []);
   const [cart, setCart] = useState({ items: [], total: 0, item_count: 0 });
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
