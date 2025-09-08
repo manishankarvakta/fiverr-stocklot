@@ -4276,7 +4276,10 @@ async def get_seller_profile(seller_handle: str, current_user: User = Depends(ge
         # Calculate years active
         years_active = 0
         if seller_doc.get("created_at"):
-            years_active = max(0, (datetime.now(timezone.utc) - seller_doc["created_at"]).days // 365)
+            created_at = seller_doc["created_at"]
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            years_active = max(0, (datetime.now(timezone.utc) - created_at).days // 365)
         
         # Check contact visibility
         can_view_contact = False
