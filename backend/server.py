@@ -6809,6 +6809,9 @@ async def get_price_suggestions(
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
+    if not AI_SERVICES_AVAILABLE or not ai_enhanced_service or not enhanced_buy_request_service:
+        raise HTTPException(status_code=503, detail="AI services are currently unavailable")
+    
     try:
         # Get recent market data
         recent_data = await enhanced_buy_request_service._get_recent_market_data(
