@@ -50,6 +50,7 @@ import EnhancedCreateBuyRequestForm from './components/buyRequests/EnhancedCreat
 import BuyerOffersPage from './pages/BuyerOffersPage';
 import InboxPage from './pages/InboxPage';
 import ReviewsTestPage from './pages/ReviewsTestPage';
+import CartPage from './pages/CartPage';
 import LoginGate from './components/auth/LoginGate';
 
 // PDP and Seller Profile imports
