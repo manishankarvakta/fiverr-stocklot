@@ -4313,6 +4313,110 @@ async def get_seller_profile(seller_handle: str, current_user: User = Depends(ge
         logger.error(f"Error fetching seller profile: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch seller profile")
 
+# Analytics Routes
+@api_router.post("/analytics/track")
+async def track_analytics_event(
+    event_data: dict,
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Track analytics events"""
+    try:
+        from services.analytics_service import AnalyticsService
+        analytics = AnalyticsService(db)
+        
+        event_type = event_data.get("event_type")
+        listing_id = event_data.get("listing_id")
+        
+        # Get request metadata
+        ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "")
+        referrer = request.headers.get("referer", "")
+        
+        if event_type == "pdp_view":
+            await analytics.track_pdp_view(
+                listing_id=listing_id,
+                user_id=current_user.id if current_user else None,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                referrer=referrer,
+                session_id=event_data.get("session_id")
+            )
+        elif event_type == "seller_profile_view":
+            await analytics.track_seller_profile_view(
+                seller_id=event_data.get("seller_id"),
+                user_id=current_user.id if current_user else None,
+                session_id=event_data.get("session_id")
+            )
+        else:
+            await analytics.track_interaction(
+                event_type=event_type,
+                listing_id=listing_id,
+                user_id=current_user.id if current_user else None,
+                metadata=event_data.get("metadata", {})
+            )
+        
+        return {"status": "tracked"}
+    
+    except Exception as e:
+        logger.error(f"Error tracking analytics: {e}")
+        return {"status": "error", "message": str(e)}
+
+@api_router.get("/admin/analytics/pdp")
+async def get_pdp_analytics(
+    days: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Get PDP analytics for admin dashboard"""
+    if not current_user or current_user.user_type != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from services.analytics_service import AnalyticsService
+        analytics = AnalyticsService(db)
+        data = await analytics.get_pdp_analytics(days)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching PDP analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+
+@api_router.get("/admin/analytics/seller/{seller_id}")
+async def get_seller_analytics(
+    seller_id: str,
+    days: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Get analytics for a specific seller"""
+    if not current_user or current_user.user_type != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from services.analytics_service import AnalyticsService
+        analytics = AnalyticsService(db)
+        data = await analytics.get_seller_analytics(seller_id, days)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching seller analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+
+@api_router.get("/admin/analytics/daily")
+async def get_daily_analytics(
+    days: int = 7,
+    current_user: User = Depends(get_current_user)
+):
+    """Get daily analytics for charts"""
+    if not current_user or current_user.user_type != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from services.analytics_service import AnalyticsService
+        analytics = AnalyticsService(db)
+        data = await analytics.get_daily_metrics(days)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching daily analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+
 # Reviews Routes
 @api_router.get("/reviews")
 async def get_reviews(
