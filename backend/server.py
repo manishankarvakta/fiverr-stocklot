@@ -418,8 +418,14 @@ class Listing(BaseModel):
     age_weeks: Optional[int] = None
     age_days: Optional[int] = None
     age: Optional[str] = None
+    sex: Optional[str] = None
+    weight: Optional[str] = None
     breed: Optional[str] = None  # Resolved breed name
     vaccination_status: Optional[str] = None
+    health_status: Optional[str] = "healthy"
+    veterinary_certificate: Optional[bool] = False
+    animal_type: Optional[str] = None
+    survival_rate: Optional[str] = None
     health_certificates: Optional[List[str]] = []
     
     country: str = "South Africa"
