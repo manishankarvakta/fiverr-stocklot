@@ -4885,6 +4885,8 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<EnhancedRegister />} />
               <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/listing/:id" element={<ListingPDP />} />
+              <Route path="/seller/:handle" element={<SellerProfile />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/payment-methods" element={<PaymentMethodsPage />} />
