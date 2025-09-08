@@ -50,12 +50,10 @@ export default function CartPage() {
   const fetchCart = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      
-      if (token) {
+      if (isAuthenticated && user) {
         // Authenticated user - fetch from backend
         const response = await fetch(`${API}/cart`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         
         if (response.ok) {
