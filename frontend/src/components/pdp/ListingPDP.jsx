@@ -327,14 +327,14 @@ const ListingPDP = () => {
           {/* Seller */}
           <SellerCard seller={data.seller} listingId={data.id} />
 
-          {/* Key attributes */}
-          <section className="mt-6">
-            <h2 className="text-xl font-semibold mb-3">Key Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Key attributes - Mobile optimized */}
+          <section className="mt-4 lg:mt-6">
+            <h2 className="text-lg lg:text-xl font-semibold mb-3">Key Details</h2>
+            <div className="grid grid-cols-1 gap-2 lg:gap-4">
               {Object.entries(data.attributes || {}).map(([key, value]) => (
-                <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100">
+                <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 text-sm lg:text-base">
                   <span className="text-gray-600 font-medium">{key}:</span>
-                  <span className="text-gray-900">{String(value)}</span>
+                  <span className="text-gray-900 text-right">{String(value)}</span>
                 </div>
               ))}
             </div>
