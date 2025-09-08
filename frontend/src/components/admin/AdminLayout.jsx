@@ -33,6 +33,8 @@ import AdminBroadcastMessaging from './AdminBroadcastMessaging';
 import AdminInfluencerPayouts from './AdminInfluencerPayouts';
 import AdminBuyRequestsManagement from './AdminBuyRequestsManagement';
 import AdminSuggestionsManagement from './AdminSuggestionsManagement';
+import AdminPDPAnalytics from './AdminPDPAnalytics';
+import AdminABTesting from './AdminABTesting';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
