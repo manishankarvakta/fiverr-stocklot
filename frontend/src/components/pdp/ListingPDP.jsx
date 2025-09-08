@@ -345,25 +345,25 @@ const ListingPDP = () => {
         </div>
       </div>
 
-      {/* Description & Reviews */}
-      <section className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Description & Reviews - Mobile optimized */}
+      <section className="mt-8 lg:mt-12 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         <div className="lg:col-span-8">
-          <div className="bg-white rounded-lg border p-6 mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Description</h2>
-            <div className="prose prose-gray max-w-none">
-              <p className="whitespace-pre-wrap">{data.description}</p>
+          <div className="bg-white rounded-lg border p-4 lg:p-6 mb-6 lg:mb-8">
+            <h2 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">Description</h2>
+            <div className="prose prose-gray prose-sm lg:prose-base max-w-none">
+              <p className="whitespace-pre-wrap text-sm lg:text-base leading-relaxed">{data.description}</p>
             </div>
           </div>
 
           {/* Reviews */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="bg-white rounded-lg border p-4 lg:p-6">
             <RatingSummary summary={data.reviewSummary} />
             <ReviewsList listingId={data.id} sellerId={data.seller?.id} />
           </div>
         </div>
 
-        {/* Sidebar */}
-        <aside className="lg:col-span-4 space-y-6">
+        {/* Sidebar - Mobile responsive */}
+        <aside className="lg:col-span-4 space-y-4 lg:space-y-6">
           <RelatedGrid items={data.similar || []} />
           
           {/* Trust Badge */}
