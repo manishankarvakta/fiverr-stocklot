@@ -3058,6 +3058,12 @@ function BiddingModal({ listing, isOpen, onClose, onBidPlaced, onViewDetails }) 
     onViewDetails(listing);
   };
 
+  // Separate function for viewing details (works for both guests and authenticated users)
+  const handleViewDetails = (listing) => {
+    // Navigate to PDP page for both guests and authenticated users
+    navigate(`/listing/${listing.id}`);
+  };
+
   const formatTimeRemaining = (ms) => {
     if (ms <= 0) return 'Auction Ended';
     const hours = Math.floor(ms / (1000 * 60 * 60));
