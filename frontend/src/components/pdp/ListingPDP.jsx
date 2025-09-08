@@ -125,6 +125,8 @@ const ListingPDP = () => {
 
   const requestDeliveryQuote = async () => {
     try {
+      trackAnalytics('delivery_quote_request', { quantity: qty });
+      
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
       await fetch(`${backendUrl}/api/logistics/rfq`, {
         method: 'POST',
