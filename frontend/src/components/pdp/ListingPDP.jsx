@@ -194,21 +194,19 @@ const ListingPDP = () => {
     try {
       trackAnalytics('buy_now_click', { quantity: qty, price: data.price });
       
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      const response = await fetch(`${backendUrl}/api/cart/add`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ listing_id: data.id, qty })
+      // For Buy Now, always go to guest checkout with the item
+      // This simplifies the flow and allows both logged-in users and guests
+      navigate('/checkout/guest', { 
+        state: { 
+          listing_id: data.id, 
+          qty: qty,
+          listing_data: {
+            title: data.title,
+            price: data.price,
+            seller: data.seller
+          }
+        } 
       });
-
-      if (response.ok) {
-        navigate('/checkout');
-      } else {
-        navigate('/checkout/guest', { 
-          state: { listing_id: data.id, qty } 
-        });
-      }
     } catch (err) {
       console.error('Error buying now:', err);
       navigate('/checkout/guest', { 
