@@ -98,6 +98,8 @@ const ListingPDP = () => {
 
   const buyNow = async () => {
     try {
+      trackAnalytics('buy_now_click', { quantity: qty, price: data.price });
+      
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
       const response = await fetch(`${backendUrl}/api/cart/add`, {
         method: 'POST',
