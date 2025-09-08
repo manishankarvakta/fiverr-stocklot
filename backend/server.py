@@ -10120,7 +10120,7 @@ try:
     
     TRANSFER_SERVICES_AVAILABLE = True
     logger.info("✅ Paystack Transfer Services initialized successfully")
-except ImportError as e:
+except (ImportError, ValueError) as e:
     logger.warning(f"⚠️  Transfer services not available: {e}")
     TRANSFER_SERVICES_AVAILABLE = False
 
