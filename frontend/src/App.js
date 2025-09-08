@@ -60,6 +60,18 @@ import SellerProfile from './components/seller/SellerProfile';
 
 import "./App.css";
 
+// Simple inline cart component for testing
+function InlineCartPage() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">🛒 Shopping Cart</h1>
+        <p className="text-gray-600">Your cart is empty</p>
+      </div>
+    </div>
+  );
+}
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
