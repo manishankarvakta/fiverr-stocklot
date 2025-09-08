@@ -127,19 +127,66 @@ const ListingPDP = () => {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
       const response = await fetch(`${backendUrl}/api/cart/add`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token')}`
+        },
         credentials: 'include',
         body: JSON.stringify({ listing_id: data.id, qty })
       });
 
       if (response.ok) {
         navigate('/cart');
+      } else if (response.status === 401) {
+        // User not authenticated - offer guest checkout option
+        const shouldProceed = confirm('You can add items to cart as a guest and login later during checkout. Continue?');
+        if (shouldProceed) {
+          // Store cart item in localStorage for guest checkout
+          const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+          const existingItem = guestCart.find(item => item.listing_id === data.id);
+          
+          if (existingItem) {
+            existingItem.qty += qty;
+          } else {
+            guestCart.push({
+              listing_id: data.id,
+              qty: qty,
+              title: data.title,
+              price: data.price,
+              seller_id: data.seller?.id
+            });
+          }
+          
+          localStorage.setItem('guest_cart', JSON.stringify(guestCart));
+          navigate('/cart');
+        }
       } else {
-        alert('Please log in to add items to cart');
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.detail || 'Failed to add to cart. Please try again.');
       }
     } catch (err) {
       console.error('Error adding to cart:', err);
-      alert('Failed to add to cart');
+      // Fallback to guest cart for any network errors
+      const shouldProceed = confirm('There was a connection issue. Would you like to add this item to your cart for checkout as a guest?');
+      if (shouldProceed) {
+        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+        const existingItem = guestCart.find(item => item.listing_id === data.id);
+        
+        if (existingItem) {
+          existingItem.qty += qty;
+        } else {
+          guestCart.push({
+            listing_id: data.id,
+            qty: qty,
+            title: data.title,
+            price: data.price,
+            seller_id: data.seller?.id
+          });
+        }
+        
+        localStorage.setItem('guest_cart', JSON.stringify(guestCart));
+        navigate('/cart');
+      }
     }
   };
 
