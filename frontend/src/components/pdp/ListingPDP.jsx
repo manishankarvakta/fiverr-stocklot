@@ -122,6 +122,7 @@ const ListingPDP = () => {
   const addToCart = async () => {
     try {
       trackAnalytics('add_to_cart', { quantity: qty, price: data.price });
+      trackABEvents('conversion');
       
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
       const response = await fetch(`${backendUrl}/api/cart/add`, {
