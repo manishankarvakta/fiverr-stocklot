@@ -3648,13 +3648,7 @@ async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_curr
                 "lng": listing_doc.get("longitude", 0)
             },
             "in_range": in_range,
-            "attributes": {
-                "Age": listing_doc.get("age", "Not specified"),
-                "Sex": listing_doc.get("sex", "Not specified"),
-                "Weight": f"{listing_doc.get('weight', 'Not specified')} kg" if listing_doc.get('weight') else "Not specified",
-                "Vaccinated": "Yes" if listing_doc.get("is_vaccinated") else "No",
-                "Health Status": listing_doc.get("health_status", "Good")
-            },
+            "attributes": attributes,
             "description": listing_doc.get("description", ""),
             "certificates": certificates,
             "seller": {
