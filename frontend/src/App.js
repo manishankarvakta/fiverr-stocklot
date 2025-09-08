@@ -2286,12 +2286,8 @@ function Marketplace() {
   };
 
   const handleViewDetails = (listing) => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    setSelectedListing(listing);
-    setShowOrderModal(true);
+    // Navigate to the new PDP page
+    navigate(`/listing/${listing.id}`);
   };
 
   const handlePlaceBid = (listing) => {
