@@ -4307,6 +4307,50 @@ async def get_seller_profile(seller_handle: str, current_user: User = Depends(ge
         logger.error(f"Error fetching seller profile: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch seller profile")
 
+# Reviews Routes
+@api_router.get("/reviews")
+async def get_reviews(
+    sellerId: Optional[str] = None,
+    listingId: Optional[str] = None,
+    page: int = 1,
+    limit: int = 10
+):
+    """Get reviews with optional filters"""
+    try:
+        skip = (page - 1) * limit
+        filter_query = {}
+        
+        if sellerId:
+            filter_query["seller_id"] = sellerId
+        if listingId:
+            filter_query["listing_id"] = listingId
+        
+        reviews_cursor = db.reviews.find(filter_query).sort("created_at", -1).skip(skip).limit(limit)
+        reviews = []
+        
+        async for review in reviews_cursor:
+            reviews.append({
+                "id": review.get("id", str(review.get("_id"))),
+                "stars": review.get("rating", 0),
+                "comment": review.get("comment", ""),
+                "images": review.get("images", []),
+                "buyer_handle": review.get("buyer_name", "Anonymous"),
+                "created_at": review.get("created_at", datetime.now(timezone.utc)).isoformat()
+            })
+        
+        total = await db.reviews.count_documents(filter_query)
+        
+        return {
+            "items": reviews,
+            "total": total,
+            "page": page,
+            "pages": (total + limit - 1) // limit
+        }
+    
+    except Exception as e:
+        logger.error(f"Error fetching reviews: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch reviews")
+
 # Messaging Routes
 @api_router.post("/inbox/ask")
 async def create_conversation(request_data: dict, current_user: User = Depends(get_current_user)):
