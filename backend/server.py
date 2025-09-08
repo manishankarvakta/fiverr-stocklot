@@ -3647,16 +3647,25 @@ async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_curr
                 created_at = created_at.replace(tzinfo=timezone.utc)
             years_active = max(0, (datetime.now(timezone.utc) - created_at).days // 365)
         
-        # Check contact visibility (implement your policy here)
-        can_view_contact = False
-        if current_user and current_user.id == seller_doc["id"]:
-            can_view_contact = True
-        # Add escrow check logic here if needed
+        # Apply contact redaction policy for PDP
+        viewer_dict = None
+        if current_user:
+            viewer_dict = {"_id": current_user.id, "id": current_user.id, "role": getattr(current_user, 'role', 'USER')}
         
-        contact = {
-            "phone_masked": seller_doc.get("phone", "Hidden until purchase") if not can_view_contact else seller_doc.get("phone"),
-            "email_masked": seller_doc.get("email", "Hidden until purchase") if not can_view_contact else seller_doc.get("email")
-        }
+        # Check if user can view real contact information
+        can_view_real_contact = await can_view_seller_contact(viewer_dict, seller_doc["id"], db)
+        
+        if can_view_real_contact:
+            contact = {
+                "phone_masked": seller_doc.get("phone", "Contact available"),
+                "email_masked": seller_doc.get("email", "Contact available")
+            }
+        else:
+            # Apply contact masking
+            contact = mask_contact_info(
+                phone=seller_doc.get("phone"),
+                email=seller_doc.get("email")
+            )
         
         # Build comprehensive response
         pdp_data = {
