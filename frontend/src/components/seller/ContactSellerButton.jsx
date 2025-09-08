@@ -10,9 +10,18 @@ const ContactSellerButton = ({ sellerId, listingId }) => {
       setLoading(true);
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
       
+      // Get authentication token
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers = { 'Content-Type': 'application/json' };
+      
+      // Add Authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${backendUrl}/api/inbox/ask`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         credentials: 'include',
         body: JSON.stringify({ 
           seller_id: sellerId,
@@ -22,9 +31,19 @@ const ContactSellerButton = ({ sellerId, listingId }) => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          alert('Please log in to contact the seller.');
-          navigate('/login');
-          return;
+          // Only show login prompt if user is actually not authenticated
+          if (!token) {
+            alert('Please log in to contact the seller.');
+            navigate('/login');
+            return;
+          } else {
+            // Token might be expired, try to refresh or redirect to login
+            alert('Your session has expired. Please log in again.');
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
+            navigate('/login');
+            return;
+          }
         }
         throw new Error('Failed to create conversation');
       }
