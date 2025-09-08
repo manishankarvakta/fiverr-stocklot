@@ -3461,6 +3461,12 @@ function ListingCard({ listing, onViewDetails, onBidPlaced, showNotification, on
     onViewDetails(listing);
   };
 
+  // Separate function for viewing details (works for both guests and authenticated users)
+  const handleViewDetails = (listing) => {
+    // Navigate to PDP page for both guests and authenticated users
+    navigate(`/listing/${listing.id}`);
+  };
+
   const isAuction = listing.listing_type === 'auction' || listing.listing_type === 'hybrid';
   const isExpired = listing.auction_end_time && new Date(listing.auction_end_time) < new Date();
   const timeRemainingCalc = listing.auction_end_time ? new Date(listing.auction_end_time) - new Date() : 0;
