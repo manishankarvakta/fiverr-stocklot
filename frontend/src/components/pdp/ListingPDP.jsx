@@ -220,108 +220,63 @@ Please try again or contact support.`);
   };
 
   const buyNow = async () => {
-    console.log('🛒 PDP BUY NOW: Backend Paystack Integration');
-    
-    const total = data.price * qty;
+    console.log('🛒 PDP BUY NOW: Using proper checkout flow with fees');
     
     try {
-      console.log(`🛒 Buy Now: ${data.title} x${qty} = R${total}`);
+      // Add item to cart first
+      const cartItem = {
+        listing_id: data.id,
+        title: data.title,
+        price: data.price,
+        qty: qty,
+        species: data.species_id,
+        product_type: data.product_type_id
+      };
       
-      // Confirm purchase first
-      const confirmPurchase = confirm(`
-🛒 PROCEED TO PAYMENT
-
-Product: ${data.title}
-Quantity: ${qty} ${data.unit || 'head'}
-Price: R${data.price} per ${data.unit || 'head'}
-Total: R${total}
-
-Click OK to proceed to secure payment.
-      `);
+      // Add to localStorage cart for guest users
+      const existingCart = JSON.parse(localStorage.getItem('cart') || '[]');
+      const existingItemIndex = existingCart.findIndex(item => item.listing_id === data.id);
       
-      if (!confirmPurchase) {
-        console.log('🛒 Purchase cancelled by user');
-        return;
-      }
-      
-      console.log('🛒 Creating payment via backend...');
-      
-      // Create payment through backend (avoids CORS issues)
-      const backendUrl = window.REACT_APP_BACKEND_URL || 
-                        process.env.REACT_APP_BACKEND_URL || 
-                        'https://farmstock-hub-1.preview.emergentagent.com';
-      
-      const response = await fetch(`${backendUrl}/api/payment/create-paystack`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'guest'}`
-        },
-        body: JSON.stringify({
-          amount: total,
-          email: 'customer@stocklot.co.za',
-          reference: 'STOCKLOT_' + Date.now(),
-          metadata: {
-            listing_id: data.id,
-            listing_title: data.title,
-            quantity: qty,
-            price_per_unit: data.price,
-            total_amount: total,
-            order_type: 'buy_now_direct'
-          }
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Backend payment response:', result);
-        
-        if (result.payment_url || result.authorization_url) {
-          const paymentUrl = result.payment_url || result.authorization_url;
-          console.log('🛒 Redirecting to payment:', paymentUrl);
-          window.location.href = paymentUrl;
-          return;
-        } else {
-          throw new Error('No payment URL received from backend');
-        }
+      if (existingItemIndex >= 0) {
+        existingCart[existingItemIndex].qty = qty; // Set exact quantity
       } else {
-        const errorText = await response.text();
-        console.error('🚨 Backend payment error:', response.status, errorText);
-        throw new Error(`Backend payment failed: ${response.status}`);
+        existingCart.push(cartItem);
       }
+      
+      localStorage.setItem('cart', JSON.stringify(existingCart));
+      
+      console.log('🛒 Item added to cart, redirecting to checkout with fees...');
+      
+      // Check if user is logged in
+      const token = localStorage.getItem('token');
+      if (token) {
+        // Authenticated user - go to regular checkout
+        navigate('/checkout');
+      } else {
+        // Guest user - go to guest checkout (which includes proper fee calculation)
+        navigate('/checkout/guest');
+      }
+      
+      // Track analytics
+      trackAnalytics('buy_now_click', { 
+        quantity: qty, 
+        price: data.price,
+        total_before_fees: data.price * qty
+      });
+      trackABEvents('conversion');
       
     } catch (error) {
-      console.error('🚨 Payment error:', error);
+      console.error('🚨 Buy Now error:', error);
       
-      // For now, use demo approach to ensure functionality
-      const demoConfirm = confirm(`
-⚠️ Payment Gateway Issue
+      // Fallback alert
+      alert(`⚠️ Buy Now Error
 
-There's a temporary issue with the payment gateway.
-
-Product: ${data.title}
-Total: R${total}
-
-Would you like to:
-• OK = Place order (demo mode)
-• Cancel = Try again later
-      `);
-      
-      if (demoConfirm) {
-        alert(`✅ ORDER PLACED (DEMO MODE)
+There was an issue processing your request.
 
 Product: ${data.title}
 Quantity: ${qty}
-Total: R${total}
-Order #: BUY-${Date.now()}
 
-Thank you! We'll contact you to arrange payment and delivery.`);
-        
-        // Navigate back to marketplace
-        setTimeout(() => {
-          navigate('/marketplace');
-        }, 3000);
-      }
+Please try again or add to cart first.`);
     }
   };
 
