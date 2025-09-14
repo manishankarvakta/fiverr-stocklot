@@ -223,39 +223,33 @@ Please try again or contact support.`);
     console.log('🛒 PDP BUY NOW: Using proper checkout flow with fees');
     
     try {
-      // Add item to cart first
+      // Create cart item in the format expected by guest checkout
       const cartItem = {
         listing_id: data.id,
         title: data.title,
-        price: data.price,
+        price: parseFloat(data.price),
         qty: qty,
-        species: data.species_id,
-        product_type: data.product_type_id
+        species: data.species || 'livestock',
+        product_type: data.product_type || 'animal'
       };
       
-      // Add to localStorage cart for guest users
+      console.log('🛒 Adding item to localStorage cart:', cartItem);
+      
+      // Add to localStorage cart for guest checkout
       const existingCart = JSON.parse(localStorage.getItem('cart') || '[]');
-      const existingItemIndex = existingCart.findIndex(item => item.listing_id === data.id);
       
-      if (existingItemIndex >= 0) {
-        existingCart[existingItemIndex].qty = qty; // Set exact quantity
-      } else {
-        existingCart.push(cartItem);
-      }
+      // Remove any existing items with the same listing_id
+      const filteredCart = existingCart.filter(item => item.listing_id !== data.id);
       
-      localStorage.setItem('cart', JSON.stringify(existingCart));
+      // Add the new item
+      filteredCart.push(cartItem);
       
-      console.log('🛒 Item added to cart, redirecting to checkout with fees...');
+      localStorage.setItem('cart', JSON.stringify(filteredCart));
       
-      // Check if user is logged in
-      const token = localStorage.getItem('token');
-      if (token) {
-        // Authenticated user - go to regular checkout
-        navigate('/checkout');
-      } else {
-        // Guest user - go to guest checkout (which includes proper fee calculation)
-        navigate('/checkout/guest');
-      }
+      console.log('🛒 Updated cart in localStorage:', filteredCart);
+      
+      // Navigate to guest checkout
+      navigate('/checkout/guest');
       
       // Track analytics
       trackAnalytics('buy_now_click', { 
