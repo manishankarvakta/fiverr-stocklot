@@ -200,26 +200,19 @@ class BuyNowFeeTester:
         self.results["total_tests"] += 1
         
         try:
-            # Test direct fee calculation API
-            fee_data = {
-                "items": [
-                    {
-                        "price": 15.50,
-                        "quantity": 1
-                    }
-                ]
-            }
+            # Test direct fee calculation API using GET with query parameters
+            amount = 15.50
             
-            async with self.session.post(
-                f"{API_BASE}/fees/breakdown",
-                json=fee_data
+            async with self.session.get(
+                f"{API_BASE}/fees/breakdown?amount={amount}"
             ) as response:
                 
                 if response.status == 200:
                     data = await response.json()
+                    breakdown = data.get("breakdown", {})
                     
-                    processing_fee_rate = data.get("processing_fee_rate_pct", 0)
-                    processing_fee_minor = data.get("processing_fee_minor", 0)
+                    processing_fee_rate = breakdown.get("processing_fee_rate_pct", 0)
+                    processing_fee_minor = breakdown.get("processing_fee_minor", 0)
                     
                     print(f"✅ PASS: Fee breakdown API successful")
                     print(f"   Processing Fee Rate: {processing_fee_rate}%")
