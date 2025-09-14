@@ -347,7 +347,34 @@ class BuyNowFeeTester:
             listing_id = listing['id']
             price = float(listing.get('price_per_unit', listing.get('price', 15.50)))
             
-            # Test guest checkout creation
+            # First get a quote
+            quote_data = {
+                "items": [
+                    {
+                        "listing_id": listing_id,
+                        "title": listing['title'],
+                        "price": price,
+                        "qty": 1,
+                        "species": listing.get('species', 'test'),
+                        "product_type": listing.get('product_type', 'test')
+                    }
+                ],
+                "ship_to": {
+                    "lat": -26.2041,
+                    "lng": 28.0473,
+                    "address": "Johannesburg, South Africa"
+                }
+            }
+            
+            async with self.session.post(f"{API_BASE}/checkout/guest/quote", json=quote_data) as quote_response:
+                if quote_response.status != 200:
+                    print(f"❌ FAIL: Failed to get quote: {quote_response.status}")
+                    self.results["failed"] += 1
+                    return False
+                
+                quote_result = await quote_response.json()
+            
+            # Now test guest checkout creation with the quote
             checkout_data = {
                 "items": [
                     {
@@ -362,13 +389,14 @@ class BuyNowFeeTester:
                 "contact": {
                     "email": "test@example.com",
                     "phone": "+27123456789",
-                    "name": "Test Buyer"
+                    "full_name": "Test Buyer"
                 },
                 "ship_to": {
                     "lat": -26.2041,
                     "lng": 28.0473,
                     "address": "Johannesburg, South Africa"
-                }
+                },
+                "quote": quote_result  # Include the quote as required
             }
             
             async with self.session.post(
