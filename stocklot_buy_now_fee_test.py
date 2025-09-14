@@ -445,13 +445,16 @@ class BuyNowFeeTester:
         self.results["total_tests"] += 1
         
         try:
-            # Test authenticated checkout preview
+            # Test authenticated checkout preview with correct structure
             preview_data = {
-                "items": [
+                "cart": [
                     {
-                        "listing_id": self.test_listings[0]['id'] if self.test_listings else "test-id",
-                        "quantity": 1,
-                        "price": 25.00
+                        "seller_id": "test-seller-id",
+                        "merch_subtotal_minor": 2500,  # R25.00 in cents
+                        "delivery_minor": 0,
+                        "abattoir_minor": 0,
+                        "species": "poultry",
+                        "export": False
                     }
                 ]
             }
@@ -464,16 +467,17 @@ class BuyNowFeeTester:
                 
                 if response.status == 200:
                     data = await response.json()
+                    preview = data.get("preview", {})
                     
-                    buyer_processing_fee = data.get("buyer_processing_fee", 0)
-                    expected_fee = round(25.00 * 0.015, 2)  # 1.5% of R25.00
+                    buyer_processing_fee_minor = preview.get("buyer_processing_fee_minor", 0)
+                    expected_fee_minor = round(25.00 * 0.015 * 100)  # 1.5% of R25.00 in cents
                     
                     print(f"✅ PASS: Checkout preview successful")
                     print(f"   Item Price: R25.00")
-                    print(f"   Buyer Processing Fee: R{buyer_processing_fee}")
-                    print(f"   Expected Fee (1.5%): R{expected_fee}")
+                    print(f"   Buyer Processing Fee: {buyer_processing_fee_minor} cents")
+                    print(f"   Expected Fee (1.5%): {expected_fee_minor} cents")
                     
-                    if abs(buyer_processing_fee - expected_fee) < 0.01:
+                    if abs(buyer_processing_fee_minor - expected_fee_minor) <= 1:  # Allow 1 cent rounding difference
                         print(f"   ✅ Processing fee calculation correct!")
                     else:
                         print(f"   ⚠️  Processing fee calculation may be off")
