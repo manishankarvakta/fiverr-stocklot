@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { Button } from '../ui/button';
+import { NotificationService, handleAPIError } from '../../services/api';
 import { Badge } from '../ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
@@ -23,20 +24,12 @@ const NotificationBell = () => {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/notifications?limit=20`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unread_count || 0);
-      }
+      const notificationData = await NotificationService.getNotifications(20);
+      setNotifications(notificationData.notifications || []);
+      setUnreadCount(notificationData.unread_count || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      handleAPIError(error, false);
     } finally {
       setLoading(false);
     }
@@ -44,50 +37,33 @@ const NotificationBell = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/notifications/mark-read`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ notification_id: notificationId })
-      });
-      
-      if (response.ok) {
-        // Update local state
-        setNotifications(prev => 
-          prev.map(n => 
-            n.id === notificationId 
-              ? { ...n, read_at: new Date().toISOString() }
-              : n
-          )
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
+      await NotificationService.markAsRead([notificationId]);
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notificationId 
+            ? { ...n, read_at: new Date().toISOString() }
+            : n
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      handleAPIError(error, false);
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/notifications/mark-all-read`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        // Update local state
-        setNotifications(prev => 
-          prev.map(n => ({ ...n, read_at: new Date().toISOString() }))
-        );
-        setUnreadCount(0);
-      }
+      await NotificationService.markAllAsRead();
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read_at: new Date().toISOString() }))
+      );
+      setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      handleAPIError(error, false);
     }
   };
 

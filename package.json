@@ -4,6 +4,9 @@
   "description": "StockLot Livestock Marketplace Mobile App",
   "main": "index.js",
   "scripts": {
+    "scan:frontend": "node scripts/scan-frontend.js",
+    "comm-check": "npm run scan:frontend && node scripts/comm-check.js",
+    "comm-audit": "npm run comm-check",
     "build": "cd frontend && npm run build",
     "sync": "cap sync",
     "open:ios": "cap open ios",
@@ -11,7 +14,8 @@
     "run:ios": "cap run ios",
     "run:android": "cap run android",
     "copy": "cap copy",
-    "update": "cap update"
+    "update": "cap update",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
     "@capacitor/cli": "^5.0.0",
@@ -20,8 +24,10 @@
   "dependencies": {
     "@capacitor/android": "^5.0.0",
     "@capacitor/app": "^5.0.0",
+    "@capacitor/camera": "^5.0.0",
     "@capacitor/core": "^5.0.0",
     "@capacitor/device": "^5.0.0",
+    "@capacitor/filesystem": "^5.0.0",
     "@capacitor/geolocation": "^5.0.0",
     "@capacitor/haptics": "^5.0.0",
     "@capacitor/ios": "^5.0.0",
@@ -30,8 +36,11 @@
     "@capacitor/network": "^5.0.0",
     "@capacitor/preferences": "^5.0.0",
     "@capacitor/push-notifications": "^5.0.0",
+    "@capacitor/share": "^5.0.0",
     "@capacitor/splash-screen": "^5.0.0",
     "@capacitor/status-bar": "^5.0.0",
-    "@capacitor/toast": "^5.0.0"
+    "@capacitor/toast": "^5.0.0",
+    "glob": "^11.0.3",
+    "node-fetch": "^3.3.2"
   }
 }

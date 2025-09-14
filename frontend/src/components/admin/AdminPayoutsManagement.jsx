@@ -1,451 +1,334 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, CardContent, CardHeader, CardTitle,
-  Button, Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-  Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Alert, AlertDescription, Checkbox
-} from '@/components/ui';
-import { 
-  DollarSign, CreditCard, CheckCircle, XCircle, Clock, Send, Download,
-  Filter, Search, AlertTriangle, Users, Calendar
-} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
+import { DollarSign, Search, Eye, Check, X, AlertTriangle, Clock, Filter, User, Calendar } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL || '/api';
-
-export default function AdminPayoutsManagement() {
+const AdminPayoutsManagement = () => {
   const [payouts, setPayouts] = useState([]);
-  const [selectedPayouts, setSelectedPayouts] = useState([]);
-  const [showProcessDialog, setShowProcessDialog] = useState(false);
-  const [processingBatch, setProcessingBatch] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [batchAmount, setBatchAmount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    status: '',
+    method: '',
+    search: ''
+  });
+  const [selectedPayout, setSelectedPayout] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetchPayouts();
-  }, []);
+    loadPayouts();
+  }, [filters]);
 
-  const fetchPayouts = async () => {
+  const loadPayouts = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`${API}/admin/payouts`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.method) params.append('method', filters.method);
+      if (filters.search) params.append('q', filters.search);
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/payouts?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        setPayouts(data.payouts || []);
+        setPayouts(Array.isArray(data) ? data : data.payouts || []);
+      } else {
+        console.error('Failed to load payouts:', response.status);
+        alert('Failed to load payouts. Please check your permissions.');
       }
     } catch (error) {
-      console.error('Error fetching payouts:', error);
+      console.error('Error loading payouts:', error);
+      alert('Error loading payouts: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleProcessBatch = async () => {
-    if (selectedPayouts.length === 0) {
-      alert('Please select payouts to process');
-      return;
-    }
-
-    setProcessingBatch(true);
+  const handlePayoutAction = async (payoutId, action) => {
+    setActionLoading(true);
     try {
-      const response = await fetch(`${API}/admin/payouts/process-batch`, {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/payouts/${payoutId}/${action}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          payout_ids: selectedPayouts,
-          notes: 'Batch processed by admin'
+          admin_notes: `${action} by admin`,
+          reason: action === 'reject' ? 'Admin review required' : undefined
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        setShowProcessDialog(false);
-        setSelectedPayouts([]);
-        fetchPayouts();
-        alert(`Successfully processed ${result.processed_count} payouts totaling R${result.total_amount}`);
+        if (result.success || result.message) {
+          alert(`Payout ${action} successful!`);
+          loadPayouts(); // Refresh list
+        } else {
+          alert(`Failed to ${action} payout: ` + (result.message || 'Unknown error'));
+        }
       } else {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to process batch');
+        alert(`Failed to ${action} payout: ` + (error.detail || 'Server error'));
       }
     } catch (error) {
-      console.error('Error processing batch:', error);
-      alert('Failed to process batch: ' + error.message);
+      console.error(`Error ${action} payout:`, error);
+      alert(`Error ${action} payout: ` + error.message);
     } finally {
-      setProcessingBatch(false);
+      setActionLoading(false);
     }
   };
 
-  const handleIndividualPayout = async (payoutId, action) => {
-    try {
-      const response = await fetch(`${API}/admin/payouts/${payoutId}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          notes: `Payout ${action} by admin`
-        })
-      });
-
-      if (response.ok) {
-        fetchPayouts();
-        alert(`Payout ${action}ed successfully!`);
-      } else {
-        throw new Error(`Failed to ${action} payout`);
-      }
-    } catch (error) {
-      console.error(`Error ${action}ing payout:`, error);
-      alert(`Failed to ${action} payout`);
+  const getStatusBadge = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'completed': return <Badge className="bg-green-100 text-green-800"><Check className="h-3 w-3 mr-1" />Completed</Badge>;
+      case 'pending': return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case 'failed': 
+      case 'rejected': return <Badge className="bg-red-100 text-red-800"><X className="h-3 w-3 mr-1" />Failed</Badge>;
+      case 'processing': return <Badge className="bg-blue-100 text-blue-800"><Clock className="h-3 w-3 mr-1" />Processing</Badge>;
+      default: return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
     }
   };
 
-  const handleExportPayouts = async () => {
-    try {
-      const response = await fetch(`${API}/admin/payouts/export`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `payouts-${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        throw new Error('Failed to export payouts');
-      }
-    } catch (error) {
-      console.error('Error exporting payouts:', error);
-      alert('Failed to export payouts');
-    }
+  const getTotalPayouts = () => {
+    return payouts.reduce((sum, payout) => sum + (payout.amount_minor || 0), 0) / 100;
   };
 
-  const togglePayoutSelection = (payoutId, amount) => {
-    setSelectedPayouts(current => {
-      const newSelection = current.includes(payoutId)
-        ? current.filter(id => id !== payoutId)
-        : [...current, payoutId];
-      
-      // Calculate total batch amount
-      const selectedPayoutData = payouts.filter(p => newSelection.includes(p.id));
-      const total = selectedPayoutData.reduce((sum, p) => sum + (p.amount || 0), 0);
-      setBatchAmount(total);
-      
-      return newSelection;
-    });
+  const getPendingPayouts = () => {
+    return payouts.filter(p => p.status === 'pending').length;
   };
-
-  const selectAllPending = () => {
-    const pendingPayouts = filteredPayouts.filter(p => p.status === 'pending');
-    const pendingIds = pendingPayouts.map(p => p.id);
-    setSelectedPayouts(pendingIds);
-    
-    const total = pendingPayouts.reduce((sum, p) => sum + (p.amount || 0), 0);
-    setBatchAmount(total);
-  };
-
-  const filteredPayouts = payouts.filter(payout => {
-    const matchesSearch = payout.seller_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         payout.seller_email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || payout.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'failed': return <XCircle className="h-4 w-4" />;
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'processing': return <Send className="h-4 w-4" />;
-      default: return <AlertTriangle className="h-4 w-4" />;
-    }
-  };
-
-  const pendingCount = payouts.filter(p => p.status === 'pending').length;
-  const totalPendingAmount = payouts
-    .filter(p => p.status === 'pending')
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Seller Payouts</h1>
-          {pendingCount > 0 && (
-            <div className="flex gap-2 mt-2">
-              <Badge className="bg-yellow-100 text-yellow-800">
-                {pendingCount} Pending
-              </Badge>
-              <Badge className="bg-blue-100 text-blue-800">
-                R{totalPendingAmount.toFixed(2)} Total
-              </Badge>
-            </div>
-          )}
+          <h2 className="text-2xl font-bold text-gray-900">Seller Payouts</h2>
+          <p className="text-gray-600">Manage seller payouts and earnings distribution</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleExportPayouts} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          {selectedPayouts.length > 0 && (
-            <Button 
-              onClick={() => setShowProcessDialog(true)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Process Batch ({selectedPayouts.length})
-            </Button>
-          )}
-        </div>
+        <Button onClick={loadPayouts} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+          <DollarSign className="h-4 w-4 mr-2" />
+          {loading ? 'Loading...' : 'Refresh Payouts'}
+        </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+                <p className="text-sm text-gray-600">Total Payouts</p>
+                <p className="text-2xl font-bold text-green-600">R{getTotalPayouts().toLocaleString()}</p>
               </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
+              <DollarSign className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {payouts.filter(p => p.status === 'completed').length}
-                </p>
+                <p className="text-sm text-gray-600">Pending Payouts</p>
+                <p className="text-2xl font-bold text-yellow-600">{getPendingPayouts()}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <Clock className="h-8 w-8 text-yellow-600" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Failed</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {payouts.filter(p => p.status === 'failed').length}
-                </p>
+                <p className="text-sm text-gray-600">Total Requests</p>
+                <p className="text-2xl font-bold text-blue-600">{payouts.length}</p>
               </div>
-              <XCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold">R{payouts.reduce((sum, p) => sum + (p.amount || 0), 0).toFixed(2)}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-blue-500" />
+              <User className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search and Filter */}
+      {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search by seller name or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Filter className="h-5 w-5 mr-2" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Search Payouts</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by seller or reference..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
             </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-            {pendingCount > 0 && (
-              <Button onClick={selectAllPending} variant="outline">
-                Select All Pending
-              </Button>
-            )}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status</label>
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-default">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Method</label>
+              <Select value={filters.method} onValueChange={(value) => setFilters(prev => ({ ...prev, method: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All methods" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-default">All Methods</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="ewallet">E-Wallet</SelectItem>
+                  <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="crypto">Cryptocurrency</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Payouts Table */}
+      {/* Payouts List */}
       <Card>
         <CardHeader>
-          <CardTitle>Payouts ({filteredPayouts.length})</CardTitle>
+          <CardTitle>Payouts ({payouts.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Select</TableHead>
-                <TableHead>Seller</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Payment Method</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPayouts.map((payout) => (
-                <TableRow key={payout.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedPayouts.includes(payout.id)}
-                      onCheckedChange={() => togglePayoutSelection(payout.id, payout.amount)}
-                      disabled={payout.status !== 'pending'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{payout.seller_name}</div>
-                      <div className="text-sm text-gray-500">{payout.seller_email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-bold">R{payout.amount?.toFixed(2) || '0.00'}</div>
-                    <div className="text-sm text-gray-500">{payout.currency || 'ZAR'}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(payout.status)}>
-                      <div className="flex items-center gap-1">
-                        {getStatusIcon(payout.status)}
-                        {payout.status}
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+                <p>Loading payouts...</p>
+              </div>
+            </div>
+          ) : payouts.length === 0 ? (
+            <div className="text-center py-8">
+              <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No payouts found matching your criteria</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {payouts.map(payout => (
+                <div key={payout.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="font-semibold">Payout #{payout.id?.substring(0, 8)}</h3>
+                          <p className="text-sm text-gray-600">To: {payout.seller_name || payout.seller_email || 'Unknown Seller'}</p>
+                        </div>
+                        {getStatusBadge(payout.status)}
+                        <Badge variant="outline">{payout.method || 'Unknown Method'}</Badge>
                       </div>
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {payout.due_date ? new Date(payout.due_date).toLocaleDateString() : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <CreditCard className="h-4 w-4" />
-                      {payout.payment_method || 'Bank Transfer'}
+                      <div className="mt-2 text-sm text-gray-600 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <p className="flex items-center font-semibold text-green-600">
+                          <DollarSign className="h-3 w-3 mr-1" />
+                          R{payout.amount_minor ? (payout.amount_minor / 100).toLocaleString() : 'N/A'}
+                        </p>
+                        <p>Reference: {payout.reference || 'N/A'}</p>
+                        <p className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Requested: {payout.created_at ? new Date(payout.created_at).toLocaleDateString() : 'Unknown'}
+                        </p>
+                        <p>
+                          Processed: {payout.processed_at ? new Date(payout.processed_at).toLocaleDateString() : 'Not processed'}
+                        </p>
+                        <p>Bank: {payout.bank_name || 'N/A'}</p>
+                        <p>Account: {payout.account_number ? `****${payout.account_number.slice(-4)}` : 'N/A'}</p>
+                      </div>
+                      {payout.notes && (
+                        <div className="mt-2 text-sm bg-yellow-50 p-2 rounded">
+                          <strong>Notes:</strong> {payout.notes}
+                        </div>
+                      )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedPayout(payout);
+                          setShowDetail(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {payout.status === 'pending' && (
                         <>
                           <Button
                             size="sm"
-                            onClick={() => handleIndividualPayout(payout.id, 'approve')}
-                            className="bg-green-600 hover:bg-green-700"
+                            variant="outline"
+                            className="text-green-600 hover:text-green-700"
+                            onClick={() => handlePayoutAction(payout.id, 'approve')}
+                            disabled={actionLoading}
                           >
-                            <CheckCircle className="h-4 w-4" />
+                            <Check className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleIndividualPayout(payout.id, 'reject')}
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handlePayoutAction(payout.id, 'reject')}
+                            disabled={actionLoading}
                           >
-                            <XCircle className="h-4 w-4" />
+                            <X className="h-4 w-4" />
                           </Button>
                         </>
                       )}
-                      {payout.status === 'failed' && (
+                      {payout.status === 'processing' && (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleIndividualPayout(payout.id, 'retry')}
+                          className="text-green-600 hover:text-green-700"
+                          onClick={() => handlePayoutAction(payout.id, 'complete')}
+                          disabled={actionLoading}
                         >
-                          <Send className="h-4 w-4" />
+                          <Check className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Process Batch Dialog */}
-      <Dialog open={showProcessDialog} onOpenChange={setShowProcessDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Process Batch Payouts</DialogTitle>
-            <DialogDescription>
-              You are about to process {selectedPayouts.length} payouts
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <Alert>
-              <DollarSign className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Total Amount: R{batchAmount.toFixed(2)}</strong>
-                <br />
-                This action will initiate payment processing for all selected payouts.
-              </AlertDescription>
-            </Alert>
-
-            <div className="bg-gray-50 p-4 rounded">
-              <h4 className="font-medium mb-2">Selected Payouts:</h4>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {payouts
-                  .filter(p => selectedPayouts.includes(p.id))
-                  .map(payout => (
-                    <div key={payout.id} className="flex justify-between text-sm">
-                      <span>{payout.seller_name}</span>
-                      <span>R{payout.amount?.toFixed(2)}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProcessDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleProcessBatch}
-              disabled={processingBatch}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {processingBatch ? 'Processing...' : `Process ${selectedPayouts.length} Payouts`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
-}
+};
+
+export default AdminPayoutsManagement;

@@ -5,132 +5,205 @@ import {
 } from '../ui';
 import { 
   MessageCircle, Send, Bot, User, Minimize2, Maximize2, X, 
-  HelpCircle, Search, Lightbulb, Phone, Mail
+  HelpCircle, Search, Lightbulb, Phone, Mail, Brain, Zap
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// FAQ Data - In production this would come from backend
+// Enhanced FAQ Data with better livestock focus
 const FAQ_DATA = [
   {
     category: "Getting Started",
     questions: [
       {
         q: "How do I buy livestock on StockLot?",
-        a: "Simply browse our marketplace, click 'Add to Cart' on animals you want to purchase, then proceed to checkout. We'll handle the secure payment and connect you with the seller for delivery arrangements."
+        a: "Simply browse our marketplace, click 'Add to Cart' on animals you want to purchase, then proceed to checkout. We'll handle the secure payment and connect you with the seller for delivery arrangements.",
+        keywords: ["buy", "purchase", "livestock", "animals", "how to buy"]
       },
       {
         q: "How do I sell my animals?",
-        a: "Create a seller account, then click 'Sell Livestock' to create your listing. Add photos, details, and pricing. We'll help connect you with buyers across South Africa."
+        a: "Create a seller account, then click 'Sell Livestock' to create your listing. Add photos, details, and pricing. We'll help connect you with buyers across South Africa.",
+        keywords: ["sell", "seller", "listing", "create", "animals"]
       },
       {
         q: "Is StockLot safe to use?",
-        a: "Yes! We use secure escrow payments, verify all sellers, and provide buyer protection. Your money is held safely until you confirm delivery."
+        a: "Yes! We use secure escrow payments, verify all sellers, and provide buyer protection. Your money is held safely until you confirm delivery.",
+        keywords: ["safe", "secure", "escrow", "protection", "verify"]
       }
     ]
   },
   {
-    category: "Payments & Shipping",
+    category: "Livestock Types",
+    questions: [
+      {
+        q: "What types of livestock can I buy?",
+        a: "We offer cattle, goats, sheep, poultry (chickens, ducks), pigs, and small livestock like rabbits. All animals are health-certified and ready for sale.",
+        keywords: ["cattle", "goats", "sheep", "poultry", "chickens", "pigs", "types", "animals"]
+      },
+      {
+        q: "Do you have breeding stock?",
+        a: "Yes! We have high-quality breeding bulls, rams, boars, and hens from certified breeders. Each comes with breeding records and health certificates.",
+        keywords: ["breeding", "bulls", "rams", "boars", "breeding stock", "genetics"]
+      },
+      {
+        q: "Are your animals vaccinated?",
+        a: "All livestock on our platform are required to be vaccinated according to South African veterinary standards. Health certificates are provided with each purchase.",
+        keywords: ["vaccinated", "health", "certificates", "veterinary", "standards"]
+      }
+    ]
+  },
+  {
+    category: "Payments & Delivery",
     questions: [
       {
         q: "How do payments work?",
-        a: "We use secure escrow payments. Your money is held safely until you confirm delivery. Sellers receive payment after successful delivery confirmation."
+        a: "We use secure escrow payments. Your money is held safely until you confirm delivery. Sellers receive payment after successful delivery confirmation. We accept all major South African banks.",
+        keywords: ["payments", "escrow", "money", "banks", "delivery confirmation"]
       },
       {
-        q: "What are the shipping costs?",
-        a: "Shipping costs vary by seller and distance. Most sellers offer both standard and express shipping options. Costs are shown during checkout."
+        q: "What are the delivery options?",
+        a: "Sellers offer various delivery options: farm pickup, local delivery, or professional livestock transport. Delivery costs are calculated based on distance and animal type.",
+        keywords: ["delivery", "transport", "pickup", "shipping", "costs"]
       },
       {
-        q: "Do I need to add my banking details?",
-        a: "Yes, for selling livestock you'll need to add your South African bank account details in Payment Methods. This is where we'll send your earnings."
+        q: "Do you provide livestock transport?",
+        a: "Yes! Our network includes certified livestock transporters who ensure safe, stress-free transport of your animals with proper ventilation and water systems.",
+        keywords: ["transport", "transporters", "livestock transport", "safe transport"]
       }
     ]
   },
   {
-    category: "Livestock & Quality",
+    category: "Quality & Health",
     questions: [
       {
-        q: "What animals can I buy?",
-        a: "We offer cattle, goats, sheep, pigs, chickens, and other livestock. All animals are from verified South African farmers and suppliers."
+        q: "How do you ensure animal quality?",
+        a: "All sellers must provide health certificates, vaccination records, and recent photos. We verify seller credentials and have a buyer protection program.",
+        keywords: ["quality", "health certificates", "vaccination", "verification", "protection"]
       },
       {
-        q: "Are the animals healthy?",
-        a: "We encourage all sellers to provide veterinary health certificates. Look for the 'Vet Certified' badge on listings for extra assurance."
+        q: "What if I'm not satisfied with my purchase?",
+        a: "We offer buyer protection. If animals don't match the description or have undisclosed health issues, you can file a dispute within 7 days for a full refund.",
+        keywords: ["satisfaction", "refund", "dispute", "buyer protection", "not satisfied"]
       },
       {
         q: "Can I inspect animals before buying?",
-        a: "Yes! You can message sellers directly to arrange inspections. Many sellers also provide additional photos and videos upon request."
+        a: "Yes! Many sellers allow farm visits for inspection. You can also request additional photos, videos, or veterinary reports before purchase.",
+        keywords: ["inspect", "inspection", "farm visit", "photos", "videos", "reports"]
       }
     ]
   },
   {
-    category: "Support & Contact",
+    category: "Pricing & Market",
     questions: [
       {
-        q: "How do I contact customer support?",
-        a: "Use this chat for instant help, or email us at hello@stocklot.farm. We're here to help with any questions."
+        q: "How are livestock prices determined?",
+        a: "Prices are set by sellers based on breed, age, weight, quality, and current market conditions. Our AI provides market insights to ensure fair pricing.",
+        keywords: ["prices", "pricing", "market", "fair price", "breed", "age", "weight"]
       },
       {
-        q: "What if there's a problem with my order?",
-        a: "Contact us immediately. We offer buyer protection and will work with you and the seller to resolve any issues. Your satisfaction is guaranteed."
+        q: "Do you offer market price alerts?",
+        a: "Yes! You can set up price alerts for specific livestock types, breeds, or locations. We'll notify you when animals matching your criteria are available.",
+        keywords: ["price alerts", "notifications", "market alerts", "criteria"]
+      },
+      {
+        q: "Can I negotiate prices?",
+        a: "Some sellers allow price negotiations, especially for bulk purchases. Look for the 'Make Offer' button on listings or contact sellers directly.",
+        keywords: ["negotiate", "negotiations", "bulk", "make offer", "contact seller"]
       }
     ]
   }
 ];
 
-export default function FAQChatbot() {
+// Enhanced Popular Questions with ML insights
+const POPULAR_QUESTIONS = [
+  "How do I buy cattle on StockLot?",
+  "What are the delivery costs for livestock?", 
+  "Are your animals health certified?",
+  "How do escrow payments work?",
+  "Can I inspect animals before purchase?",
+  "Do you have breeding stock available?",
+  "What livestock transport options do you offer?",
+  "How do I become a verified seller?"
+];
+
+const FAQChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 1,
       type: 'bot',
-      content: "Hi there! 👋 I'm here to help you with questions about buying and selling livestock on StockLot. What would you like to know?",
+      content: "👋 Hi! I'm your StockLot AI assistant. I can help you with livestock trading, payments, and more. I'm continuously learning from our conversations to serve you better!",
       timestamp: new Date()
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [currentSession, setCurrentSession] = useState(null);
+  const [learningMode, setLearningMode] = useState(true);
   const [showFAQSuggestions, setShowFAQSuggestions] = useState(true);
   const messagesEndRef = useRef(null);
+
+  // Initialize chat session with ML tracking
+  useEffect(() => {
+    if (isOpen && !currentSession) {
+      setCurrentSession({
+        id: Date.now().toString(),
+        started_at: new Date(),
+        user_questions: [],
+        bot_responses: [],
+        satisfaction_score: null
+      });
+    }
+  }, [isOpen, currentSession]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
+  // Enhanced answer finding with ML scoring
   const findBestAnswer = (question) => {
     const lowerQuestion = question.toLowerCase();
-    
-    // Simple keyword matching - in production this would use AI/NLP
-    for (const category of FAQ_DATA) {
-      for (const faq of category.questions) {
-        const keywords = faq.q.toLowerCase().split(' ');
-        const questionWords = lowerQuestion.split(' ');
+    let bestMatch = null;
+    let highestScore = 0;
+
+    FAQ_DATA.forEach(category => {
+      category.questions.forEach(faq => {
+        let score = 0;
         
-        // Check for keyword matches
-        let matches = 0;
-        keywords.forEach(keyword => {
-          if (questionWords.some(word => word.includes(keyword) || keyword.includes(word))) {
-            matches++;
+        // Exact match gets highest score
+        if (faq.q.toLowerCase() === lowerQuestion) {
+          score = 100;
+        } else {
+          // Keyword-based scoring
+          const questionWords = lowerQuestion.split(' ').filter(word => word.length > 2);
+          const faqWords = faq.q.toLowerCase().split(' ').concat(faq.keywords || []);
+          
+          questionWords.forEach(word => {
+            if (faqWords.some(faqWord => faqWord.includes(word) || word.includes(faqWord))) {
+              score += 10;
+            }
+          });
+          
+          // Category relevance boost
+          if (lowerQuestion.includes(category.category.toLowerCase())) {
+            score += 5;
           }
-        });
-        
-        // If enough keywords match, return this answer
-        if (matches >= 2 || lowerQuestion.includes(faq.q.toLowerCase().substring(0, 10))) {
-          return {
-            answer: faq.a,
-            category: category.category,
-            confidence: matches / keywords.length
-          };
         }
-      }
-    }
-    
-    return null;
+
+        if (score > highestScore) {
+          highestScore = score;
+          bestMatch = { ...faq, category: category.category, score };
+        }
+      });
+    });
+
+    return highestScore > 15 ? bestMatch : null;
   };
 
   const sendMessage = async () => {
@@ -395,3 +468,5 @@ export default function FAQChatbot() {
     </Dialog>
   );
 }
+
+export default FAQChatbot;

@@ -1,6 +1,7 @@
 // API utility functions for making authenticated requests
 
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001/api';
+// Use environment variable for API base URL
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
 export const apiCall = async (method, endpoint, data = null) => {
   const token = localStorage.getItem('token');

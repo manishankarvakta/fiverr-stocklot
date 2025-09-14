@@ -6,7 +6,7 @@ export const useSocialAuth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const authenticateWithSocial = async (provider, token, role = null, recaptchaToken = null) => {
+  const authenticateWithSocial = async (provider, token, role = null) => {
     setLoading(true);
     setError(null);
 
@@ -16,11 +16,6 @@ export const useSocialAuth = () => {
         token,
         role,
       };
-
-      // Add reCAPTCHA token if available
-      if (recaptchaToken) {
-        requestBody.recaptcha_token = recaptchaToken;
-      }
 
       const response = await fetch(`${BACKEND_URL}/api/auth/social`, {
         method: 'POST',

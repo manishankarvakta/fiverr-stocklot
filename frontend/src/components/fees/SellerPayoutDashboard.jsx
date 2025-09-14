@@ -259,7 +259,7 @@ const SellerPayoutDashboard = ({ currentUser, sellerId }) => {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
           >
-            <option value="">All Status</option>
+            <option value="all-default">All Status</option>
             <option value="PENDING">Pending</option>
             <option value="SENT">Sent</option>
             <option value="FAILED">Failed</option>

@@ -8,7 +8,6 @@ import {
   LogIn, UserPlus, AlertCircle, Mail, Lock, User, Phone
 } from 'lucide-react';
 import SocialLoginButtons from './SocialLoginButtons';
-import recaptchaService from '../../services/recaptchaService';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -39,18 +38,10 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
     setError(null);
 
     try {
-      // Execute reCAPTCHA before login
-      const recaptchaToken = await recaptchaService.executeLogin();
-      
       const requestBody = {
         email: loginData.email,
         password: loginData.password
       };
-
-      // Add reCAPTCHA token if available
-      if (recaptchaToken) {
-        requestBody.recaptcha_token = recaptchaToken;
-      }
 
       const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: 'POST',
@@ -109,20 +100,12 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
         throw new Error('Password must be at least 6 characters');
       }
 
-      // Execute reCAPTCHA before registration
-      const recaptchaToken = await recaptchaService.executeRegister();
-      
       const requestBody = {
         email: registerData.email,
         password: registerData.password,
         full_name: registerData.full_name,
         role: registerData.role
       };
-
-      // Add reCAPTCHA token if available
-      if (recaptchaToken) {
-        requestBody.recaptcha_token = recaptchaToken;
-      }
 
       const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',

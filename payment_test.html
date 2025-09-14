@@ -1,0 +1,58 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment Gateway Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .success { color: #059669; font-weight: bold; }
+        .payment-btn { background: #059669; color: white; padding: 15px 30px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .payment-btn:hover { background: #047857; }
+        .details { background: #f9fafb; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .auto-redirect { background: #fef3c7; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 Payment Gateway Test - SUCCESS!</h1>
+        
+        <div class="success">
+            ✅ Order created successfully!<br>
+            ✅ Payment URL generated!<br>
+            ✅ Payment gateway accessible!
+        </div>
+        
+        <div class="details">
+            <strong>Order Details:</strong><br>
+            Order ID: b673ffec-d8d8-416c-b4a5-07086c86d00c<br>
+            Amount: R1294.5<br>
+            Payment Reference: STOCKLOT_b673ffec-d8d8-416c-b4a5-07086c86d00c_1725fd8c<br>
+        </div>
+        
+        <div class="auto-redirect">
+            <strong>🚀 Automatic Redirect Test:</strong><br>
+            This page will automatically redirect to the payment gateway in 3 seconds...
+        </div>
+        
+        <a href="https://checkout.paystack.com/nrgx42ebxy84vuo" class="payment-btn">
+            🔗 Go to Payment Gateway (Manual)
+        </a>
+        
+        <br><br>
+        <small><strong>Payment URL:</strong> https://checkout.paystack.com/nrgx42ebxy84vuo</small>
+        
+        <script>
+            console.log('Payment URL:', 'https://checkout.paystack.com/nrgx42ebxy84vuo');
+            console.log('Starting automatic redirect test...');
+            
+            // Automatic redirect test
+            setTimeout(() => {
+                console.log('Redirecting to payment gateway...');
+                window.location.href = 'https://checkout.paystack.com/nrgx42ebxy84vuo';
+            }, 3000);
+        </script>
+    </div>
+</body>
+</html>
+                

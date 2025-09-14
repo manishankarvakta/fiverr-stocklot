@@ -401,6 +401,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
   const [showDetail, setShowDetail] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentFilters, setCurrentFilters] = useState('');
   
@@ -551,13 +552,12 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
           {/* Filter Button */}
           <div className="flex gap-2">
             <Button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               variant="outline"
-              onClick={() => setShowFilters(true)}
-              className="min-w-[120px] justify-center"
-              disabled
+              className="flex items-center gap-2"
             >
               <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters (Coming Soon)
+              Advanced Filters
             </Button>
             <Button
               onClick={handleSearch}

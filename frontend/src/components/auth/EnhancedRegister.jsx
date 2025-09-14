@@ -156,49 +156,64 @@ export default function EnhancedRegister() {
       const userResponse = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for session
         body: JSON.stringify({
           full_name: formData.full_name,
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
-          user_type: formData.user_type
+          role: formData.user_type // Use 'role' instead of 'user_type'
         })
       });
 
       const userData = await userResponse.json();
 
       if (userResponse.ok) {
-        // Step 2: If organization account, create organization
-        if (accountType === 'organization' && userData.access_token) {
-          const orgResponse = await fetch('/api/orgs', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${userData.access_token}`
-            },
-            body: JSON.stringify({
-              name: formData.org_name,
-              kind: formData.org_kind,
-              handle: formData.org_handle,
-              phone: formData.org_phone,
-              email: formData.org_email,
-              website: formData.org_website
-            })
-          });
+        // Step 2: Automatically log in the user after registration
+        const loginResponse = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // Include cookies for session
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password
+          })
+        });
 
-          if (orgResponse.ok) {
-            // Store both user and organization info
-            localStorage.setItem('token', userData.access_token);
-            localStorage.setItem('currentContext', 'organization');
-            navigate('/dashboard');
+        if (loginResponse.ok) {
+          const loginData = await loginResponse.json();
+          
+          // Step 3: If organization account, create organization
+          if (accountType === 'organization') {
+            const orgResponse = await fetch('/api/orgs', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              credentials: 'include', // Use cookie auth instead of token
+              body: JSON.stringify({
+                name: formData.org_name,
+                kind: formData.org_kind,
+                handle: formData.org_handle,
+                phone: formData.org_phone,
+                email: formData.org_email,
+                website: formData.org_website
+              })
+            });
+
+            if (orgResponse.ok) {
+              navigate('/dashboard');
+            } else {
+              setError('User created but organization setup failed. You can create it later.');
+              setTimeout(() => navigate('/dashboard'), 3000);
+            }
           } else {
-            setError('User created but organization setup failed. You can create it later.');
-            setTimeout(() => navigate('/dashboard'), 3000);
+            // Individual account - go to dashboard
+            navigate('/dashboard');
           }
         } else {
-          // Individual account - go to dashboard
-          localStorage.setItem('token', userData.access_token);
-          navigate('/dashboard');
+          setError('Registration successful but auto-login failed. Please login manually.');
+          setTimeout(() => navigate('/login'), 3000);
         }
       } else {
         setError(userData.detail || 'Registration failed');

@@ -9,9 +9,11 @@ import {
   DollarSign, AlertCircle, CheckCircle, RefreshCw, Lock,
   FileText, MessageSquare, Phone, Info
 } from 'lucide-react';
+import FeeBreakdown from './FeeBreakdown';
 
 const CheckoutFlow = ({ orderGroupId, onComplete, onCancel }) => {
   const [orderGroup, setOrderGroup] = useState(null);
+  const [checkoutPreview, setCheckoutPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -66,11 +68,55 @@ const CheckoutFlow = ({ orderGroupId, onComplete, onCancel }) => {
 
       const data = await res.json();
       setOrderGroup(data);
+      
+      // Load checkout preview for fee breakdown
+      await loadCheckoutPreview(data);
+      
     } catch (error) {
       console.error('Error loading order:', error);
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCheckoutPreview = async (orderData) => {
+    try {
+      // Convert orderData to cart format for preview API
+      const cartData = {
+        cart: [
+          {
+            seller_id: "seller-" + orderGroupId,
+            merch_subtotal_minor: Math.round((orderData.totals?.merchandise_total || 0) * 100),
+            delivery_minor: Math.round((orderData.totals?.delivery_cost || 0) * 100),
+            abattoir_minor: Math.round((orderData.totals?.abattoir_cost || 0) * 100),
+            species: "cattle", // Default for now
+            export: false
+          }
+        ],
+        currency: "ZAR"
+      };
+
+      const res = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/checkout/preview`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(cartData)
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setCheckoutPreview(data.preview);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading checkout preview:', error);
+      // Don't fail the entire checkout if preview fails
     }
   };
 
@@ -433,50 +479,66 @@ const CheckoutFlow = ({ orderGroupId, onComplete, onCancel }) => {
           </Card>
         </div>
 
-        {/* Payment Summary */}
+        {/* Payment Summary with Fee Breakdown */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Payment Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span>Merchandise</span>
-                <span>{formatPrice(totals.merchandise_total || 0)}</span>
-              </div>
-              
-              {totals.delivery_cost > 0 && (
-                <div className="flex justify-between">
-                  <span>Delivery</span>
-                  <span>{formatPrice(totals.delivery_cost)}</span>
+            <CardContent>
+              {checkoutPreview && checkoutPreview.per_seller?.length > 0 ? (
+                <FeeBreakdown
+                  currency={checkoutPreview.currency || 'ZAR'}
+                  subtotalCents={checkoutPreview.per_seller[0].lines.merch_subtotal_minor + 
+                                checkoutPreview.per_seller[0].lines.delivery_minor + 
+                                checkoutPreview.per_seller[0].lines.abattoir_minor}
+                  processingFeeCents={checkoutPreview.per_seller[0].lines.buyer_processing_fee_minor}
+                  escrowFeeCents={checkoutPreview.per_seller[0].lines.escrow_service_fee_minor}
+                  grandTotalCents={checkoutPreview.per_seller[0].totals.buyer_total_minor}
+                />
+              ) : (
+                // Fallback to original display if preview not available
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span>Merchandise</span>
+                    <span>{formatPrice(totals.merchandise_total || 0)}</span>
+                  </div>
+                  
+                  {totals.delivery_cost > 0 && (
+                    <div className="flex justify-between">
+                      <span>Delivery</span>
+                      <span>{formatPrice(totals.delivery_cost)}</span>
+                    </div>
+                  )}
+                  
+                  {totals.abattoir_cost > 0 && (
+                    <div className="flex justify-between">
+                      <span>Abattoir Processing</span>
+                      <span>{formatPrice(totals.abattoir_cost)}</span>
+                    </div>
+                  )}
+                  
+                  {/* CRITICAL FIX: Added missing 1.5% buyer processing fee */}
+                  <div className="flex justify-between">
+                    <span>Processing Fee (1.5%)</span>
+                    <span>{formatPrice((totals.merchandise_total || 0) * 0.015)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span>Escrow Service Fee</span>
+                    <span>{formatPrice(25.00)}</span>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>{formatPrice((totals.merchandise_total || 0) + (totals.delivery_cost || 0) + (totals.abattoir_cost || 0) + ((totals.merchandise_total || 0) * 0.015) + 25.00)}</span>
+                  </div>
                 </div>
               )}
-              
-              {totals.abattoir_cost > 0 && (
-                <div className="flex justify-between">
-                  <span>Processing Fees</span>
-                  <span>{formatPrice(totals.abattoir_cost)}</span>
-                </div>
-              )}
-              
-              <div className="flex justify-between">
-                <span>Platform Fee</span>
-                <span>{formatPrice(totals.platform_fee || 0)}</span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span>VAT</span>
-                <span>{formatPrice(totals.vat || 0)}</span>
-              </div>
-              
-              <Separator />
-              
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>{formatPrice(totals.grand_total || 0)}</span>
-              </div>
 
-              <div className="text-xs text-gray-500 mt-2">
+              <div className="text-xs text-gray-500 mt-4">
                 Prices locked until {new Date(orderGroup.price_lock_expires_at).toLocaleTimeString()}
               </div>
             </CardContent>

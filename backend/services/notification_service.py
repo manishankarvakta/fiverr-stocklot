@@ -1,505 +1,337 @@
-import os
-import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
-from enum import Enum
-from email_service import EmailService
+import asyncio
 import json
-import uuid
+import logging
+from datetime import datetime, timezone, timedelta
+from typing import List, Dict, Any, Optional
+from pymongo.collection import Collection
+
+# Import models directly from the models directory
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'models'))
+
+from notification_models import (
+    NotificationOutbox, NotificationEvent, UserNotificationPrefs,
+    NotificationChannel, NotificationStatus, NotificationCounter,
+    AdminNotificationSettings, NotificationTemplate
+)
 
 logger = logging.getLogger(__name__)
-
-class NotificationChannel(str, Enum):
-    EMAIL = "email"
-    IN_APP = "in_app"
-    PUSH = "push"
-    SMS = "sms"
-
-class NotificationStatus(str, Enum):
-    QUEUED = "queued"
-    SENT = "sent"
-    FAILED = "failed"
-    READ = "read"
-    DISMISSED = "dismissed"
-
-class NotificationTopic(str, Enum):
-    # Auth & Account
-    WELCOME = "welcome"
-    EMAIL_VERIFICATION = "email_verification"
-    PASSWORD_RESET = "password_reset"
-    PASSWORD_CHANGED = "password_changed"
-    LOGIN_ALERT = "login_alert"
-    
-    # Orders & Transactions
-    ORDER_PLACED = "order_placed"
-    ORDER_CONFIRMED = "order_confirmed"
-    ORDER_SHIPPED = "order_shipped"
-    ORDER_DELIVERED = "order_delivered"
-    ORDER_CANCELLED = "order_cancelled"
-    PAYMENT_RECEIVED = "payment_received"
-    
-    # Listings & Marketplace
-    LISTING_APPROVED = "listing_approved"
-    LISTING_REJECTED = "listing_rejected"
-    LISTING_EXPIRED = "listing_expired"
-    BID_PLACED = "bid_placed"
-    BID_OUTBID = "bid_outbid"
-    AUCTION_WON = "auction_won"
-    AUCTION_ENDED = "auction_ended"
-    
-    # Buy Requests & Offers
-    OFFER_RECEIVED = "offer_received"
-    OFFER_ACCEPTED = "offer_accepted"
-    OFFER_DECLINED = "offer_declined"
-    OFFER_COUNTER = "offer_counter"
-    BUY_REQUEST_CREATED = "buy_request_created"
-    BUY_REQUEST_EXPIRED = "buy_request_expired"
-    
-    # Organization & KYC
-    ORG_INVITED = "org_invited"
-    ORG_APPROVED = "org_approved"
-    KYC_APPROVED = "kyc_approved"
-    KYC_REJECTED = "kyc_rejected"
-    
-    # Referrals
-    REFERRAL_REWARD = "referral_reward"
-    REFERRAL_PAYOUT = "referral_payout"
-    
-    # System
-    MAINTENANCE = "maintenance"
-    SYSTEM_ALERT = "system_alert"
 
 class NotificationService:
     def __init__(self, db):
         self.db = db
-        self.email_service = EmailService()
+        self.notification_prefs: Collection = db.user_notification_prefs
+        self.outbox: Collection = db.notifications_outbox
+        self.counters: Collection = db.notif_counters
+        self.admin_settings: Collection = db.admin_settings_notifications
+        self.templates: Collection = db.notification_templates
         
-    async def send_notification(
-        self, 
-        user_id: str,
-        topic: NotificationTopic,
-        title: str,
-        message: str,
-        channels: List[NotificationChannel] = None,
-        action_url: str = None,
-        data: Dict[str, Any] = None,
-        template_data: Dict[str, Any] = None
-    ) -> Dict[str, bool]:
-        """Send notification across multiple channels"""
-        
-        if channels is None:
-            channels = [NotificationChannel.EMAIL, NotificationChannel.IN_APP]
-            
-        results = {}
-        
-        # Get user preferences
-        user_prefs = await self._get_user_notification_preferences(user_id)
-        
-        for channel in channels:
-            if self._should_send_to_channel(topic, channel, user_prefs):
-                try:
-                    if channel == NotificationChannel.EMAIL:
-                        success = await self._send_email_notification(
-                            user_id, topic, title, message, action_url, template_data
-                        )
-                    elif channel == NotificationChannel.IN_APP:
-                        success = await self._send_in_app_notification(
-                            user_id, topic, title, message, action_url, data
-                        )
-                    elif channel == NotificationChannel.PUSH:
-                        success = await self._send_push_notification(
-                            user_id, topic, title, message, action_url, data
-                        )
-                    else:
-                        success = False
-                        
-                    results[channel.value] = success
-                    
-                except Exception as e:
-                    logger.error(f"Failed to send {channel} notification to {user_id}: {e}")
-                    results[channel.value] = False
-            else:
-                results[channel.value] = False  # User disabled this channel
-                
-        return results
+        # Create indexes
+        asyncio.create_task(self.create_indexes())
     
-    async def _get_user_notification_preferences(self, user_id: str) -> Dict:
+    async def create_indexes(self):
+        """Create necessary database indexes"""
+        try:
+            await self.outbox.create_index([("status", 1), ("scheduled_at", 1)])
+            await self.outbox.create_index([("dedupe_key", 1)])
+            await self.counters.create_index([("user_id", 1), ("yyyymmdd", 1)], unique=True)
+            await self.notification_prefs.create_index([("user_id", 1)], unique=True)
+            await self.templates.create_index([("key", 1)], unique=True)
+            logger.info("Notification service indexes created")
+        except Exception as e:
+            logger.error(f"Error creating notification indexes: {e}")
+    
+    async def get_admin_settings(self) -> AdminNotificationSettings:
+        """Get admin notification settings"""
+        settings = await self.admin_settings.find_one({"id": 1})
+        if not settings:
+            # Return defaults
+            settings = AdminNotificationSettings().dict()
+            await self.admin_settings.insert_one(settings)
+        return AdminNotificationSettings(**settings)
+    
+    async def update_admin_settings(self, settings: AdminNotificationSettings):
+        """Update admin notification settings"""
+        settings.updated_at = datetime.utcnow()
+        await self.admin_settings.update_one(
+            {"id": 1},
+            {"$set": settings.dict()},
+            upsert=True
+        )
+    
+    async def get_user_preferences(self, user_id: str) -> UserNotificationPrefs:
         """Get user notification preferences"""
-        prefs = await self.db.user_notification_settings.find_one({"user_id": user_id})
-        
+        prefs = await self.notification_prefs.find_one({"user_id": user_id})
         if not prefs:
-            # Default preferences
-            return {
-                "email_enabled": True,
-                "in_app_enabled": True,
-                "push_enabled": False,
-                "sms_enabled": False,
-                "topics": {
-                    # Default enabled topics
-                    NotificationTopic.WELCOME: {"email": True, "in_app": True},
-                    NotificationTopic.ORDER_PLACED: {"email": True, "in_app": True},
-                    NotificationTopic.PAYMENT_RECEIVED: {"email": True, "in_app": True},
-                    NotificationTopic.LOGIN_ALERT: {"email": True, "in_app": True},
-                }
-            }
-        
-        return prefs
+            # Create default preferences based on admin settings
+            admin_settings = await self.get_admin_settings()
+            prefs = UserNotificationPrefs(
+                user_id=user_id,
+                digest_frequency=admin_settings.default_digest_frequency,
+                max_per_day=admin_settings.default_max_per_day,
+                email_global=admin_settings.default_email_opt_in,
+                inapp_global=admin_settings.default_inapp_opt_in,
+                push_global=admin_settings.default_push_opt_in
+            )
+            await self.notification_prefs.insert_one(prefs.dict())
+        return UserNotificationPrefs(**prefs)
     
-    def _should_send_to_channel(self, topic: NotificationTopic, channel: NotificationChannel, prefs: Dict) -> bool:
-        """Check if notification should be sent to specific channel"""
-        
-        # Security notifications are always sent
-        security_topics = [NotificationTopic.LOGIN_ALERT, NotificationTopic.PASSWORD_CHANGED]
-        if topic in security_topics:
-            return True
-            
-        # Check global channel preference
-        channel_key = f"{channel.value}_enabled"
-        if not prefs.get(channel_key, False):
-            return False
-            
-        # Check topic-specific preference
-        topic_prefs = prefs.get("topics", {}).get(topic.value, {})
-        return topic_prefs.get(channel.value, False)
+    async def update_user_preferences(self, user_id: str, prefs: UserNotificationPrefs):
+        """Update user notification preferences"""
+        prefs.updated_at = datetime.utcnow()
+        await self.notification_prefs.update_one(
+            {"user_id": user_id},
+            {"$set": prefs.dict()},
+            upsert=True
+        )
     
-    async def _send_email_notification(
-        self, 
-        user_id: str, 
-        topic: NotificationTopic, 
-        title: str, 
-        message: str,
-        action_url: str = None,
-        template_data: Dict[str, Any] = None
-    ) -> bool:
-        """Send email notification"""
+    async def on_buy_request_created(self, event: NotificationEvent):
+        """Handle buy request created event"""
+        admin_settings = await self.get_admin_settings()
+        if not admin_settings.enable_broadcast_buy_requests:
+            return
         
-        # Get user email
-        user = await self.db.users.find_one({"id": user_id})
-        if not user or not user.get("email"):
-            return False
-            
-        # Create notification record
-        notification_id = str(uuid.uuid4())
-        notification = {
-            "id": notification_id,
-            "user_id": user_id,
-            "topic": topic.value,
-            "channel": NotificationChannel.EMAIL.value,
-            "title": title,
-            "message": message,
-            "action_url": action_url,
-            "data": template_data or {},
-            "status": NotificationStatus.QUEUED.value,
-            "created_at": datetime.now(timezone.utc),
-            "sent_at": None
-        }
-        
-        await self.db.notifications.insert_one(notification)
-        
-        # Send email using template
-        html_content = self._render_email_template(topic, template_data or {
-            "title": title,
-            "message": message,
-            "action_url": action_url,
-            "user_name": user.get("full_name", "")
-        })
-        
-        success = self.email_service.send_email(
-            to=user["email"],
-            subject=title,
-            html_content=html_content
+        targets = await self.match_audience(
+            event_type="buy_request",
+            species=event.species,
+            province=event.province
         )
         
-        # Update notification status
-        await self.db.notifications.update_one(
-            {"id": notification_id},
-            {
-                "$set": {
-                    "status": NotificationStatus.SENT.value if success else NotificationStatus.FAILED.value,
-                    "sent_at": datetime.now(timezone.utc) if success else None
-                }
-            }
+        await self.enqueue_notifications(
+            targets=targets,
+            template_key="buy_request.posted",
+            payload=event.dict(),
+            dedupe_key=f"buyreq:{event.request_id}"
+        )
+    
+    async def on_listing_created(self, event: NotificationEvent):
+        """Handle listing created event"""
+        admin_settings = await self.get_admin_settings()
+        if not admin_settings.enable_broadcast_listings:
+            return
+        
+        targets = await self.match_audience(
+            event_type="listing",
+            species=event.species,
+            province=event.province
         )
         
-        return success
-    
-    async def _send_in_app_notification(
-        self, 
-        user_id: str, 
-        topic: NotificationTopic, 
-        title: str, 
-        message: str,
-        action_url: str = None,
-        data: Dict[str, Any] = None
-    ) -> bool:
-        """Send in-app notification"""
-        
-        notification_id = str(uuid.uuid4())
-        notification = {
-            "id": notification_id,
-            "user_id": user_id,
-            "topic": topic.value,
-            "channel": NotificationChannel.IN_APP.value,
-            "title": title,
-            "message": message,
-            "action_url": action_url,
-            "data": data or {},
-            "status": NotificationStatus.SENT.value,  # In-app notifications are immediately "sent"
-            "created_at": datetime.now(timezone.utc),
-            "sent_at": datetime.now(timezone.utc),
-            "read_at": None
-        }
-        
-        await self.db.notifications.insert_one(notification)
-        return True
-    
-    async def _send_push_notification(
-        self, 
-        user_id: str, 
-        topic: NotificationTopic, 
-        title: str, 
-        message: str,
-        action_url: str = None,
-        data: Dict[str, Any] = None
-    ) -> bool:
-        """Send push notification (placeholder for now)"""
-        
-        # TODO: Implement actual push notification service
-        # For now, just create a record
-        notification_id = str(uuid.uuid4())
-        notification = {
-            "id": notification_id,
-            "user_id": user_id,
-            "topic": topic.value,
-            "channel": NotificationChannel.PUSH.value,
-            "title": title,
-            "message": message,
-            "action_url": action_url,
-            "data": data or {},
-            "status": NotificationStatus.QUEUED.value,
-            "created_at": datetime.now(timezone.utc),
-            "sent_at": None
-        }
-        
-        await self.db.notifications.insert_one(notification)
-        logger.info(f"Push notification queued for user {user_id}: {title}")
-        return True
-    
-    def _render_email_template(self, topic: NotificationTopic, data: Dict[str, Any]) -> str:
-        """Render email template for topic"""
-        
-        templates = {
-            NotificationTopic.WELCOME: """
-                <h2>Welcome to StockLot, {user_name}!</h2>
-                <p>Thank you for joining South Africa's premier livestock marketplace.</p>
-                <p>You can now buy and sell livestock with secure escrow payments.</p>
-                {action_button}
-            """,
-            NotificationTopic.EMAIL_VERIFICATION: """
-                <h2>Verify Your Email</h2>
-                <p>Hi {user_name}, please verify your email address to complete your registration.</p>
-                <p>Click the button below to verify your email:</p>
-                {action_button}
-            """,
-            NotificationTopic.ORDER_PLACED: """
-                <h2>Order Confirmed</h2>
-                <p>Hi {user_name}, your order has been placed successfully!</p>
-                <p>Order details:</p>
-                <ul>
-                <li>Order ID: {order_id}</li>
-                <li>Total: R{total_amount}</li>
-                <li>Items: {item_count} livestock</li>
-                </ul>
-                <p>Your payment is held securely in escrow until delivery.</p>
-                {action_button}
-            """,
-            NotificationTopic.LOGIN_ALERT: """
-                <h2>New Login Alert</h2>
-                <p>Hi {user_name}, we detected a new login to your account.</p>
-                <p>Device: {device_info}</p>
-                <p>Location: {location}</p>
-                <p>If this wasn't you, please secure your account immediately.</p>
-                {action_button}
-            """,
-        }
-        
-        template = templates.get(topic, """
-            <h2>{title}</h2>
-            <p>{message}</p>
-            {action_button}
-        """)
-        
-        # Add action button if URL provided
-        action_button = ""
-        if data.get("action_url"):
-            action_button = f"""
-                <div style="margin: 20px 0;">
-                    <a href="{data['action_url']}" 
-                       style="background: #059669; color: white; padding: 12px 24px; 
-                              text-decoration: none; border-radius: 6px; display: inline-block;">
-                        {data.get('action_text', 'View Details')}
-                    </a>
-                </div>
-            """
-        
-        # Replace placeholders
-        html_content = template.format(
-            user_name=data.get("user_name", ""),
-            title=data.get("title", ""),
-            message=data.get("message", ""),
-            action_button=action_button,
-            **data
+        await self.enqueue_notifications(
+            targets=targets,
+            template_key="listing.posted",
+            payload=event.dict(),
+            dedupe_key=f"listing:{event.listing_id}"
         )
-        
-        # Wrap in basic HTML structure
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                {html_content}
-                <div class="footer">
-                    <p>Best regards,<br>The StockLot Team</p>
-                    <p>This is an automated message. Please do not reply to this email.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
     
-    async def get_user_notifications(
-        self, 
-        user_id: str, 
-        channel: NotificationChannel = NotificationChannel.IN_APP,
-        limit: int = 50,
-        offset: int = 0,
-        unread_only: bool = False
-    ) -> List[Dict]:
-        """Get user notifications"""
-        
+    async def match_audience(self, event_type: str, species: str, province: Optional[str] = None) -> List[Dict]:
+        """Match users based on species, province, and preferences"""
+        # Build query to find relevant users
         query = {
-            "user_id": user_id,
-            "channel": channel.value
+            "email_global": True,
+            "$or": [
+                {"species_interest": None},
+                {"species_interest": {"$in": [species]}}
+            ]
         }
         
-        if unread_only:
-            query["read_at"] = None
+        if province:
+            query["$or"].extend([
+                {"provinces_interest": None},
+                {"provinces_interest": {"$in": [province]}}
+            ])
+        
+        # Filter by notification type preference
+        if event_type == "listing":
+            query["email_new_listing"] = True
+        else:
+            query["email_buy_request"] = True
+        
+        # Get users with active status
+        pipeline = [
+            {"$lookup": {
+                "from": "users",
+                "localField": "user_id",
+                "foreignField": "id",
+                "as": "user"
+            }},
+            {"$unwind": "$user"},
+            {"$match": {
+                "user.status": "active",
+                **query
+            }},
+            {"$project": {
+                "user_id": 1,
+                "max_per_day": 1,
+                "digest_frequency": 1,
+                "email_global": 1,
+                "inapp_global": 1,
+                "push_global": 1
+            }}
+        ]
+        
+        targets = await self.notification_prefs.aggregate(pipeline).to_list(length=None)
+        return targets
+    
+    async def enqueue_notifications(self, targets: List[Dict], template_key: str, payload: Dict, dedupe_key: str):
+        """Enqueue notifications for multiple users"""
+        notifications = []
+        
+        for target in targets:
+            # Check daily limit
+            if not await self.check_daily_limit(target["user_id"], target.get("max_per_day", 5)):
+                continue
             
-        cursor = self.db.notifications.find(query).sort("created_at", -1).skip(offset).limit(limit)
-        notifications = await cursor.to_list(length=None)
+            # Calculate delay based on digest frequency
+            delay_seconds = 0
+            if target.get("digest_frequency") == "daily":
+                delay_seconds = 60 * 60 * 24  # 24 hours
+            elif target.get("digest_frequency") == "weekly":
+                delay_seconds = 60 * 60 * 24 * 7  # 7 days
+            
+            scheduled_at = datetime.utcnow() + timedelta(seconds=delay_seconds)
+            
+            # Create notifications for enabled channels
+            channels = []
+            if target.get("email_global", True):
+                channels.append(NotificationChannel.EMAIL)
+            if target.get("inapp_global", True):
+                channels.append(NotificationChannel.INAPP)
+            if target.get("push_global", False):
+                channels.append(NotificationChannel.PUSH)
+            
+            for channel in channels:
+                notification = NotificationOutbox(
+                    channel=channel,
+                    template_key=template_key,
+                    user_id=target["user_id"],
+                    payload=payload,
+                    dedupe_key=dedupe_key,
+                    scheduled_at=scheduled_at
+                )
+                notifications.append(notification.dict())
         
-        # Remove MongoDB _id field
-        for notification in notifications:
-            if "_id" in notification:
-                del notification["_id"]
-                
-        return notifications
+        if notifications:
+            await self.outbox.insert_many(notifications)
+            logger.info(f"Enqueued {len(notifications)} notifications for template {template_key}")
     
-    async def get_notifications(
-        self, 
-        user_id: str, 
-        limit: int = 50,
-        offset: int = 0,
-        unread_only: bool = False,
-        channel: NotificationChannel = NotificationChannel.IN_APP
-    ) -> List[Dict]:
-        """Get notifications for user - alias for get_user_notifications with compatible parameters"""
-        return await self.get_user_notifications(
-            user_id=user_id,
-            channel=channel,
-            limit=limit,
-            offset=offset,
-            unread_only=unread_only
+    async def check_daily_limit(self, user_id: str, max_per_day: int) -> bool:
+        """Check if user has reached daily notification limit"""
+        today = int(datetime.utcnow().strftime("%Y%m%d"))
+        counter = await self.counters.find_one({"user_id": user_id, "yyyymmdd": today})
+        
+        if counter and counter.get("count", 0) >= max_per_day:
+            return False
+        return True
+    
+    async def increment_counter(self, user_id: str):
+        """Increment daily notification counter for user"""
+        today = int(datetime.utcnow().strftime("%Y%m%d"))
+        await self.counters.update_one(
+            {"user_id": user_id, "yyyymmdd": today},
+            {"$inc": {"count": 1}},
+            upsert=True
         )
     
-    async def mark_notification_read(self, notification_id: str, user_id: str) -> bool:
-        """Mark notification as read"""
+    async def get_outbox_items(self, status: Optional[NotificationStatus] = None, limit: int = 500) -> List[Dict]:
+        """Get items from notification outbox"""
+        query = {}
+        if status:
+            query["status"] = status.value
         
-        result = await self.db.notifications.update_one(
-            {"id": notification_id, "user_id": user_id},
-            {"$set": {"read_at": datetime.now(timezone.utc)}}
-        )
-        
-        return result.modified_count > 0
+        items = await self.outbox.find(query).sort("id", -1).limit(limit).to_list(length=None)
+        return items
     
-    async def mark_all_read(self, user_id: str) -> int:
-        """Mark all notifications as read for user"""
-        
-        result = await self.db.notifications.update_many(
-            {"user_id": user_id, "read_at": None},
-            {"$set": {"read_at": datetime.now(timezone.utc)}}
+    async def retry_notification(self, notification_id: str):
+        """Retry a failed notification"""
+        await self.outbox.update_one(
+            {"_id": notification_id},
+            {"$set": {"status": NotificationStatus.PENDING.value, "attempts": 0}}
         )
-        
-        return result.modified_count
     
-    async def get_unread_count(self, user_id: str) -> int:
-        """Get unread notification count"""
+    async def mark_notification_sent(self, notification_id: str):
+        """Mark notification as sent"""
+        await self.outbox.update_one(
+            {"_id": notification_id},
+            {"$set": {"status": NotificationStatus.SENT.value}}
+        )
+    
+    async def mark_notification_failed(self, notification_id: str):
+        """Mark notification as failed or pending retry"""
+        notification = await self.outbox.find_one({"_id": notification_id})
+        if notification:
+            attempts = notification.get("attempts", 0) + 1
+            max_attempts = notification.get("max_attempts", 5)
+            
+            status = NotificationStatus.FAILED if attempts >= max_attempts else NotificationStatus.PENDING
+            
+            await self.outbox.update_one(
+                {"_id": notification_id},
+                {"$set": {"attempts": attempts, "status": status.value}}
+            )
+    
+    async def get_templates(self) -> List[NotificationTemplate]:
+        """Get all notification templates"""
+        templates = await self.templates.find({}).to_list(length=None)
+        return [NotificationTemplate(**t) for t in templates]
+    
+    async def get_template(self, key: str) -> Optional[NotificationTemplate]:
+        """Get specific notification template"""
+        template = await self.templates.find_one({"key": key})
+        if template:
+            return NotificationTemplate(**template)
+        return None
+    
+    async def update_template(self, template: NotificationTemplate):
+        """Update notification template"""
+        template.updated_at = datetime.utcnow()
+        await self.templates.update_one(
+            {"key": template.key},
+            {"$set": template.dict()},
+            upsert=True
+        )
+    
+    def render_template(self, template_key: str, payload: Dict[str, Any]) -> Dict[str, str]:
+        """Render notification template with payload data"""
+        # Simple template rendering - replace {{variable}} with values
+        if template_key == "buy_request.posted":
+            subject = f"New Buy Request • {payload.get('species', 'Livestock')} ({payload.get('province', 'Any')})"
+            text = f"A buyer posted a {payload.get('species', 'livestock')} request: {payload.get('title', '')}\nOpen: {payload.get('url', '')}"
+            html = f"<p>A buyer posted a <b>{payload.get('species', 'livestock')}</b> request: {payload.get('title', '')}</p><p><a href=\"{payload.get('url', '')}\">View request</a></p>"
+        elif template_key == "listing.posted":
+            subject = f"New Listing • {payload.get('species', 'Livestock')} in {payload.get('province', 'your area')}"
+            text = f"A new {payload.get('species', 'livestock')} listing is live: {payload.get('title', '')}\nOpen: {payload.get('url', '')}"
+            html = f"<p>New <b>{payload.get('species', 'livestock')}</b> listing: {payload.get('title', '')}</p><p><a href=\"{payload.get('url', '')}\">View listing</a></p>"
+        else:
+            subject = "StockLot update"
+            text = ""
+            html = ""
         
-        count = await self.db.notifications.count_documents({
-            "user_id": user_id,
-            "channel": NotificationChannel.IN_APP.value,
-            "read_at": None
-        })
+        return {"subject": subject, "text": text, "html": html}
+    
+    async def test_broadcast(self, test_data: Dict[str, Any], limit: int = 50):
+        """Send test broadcast to limited number of users"""
+        template_key = "buy_request.posted" if test_data.get("type") == "buy_request" else "listing.posted"
         
-        return count
-
-# Helper functions for common notification scenarios
-async def send_welcome_email(db, user_id: str, user_name: str, user_email: str):
-    """Send welcome email to new user"""
-    service = NotificationService(db)
-    await service.send_notification(
-        user_id=user_id,
-        topic=NotificationTopic.WELCOME,
-        title="Welcome to StockLot!",
-        message="Thank you for joining South Africa's premier livestock marketplace.",
-        channels=[NotificationChannel.EMAIL, NotificationChannel.IN_APP],
-        action_url="https://farmstock-hub-1.preview.emergentagent.com/marketplace",
-        template_data={
-            "user_name": user_name,
-            "action_text": "Browse Marketplace"
-        }
-    )
-
-async def send_order_confirmation(db, user_id: str, order_data: Dict):
-    """Send order confirmation notification"""
-    service = NotificationService(db)
-    await service.send_notification(
-        user_id=user_id,
-        topic=NotificationTopic.ORDER_PLACED,
-        title=f"Order #{order_data['order_id']} Confirmed",
-        message=f"Your order for {order_data['item_count']} livestock items has been placed successfully.",
-        channels=[NotificationChannel.EMAIL, NotificationChannel.IN_APP],
-        action_url=f"https://farmstock-hub-1.preview.emergentagent.com/orders/{order_data['order_id']}",
-        template_data={
-            "order_id": order_data["order_id"],
-            "total_amount": order_data["total_amount"],
-            "item_count": order_data["item_count"],
-            "action_text": "View Order"
-        }
-    )
-
-async def send_login_alert(db, user_id: str, user_name: str, device_info: str, location: str):
-    """Send login security alert"""
-    service = NotificationService(db)
-    await service.send_notification(
-        user_id=user_id,
-        topic=NotificationTopic.LOGIN_ALERT,
-        title="New Login Detected",
-        message=f"New login from {device_info} in {location}",
-        channels=[NotificationChannel.EMAIL, NotificationChannel.IN_APP], 
-        action_url="https://farmstock-hub-1.preview.emergentagent.com/account/security",
-        template_data={
-            "user_name": user_name,
-            "device_info": device_info,
-            "location": location,
-            "action_text": "Secure Account"
-        }
-    )
+        # Get active users (limited)
+        active_users = await self.db.users.find(
+            {"status": "active"},
+            {"id": 1}
+        ).limit(limit).to_list(length=None)
+        
+        notifications = []
+        for user in active_users:
+            notification = NotificationOutbox(
+                channel=NotificationChannel.EMAIL,
+                template_key=template_key,
+                user_id=user["id"],
+                payload=test_data,
+                dedupe_key=f"{test_data.get('type', 'test')}:TEST"
+            )
+            notifications.append(notification.dict())
+        
+        if notifications:
+            await self.outbox.insert_many(notifications)
+            logger.info(f"Enqueued {len(notifications)} test notifications")
+        
+        return len(notifications)

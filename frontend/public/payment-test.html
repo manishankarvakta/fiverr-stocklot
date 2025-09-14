@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockLot - Payment Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-emerald-50">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-2xl font-bold text-emerald-900 mb-6 text-center">🛒 Payment Test</h1>
+            
+            <!-- Product Summary -->
+            <div class="border border-emerald-200 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-emerald-900">Ross 308 Day-Old Chicks</h3>
+                <p class="text-emerald-600">R 15.50 per head × 5 = R 77.50</p>
+                <p class="text-emerald-600">Processing Fee: R 2.50</p>
+                <p class="text-emerald-600">Delivery: R 25.00</p>
+                <hr class="my-2">
+                <p class="font-bold text-emerald-900">Total: R 105.00</p>
+            </div>
+            
+            <!-- Payment Buttons -->
+            <div class="space-y-4">
+                <button 
+                    onclick="testPaystackPayment()" 
+                    class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                >
+                    💳 Pay with Paystack - R 105.00
+                </button>
+                
+                <button 
+                    onclick="testDemoPayment()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                >
+                    🧪 Demo Payment Flow
+                </button>
+                
+                <button 
+                    onclick="testDirectCheckout()" 
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                >
+                    🚀 Direct Checkout API
+                </button>
+            </div>
+            
+            <!-- Test Results -->
+            <div id="results" class="mt-6 p-4 bg-gray-100 rounded-lg hidden">
+                <h4 class="font-semibold text-gray-800">Test Results:</h4>
+                <pre id="output" class="text-sm text-gray-600 mt-2"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showResults(message) {
+            document.getElementById('results').classList.remove('hidden');
+            document.getElementById('output').textContent = message;
+        }
+        
+        function testPaystackPayment() {
+            showResults('🛒 Testing Paystack Payment...');
+            
+            // Test Paystack integration
+            const paystackUrl = 'https://checkout.paystack.com/v1/';
+            const paymentData = {
+                amount: 10500, // R105.00 in cents
+                email: 'test@stocklot.co.za',
+                currency: 'ZAR',
+                reference: 'STOCKLOT_' + Date.now(),
+                callback_url: window.location.origin + '/payment/success'
+            };
+            
+            // Open payment in new window
+            const paymentUrl = `${paystackUrl}?${new URLSearchParams(paymentData)}`;
+            window.open(paymentUrl, '_blank', 'width=600,height=700');
+            
+            showResults('✅ Paystack payment window opened!\nTotal: R105.00\nReference: ' + paymentData.reference);
+        }
+        
+        function testDemoPayment() {
+            showResults('🧪 Testing Demo Payment...');
+            
+            const confirmed = confirm(
+                '🛒 DEMO PAYMENT\n\n' +
+                'Product: Ross 308 Day-Old Chicks\n' +
+                'Quantity: 5 heads\n' +
+                'Total: R 105.00\n\n' +
+                'Click OK to simulate successful payment'
+            );
+            
+            if (confirmed) {
+                setTimeout(() => {
+                    alert('✅ Payment Successful!\n\nOrder #' + Date.now() + '\nAmount: R105.00\n\nThank you for your purchase!');
+                    showResults('✅ Demo payment completed successfully!\nOrder created: #' + Date.now());
+                }, 1000);
+            } else {
+                showResults('❌ Demo payment cancelled by user');
+            }
+        }
+        
+        async function testDirectCheckout() {
+            showResults('🚀 Testing Direct Checkout API...');
+            
+            try {
+                const response = await fetch('/api/payment/test-checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: 105.00,
+                        currency: 'ZAR',
+                        items: [{
+                            name: 'Ross 308 Day-Old Chicks',
+                            quantity: 5,
+                            price: 15.50
+                        }]
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showResults('✅ API Response:\n' + JSON.stringify(result, null, 2));
+                    
+                    if (result.payment_url) {
+                        window.open(result.payment_url, '_blank');
+                    }
+                } else {
+                    showResults('❌ API Error: ' + response.status + ' ' + response.statusText);
+                }
+            } catch (error) {
+                showResults('❌ Network Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

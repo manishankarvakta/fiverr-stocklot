@@ -257,7 +257,7 @@ const MarketAnalyticsDashboard = () => {
                   <SelectValue placeholder="All species" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All species</SelectItem>
+                  <SelectItem value="all-default">All species</SelectItem>
                   {speciesOptions.map(option => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -277,7 +277,7 @@ const MarketAnalyticsDashboard = () => {
                   <SelectValue placeholder="All provinces" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All provinces</SelectItem>
+                  <SelectItem value="all-default">All provinces</SelectItem>
                   {ZA_PROVINCES.map(province => (
                     <SelectItem key={province} value={province}>
                       {province}

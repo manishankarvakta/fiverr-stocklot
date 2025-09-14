@@ -859,7 +859,7 @@ export default function AdminBroadcastMessaging() {
                     <SelectValue placeholder="Any location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any Location</SelectItem>
+                    <SelectItem value="any-location">Any Location</SelectItem>
                     <SelectItem value="Gauteng">Gauteng</SelectItem>
                     <SelectItem value="Western Cape">Western Cape</SelectItem>
                     <SelectItem value="KwaZulu-Natal">KwaZulu-Natal</SelectItem>

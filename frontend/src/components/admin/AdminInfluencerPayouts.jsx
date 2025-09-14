@@ -5,13 +5,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Alert, AlertDescription
-} from '@/components/ui';
+} from '../ui';
 import { 
   Users, Plus, Star, DollarSign, TrendingUp, Eye, Edit, Trash2, CheckCircle, XCircle,
-  UserPlus, Award, Target, BarChart3, Calendar
+  UserPlus, Award, Target, BarChart3, Calendar, Clock
 } from 'lucide-react';
-
-const API = process.env.REACT_APP_BACKEND_URL || '/api';
+import api from '../../api/client';
 
 export default function AdminInfluencerPayouts() {
   const [influencers, setInfluencers] = useState([]);
@@ -41,31 +40,21 @@ export default function AdminInfluencerPayouts() {
 
   const fetchInfluencers = async () => {
     try {
-      const response = await fetch(`${API}/admin/influencers`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setInfluencers(data.influencers || []);
-      }
+      const response = await api.get('/admin/influencers');
+      setInfluencers(response.data.influencers || []);
     } catch (error) {
       console.error('Error fetching influencers:', error);
+      setInfluencers([]);
     }
   };
 
   const fetchPayouts = async () => {
     try {
-      const response = await fetch(`${API}/admin/influencer-payouts`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setPayouts(data.payouts || []);
-      }
+      const response = await api.get('/admin/payouts');
+      setPayouts(response.data.payouts || []);
     } catch (error) {
       console.error('Error fetching payouts:', error);
+      setPayouts([]);
     }
   };
 
@@ -78,16 +67,9 @@ export default function AdminInfluencerPayouts() {
         commission_rate: parseFloat(newInfluencer.commission_rate) || 5
       };
 
-      const response = await fetch(`${API}/admin/influencers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(influencerData)
-      });
-
-      if (response.ok) {
+      const response = await api.post('/admin/influencers', influencerData);
+      
+      if (response.data.success) {
         setShowAddInfluencer(false);
         setNewInfluencer({
           name: '', email: '', phone: '', platform: '', handle: '',
@@ -117,16 +99,9 @@ export default function AdminInfluencerPayouts() {
         commission_rate: parseFloat(selectedInfluencer.commission_rate) || 5
       };
 
-      const response = await fetch(`${API}/admin/influencers/${selectedInfluencer.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(influencerData)
-      });
+      const response = await api.put(`/admin/influencers/${selectedInfluencer.id}`, influencerData);
 
-      if (response.ok) {
+      if (response.data.success) {
         setShowEditInfluencer(false);
         setSelectedInfluencer(null);
         fetchInfluencers();
@@ -145,12 +120,9 @@ export default function AdminInfluencerPayouts() {
   const handleDeleteInfluencer = async (influencerId) => {
     if (window.confirm('Are you sure you want to delete this influencer?')) {
       try {
-        const response = await fetch(`${API}/admin/influencers/${influencerId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
+        const response = await api.delete(`/admin/influencers/${influencerId}`);
 
-        if (response.ok) {
+        if (response.data.success) {
           fetchInfluencers();
           alert('Influencer deleted successfully!');
         } else {
@@ -166,21 +138,14 @@ export default function AdminInfluencerPayouts() {
   const handleProcessPayout = async (influencerId, amount, period) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API}/admin/influencer-payouts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          influencer_id: influencerId,
-          amount: parseFloat(amount),
-          period: period,
-          status: 'pending'
-        })
+      const response = await api.post('/admin/influencer-payouts', {
+        influencer_id: influencerId,
+        amount: parseFloat(amount),
+        period: period,
+        status: 'pending'
       });
 
-      if (response.ok) {
+      if (response.data.success) {
         setShowPayoutDialog(false);
         fetchPayouts();
         alert('Payout processed successfully!');
@@ -199,16 +164,9 @@ export default function AdminInfluencerPayouts() {
   const handleToggleInfluencerStatus = async (influencerId, currentStatus) => {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
     try {
-      const response = await fetch(`${API}/admin/influencers/${influencerId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
+      const response = await api.patch(`/admin/influencers/${influencerId}/status`, { status: newStatus });
 
-      if (response.ok) {
+      if (response.data.success) {
         fetchInfluencers();
         alert(`Influencer ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
       } else {

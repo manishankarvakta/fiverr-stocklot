@@ -21,19 +21,35 @@ export default function AdminRolesManagement() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [newRole, setNewRole] = useState({
-    name: '',
-    slug: '', 
-    description: '',
-    permissions: [],
-    level: 5
+    user_id: '',
+    role: 'ADMIN',
+    permissions: []
   });
 
   useEffect(() => {
     fetchRoles();
     fetchPermissions();
     fetchAdminUsers();
+    fetchAllUsers();
   }, []);
+
+  const fetchAllUsers = async () => {
+    try {
+      const response = await fetch(`${API}/admin/users`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // API returns direct array, not wrapped in 'users' field
+        setUsers(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   const fetchRoles = async () => {
     setLoading(true);
@@ -82,24 +98,42 @@ export default function AdminRolesManagement() {
 
   const handleCreateRole = async () => {
     try {
+      // Validate required fields
+      if (!newRole.user_id || !newRole.role) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
       const response = await fetch(`${API}/admin/roles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(newRole)
+        body: JSON.stringify({
+          user_id: newRole.user_id,
+          role: newRole.role,
+          permissions: newRole.permissions || []
+        })
       });
       
       if (response.ok) {
-        setShowCreateDialog(false);
-        setNewRole({ name: '', slug: '', description: '', permissions: [], level: 5 });
-        fetchRoles(); // Refresh the list
+        const result = await response.json();
+        if (result.success) {
+          setShowCreateDialog(false);
+          setNewRole({ user_id: '', role: 'ADMIN', permissions: [] });
+          fetchRoles(); // Refresh the list
+          alert('Admin role created successfully!');
+        } else {
+          alert('Failed to create role: ' + (result.message || 'Unknown error'));
+        }
       } else {
-        console.error('Failed to create role');
+        const error = await response.json();
+        alert('Failed to create role: ' + (error.detail || 'Server error'));
       }
     } catch (error) {
       console.error('Error creating role:', error);
+      alert('Error creating role: ' + error.message);
     }
   };
 
@@ -551,74 +585,109 @@ export default function AdminRolesManagement() {
         </TabsContent>
       </Tabs>
 
-      {/* Create Role Dialog */}
+      {/* Create Role Dialog - v2.0 UPDATED */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Create New Role</DialogTitle>
+            <DialogTitle>✨ Create New Admin Role (Updated)</DialogTitle>
             <DialogDescription>
-              Create a new admin role with specific permissions
+              🎯 Assign an admin role to an existing user
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="roleName">Role Name</Label>
-              <Input
-                id="roleName"
-                value={newRole.name}
-                onChange={(e) => setNewRole({...newRole, name: e.target.value})}
-                placeholder="e.g., Content Manager"
-              />
+              <Label htmlFor="userSelect">Select User</Label>
+              <Select 
+                value={newRole.user_id} 
+                onValueChange={(value) => {
+                  const user = users.find(u => u.id === value);
+                  setSelectedUser(user);
+                  setNewRole({...newRole, user_id: value});
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a user to promote..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.filter(user => !user.roles?.includes('admin')).map(user => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{user.full_name || user.email}</span>
+                        <span className="text-xs text-gray-500">{user.email}</span>
+                        <span className="text-xs text-blue-600">Current roles: {user.roles?.join(', ') || 'none'}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedUser && (
+                <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                  <p><strong>Selected:</strong> {selectedUser.full_name}</p>
+                  <p><strong>Email:</strong> {selectedUser.email}</p>
+                  <p><strong>Current Roles:</strong> {selectedUser.roles?.join(', ') || 'none'}</p>
+                </div>
+              )}
             </div>
             
             <div>
-              <Label htmlFor="roleSlug">Role Slug</Label>
-              <Input
-                id="roleSlug"
-                value={newRole.slug}
-                onChange={(e) => setNewRole({...newRole, slug: e.target.value})}
-                placeholder="e.g., content_manager"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="roleDescription">Description</Label>
-              <Textarea
-                id="roleDescription"
-                value={newRole.description}
-                onChange={(e) => setNewRole({...newRole, description: e.target.value})}
-                placeholder="Describe the role's responsibilities"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="roleLevel">Permission Level</Label>
-              <Select value={newRole.level.toString()} onValueChange={(value) => setNewRole({...newRole, level: parseInt(value)})}>
+              <Label htmlFor="roleType">Admin Role Type</Label>
+              <Select value={newRole.role} onValueChange={(value) => setNewRole({...newRole, role: value})}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Level 1 (Super Admin)</SelectItem>
-                  <SelectItem value="2">Level 2 (Admin)</SelectItem>
-                  <SelectItem value="3">Level 3 (Manager)</SelectItem>
-                  <SelectItem value="4">Level 4 (Moderator)</SelectItem>
-                  <SelectItem value="5">Level 5 (Staff)</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">Super Admin (Full Access)</SelectItem>
+                  <SelectItem value="ADMIN">Admin (Manage Users & Content)</SelectItem>
+                  <SelectItem value="MODERATOR">Moderator (Review & Approve)</SelectItem>
+                  <SelectItem value="SUPPORT">Support (Help Users)</SelectItem>
+                  <SelectItem value="VIEWER">Viewer (Read Only)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div>
+              <Label>Additional Permissions (Optional)</Label>
+              <div className="mt-2 space-y-2 max-h-32 overflow-y-auto">
+                {['manage_users', 'moderate_listings', 'view_analytics', 'manage_payments', 'system_settings'].map(permission => (
+                  <div key={permission} className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={newRole.permissions.includes(permission)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setNewRole(prev => ({
+                            ...prev,
+                            permissions: [...prev.permissions, permission]
+                          }));
+                        } else {
+                          setNewRole(prev => ({
+                            ...prev,
+                            permissions: prev.permissions.filter(p => p !== permission)
+                          }));
+                        }
+                      }}
+                    />
+                    <Label className="text-sm capitalize">{permission.replace('_', ' ')}</Label>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false);
+              setSelectedUser(null);
+              setNewRole({ user_id: '', role: 'ADMIN', permissions: [] });
+            }}>
               Cancel
             </Button>
             <Button 
               className="bg-green-600 hover:bg-green-700"
               onClick={handleCreateRole}
-              disabled={!newRole.name || !newRole.slug}
+              disabled={!newRole.user_id || !newRole.role}
             >
-              Create Role
+              Create Admin Role
             </Button>
           </DialogFooter>
         </DialogContent>

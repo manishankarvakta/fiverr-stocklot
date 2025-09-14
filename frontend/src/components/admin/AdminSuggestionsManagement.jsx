@@ -1,213 +1,184 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, CardContent, CardHeader, CardTitle, Button, Badge,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Textarea, Alert, AlertDescription, Tabs, TabsContent, TabsList, TabsTrigger
-} from '../ui';
-import { 
-  Lightbulb, Eye, Edit, ThumbsUp, Clock, CheckCircle, XCircle, AlertTriangle,
-  RefreshCw, TrendingUp, Users, Filter, MessageSquare
-} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
+import { Lightbulb, Search, Eye, Check, X, Clock, Filter, User, Calendar, MessageSquare } from 'lucide-react';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-const STATUS_COLORS = {
-  'NEW': 'bg-blue-100 text-blue-800',
-  'UNDER_REVIEW': 'bg-yellow-100 text-yellow-800', 
-  'PLANNED': 'bg-green-100 text-green-800',
-  'DONE': 'bg-emerald-100 text-emerald-800',
-  'DECLINED': 'bg-red-100 text-red-800'
-};
-
-const KIND_ICONS = {
-  'ANIMAL': '🐄',
-  'FEATURE': '✨',
-  'BUG': '🐛',
-  'OTHER': '💡'
-};
-
-export default function AdminSuggestionsManagement() {
+const AdminSuggestionsManagement = () => {
   const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
-  const [showDetailDialog, setShowDetailDialog] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [kindFilter, setKindFilter] = useState('');
-  const [updating, setUpdating] = useState(false);
-  const [stats, setStats] = useState({
-    total: 0,
-    by_status: {},
-    by_kind: {}
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    status: '',
+    category: '',
+    search: ''
   });
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [showResponseDialog, setShowResponseDialog] = useState(false);
+  const [adminResponse, setAdminResponse] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetchSuggestions();
-  }, [statusFilter, kindFilter]);
+    loadSuggestions();
+  }, [filters]);
 
-  const fetchSuggestions = async () => {
+  const loadSuggestions = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
       const params = new URLSearchParams();
-      if (statusFilter) params.append('status', statusFilter);
-      if (kindFilter) params.append('kind', kindFilter);
-      
-      const response = await fetch(`${API}/admin/suggestions?${params}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      if (filters.status) params.append('status', filters.status);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.search) params.append('q', filters.search);
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/suggestions?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        setSuggestions(data.suggestions || []);
-        
-        // Calculate stats
-        const total = data.suggestions.length;
-        const by_status = {};
-        const by_kind = {};
-        
-        data.suggestions.forEach(s => {
-          by_status[s.status] = (by_status[s.status] || 0) + 1;
-          by_kind[s.kind] = (by_kind[s.kind] || 0) + 1;
-        });
-        
-        setStats({ total, by_status, by_kind });
+        setSuggestions(Array.isArray(data) ? data : data.suggestions || []);
+      } else {
+        console.error('Failed to load suggestions:', response.status);
+        alert('Failed to load suggestions. Please check your permissions.');
       }
     } catch (error) {
-      console.error('Error fetching suggestions:', error);
+      console.error('Error loading suggestions:', error);
+      alert('Error loading suggestions: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const updateSuggestionStatus = async (suggestionId, status, adminNotes = '') => {
-    setUpdating(true);
+  const handleSuggestionAction = async (suggestionId, action, response = null) => {
+    setActionLoading(true);
     try {
-      const response = await fetch(`${API}/admin/suggestions/${suggestionId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          status,
-          admin_notes: adminNotes || undefined
-        })
-      });
-
-      if (response.ok) {
-        await fetchSuggestions();
-        if (selectedSuggestion && selectedSuggestion.id === suggestionId) {
-          setSelectedSuggestion({
-            ...selectedSuggestion,
-            status,
-            admin_notes: adminNotes
-          });
-        }
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
       }
-    } catch (error) {
-      console.error('Error updating suggestion:', error);
-    } finally {
-      setUpdating(false);
-    }
-  };
 
-  const voteSuggestion = async (suggestionId) => {
-    try {
-      const response = await fetch(`${API}/admin/suggestions/${suggestionId}/vote`, {
+      const body = {
+        action: action,
+        admin_response: response || adminResponse,
+        admin_notes: `${action} by admin`
+      };
+
+      const apiResponse = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/suggestions/${suggestionId}/${action}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
       });
 
-      if (response.ok) {
-        await fetchSuggestions();
-        if (selectedSuggestion && selectedSuggestion.id === suggestionId) {
-          setSelectedSuggestion({
-            ...selectedSuggestion,
-            votes: selectedSuggestion.votes + 1
-          });
+      if (apiResponse.ok) {
+        const result = await apiResponse.json();
+        if (result.success || result.message) {
+          alert(`Suggestion ${action} successful!`);
+          setShowResponseDialog(false);
+          setAdminResponse('');
+          setSelectedSuggestion(null);
+          loadSuggestions(); // Refresh list
+        } else {
+          alert(`Failed to ${action} suggestion: ` + (result.message || 'Unknown error'));
         }
+      } else {
+        const error = await apiResponse.json();
+        alert(`Failed to ${action} suggestion: ` + (error.detail || 'Server error'));
       }
     } catch (error) {
-      console.error('Error voting on suggestion:', error);
+      console.error(`Error ${action} suggestion:`, error);
+      alert(`Error ${action} suggestion: ` + error.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const openDetail = (suggestion) => {
-    setSelectedSuggestion(suggestion);
-    setShowDetailDialog(true);
+  const getStatusBadge = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved': return <Badge className="bg-green-100 text-green-800"><Check className="h-3 w-3 mr-1" />Approved</Badge>;
+      case 'pending': return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case 'rejected': return <Badge className="bg-red-100 text-red-800"><X className="h-3 w-3 mr-1" />Rejected</Badge>;
+      case 'implemented': return <Badge className="bg-blue-100 text-blue-800"><Check className="h-3 w-3 mr-1" />Implemented</Badge>;
+      default: return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
+    }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-ZA', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const getCategoryBadge = (category) => {
+    const categoryColors = {
+      'feature': 'bg-blue-100 text-blue-800',
+      'bug': 'bg-red-100 text-red-800',
+      'improvement': 'bg-green-100 text-green-800',
+      'ui': 'bg-purple-100 text-purple-800',
+      'content': 'bg-orange-100 text-orange-800'
+    };
+    return <Badge className={categoryColors[category] || 'bg-gray-100 text-gray-800'}>{category || 'general'}</Badge>;
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Suggestions Management</h1>
-          <p className="text-gray-600">Manage user suggestions for new features, animals, and improvements</p>
+          <h2 className="text-2xl font-bold text-gray-900">User Suggestions</h2>
+          <p className="text-gray-600">Review and respond to user feedback and suggestions</p>
         </div>
-        <Button onClick={fetchSuggestions} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+        <Button onClick={loadSuggestions} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+          <Lightbulb className="h-4 w-4 mr-2" />
+          {loading ? 'Loading...' : 'Refresh Suggestions'}
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Suggestions</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-2xl font-bold text-blue-600">{suggestions.length}</p>
               </div>
-              <MessageSquare className="h-8 w-8 text-blue-600" />
+              <Lightbulb className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">New</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.by_status.NEW || 0}</p>
+                <p className="text-sm text-gray-600">Pending Review</p>
+                <p className="text-2xl font-bold text-yellow-600">{suggestions.filter(s => s.status === 'pending').length}</p>
               </div>
-              <Clock className="h-8 w-8 text-blue-600" />
+              <Clock className="h-8 w-8 text-yellow-600" />
             </div>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Planned</p>
-                <p className="text-2xl font-bold text-green-600">{stats.by_status.PLANNED || 0}</p>
+                <p className="text-sm text-gray-600">Approved</p>
+                <p className="text-2xl font-bold text-green-600">{suggestions.filter(s => s.status === 'approved').length}</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <Check className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-emerald-600">{stats.by_status.DONE || 0}</p>
+                <p className="text-sm text-gray-600">Implemented</p>
+                <p className="text-2xl font-bold text-purple-600">{suggestions.filter(s => s.status === 'implemented').length}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-emerald-600" />
+              <Check className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
@@ -222,36 +193,47 @@ export default function AdminSuggestionsManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Status</label>
-              <Select value={statusFilter || ""} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
+              <label className="text-sm font-medium mb-2 block">Search Suggestions</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by title or description..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status</label>
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="NEW">New</SelectItem>
-                  <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
-                  <SelectItem value="PLANNED">Planned</SelectItem>
-                  <SelectItem value="DONE">Done</SelectItem>
-                  <SelectItem value="DECLINED">Declined</SelectItem>
+                  <SelectItem value="all-statuses">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending Review</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="implemented">Implemented</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
             <div>
-              <label className="text-sm font-medium text-gray-700">Type</label>
-              <Select value={kindFilter || ""} onValueChange={setKindFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="All types" />
+              <label className="text-sm font-medium mb-2 block">Category</label>
+              <Select value={filters.category} onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="ANIMAL">Animals</SelectItem>
-                  <SelectItem value="FEATURE">Features</SelectItem>
-                  <SelectItem value="BUG">Bugs</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
+                  <SelectItem value="all-categories">All Categories</SelectItem>
+                  <SelectItem value="feature">New Feature</SelectItem>
+                  <SelectItem value="improvement">Improvement</SelectItem>
+                  <SelectItem value="bug">Bug Report</SelectItem>
+                  <SelectItem value="ui">UI/UX</SelectItem>
+                  <SelectItem value="content">Content</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -259,202 +241,161 @@ export default function AdminSuggestionsManagement() {
         </CardContent>
       </Card>
 
-      {/* Suggestions Table */}
+      {/* Suggestions List */}
       <Card>
         <CardHeader>
-          <CardTitle>Suggestions</CardTitle>
+          <CardTitle>User Suggestions ({suggestions.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading suggestions...</p>
+            <div className="flex justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+                <p>Loading suggestions...</p>
+              </div>
             </div>
           ) : suggestions.length === 0 ? (
             <div className="text-center py-8">
               <Lightbulb className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No suggestions found</p>
+              <p className="text-gray-600">No suggestions found matching your criteria</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Species/Breed</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Votes</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {suggestions.map((suggestion) => (
-                  <TableRow key={suggestion.id}>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <span className="mr-2">{KIND_ICONS[suggestion.kind]}</span>
-                        <span className="text-sm">{suggestion.kind}</span>
+            <div className="space-y-4">
+              {suggestions.map(suggestion => (
+                <div key={suggestion.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="font-semibold">{suggestion.title}</h3>
+                          <p className="text-sm text-gray-600">{suggestion.description?.substring(0, 200)}...</p>
+                        </div>
+                        {getStatusBadge(suggestion.status)}
+                        {getCategoryBadge(suggestion.category)}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs">
-                        <p className="font-medium truncate">{suggestion.title}</p>
-                        {suggestion.details && (
-                          <p className="text-sm text-gray-500 truncate">{suggestion.details}</p>
-                        )}
+                      <div className="mt-2 text-sm text-gray-600 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <p className="flex items-center">
+                          <User className="h-3 w-3 mr-1" />
+                          {suggestion.user_name || 'Anonymous'}
+                        </p>
+                        <p className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {suggestion.created_at ? new Date(suggestion.created_at).toLocaleDateString() : 'Unknown'}
+                        </p>
+                        <p>Priority: {suggestion.priority || 'Medium'}</p>
+                        <p>Votes: {suggestion.votes || 0} upvotes</p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {suggestion.species && <div>{suggestion.species}</div>}
-                        {suggestion.breed && <div className="text-gray-500">{suggestion.breed}</div>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_COLORS[suggestion.status]}>
-                        {suggestion.status.replace('_', ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <ThumbsUp className="h-4 w-4 mr-1 text-gray-400" />
-                        {suggestion.votes}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {formatDate(suggestion.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => openDetail(suggestion)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => voteSuggestion(suggestion.id)}
+                      {suggestion.admin_response && (
+                        <div className="mt-2 p-3 bg-blue-50 rounded">
+                          <p className="text-sm"><strong>Admin Response:</strong> {suggestion.admin_response}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedSuggestion(suggestion);
+                          setShowResponseDialog(true);
+                        }}
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      {suggestion.status === 'pending' && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600 hover:text-green-700"
+                            onClick={() => handleSuggestionAction(suggestion.id, 'approve')}
+                            disabled={actionLoading}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleSuggestionAction(suggestion.id, 'reject')}
+                            disabled={actionLoading}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      {suggestion.status === 'approved' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => handleSuggestionAction(suggestion.id, 'implement')}
+                          disabled={actionLoading}
                         >
-                          <ThumbsUp className="h-4 w-4" />
+                          <Check className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Detail Dialog */}
-      {selectedSuggestion && (
-        <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center">
-                <span className="mr-2">{KIND_ICONS[selectedSuggestion.kind]}</span>
-                {selectedSuggestion.title}
-              </DialogTitle>
-              <DialogDescription>
-                {selectedSuggestion.kind} suggestion • Created {formatDate(selectedSuggestion.created_at)}
-              </DialogDescription>
-            </DialogHeader>
-            
+      {/* Admin Response Dialog */}
+      {showResponseDialog && selectedSuggestion && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Respond to Suggestion</h3>
             <div className="space-y-4">
-              {/* Status and Priority */}
-              <div className="flex items-center space-x-4">
-                <Badge className={STATUS_COLORS[selectedSuggestion.status]}>
-                  {selectedSuggestion.status.replace('_', ' ')}
-                </Badge>
-                <div className="flex items-center text-sm text-gray-500">
-                  <ThumbsUp className="h-4 w-4 mr-1" />
-                  {selectedSuggestion.votes} votes
+              <div>
+                <label className="text-sm font-medium mb-2 block">Suggestion</label>
+                <div className="p-3 bg-gray-50 rounded">
+                  <h4 className="font-medium">{selectedSuggestion.title}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{selectedSuggestion.description}</p>
                 </div>
               </div>
-
-              {/* Species and Breed */}
-              {(selectedSuggestion.species || selectedSuggestion.breed) && (
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <p className="text-sm font-medium text-gray-700">Animal Details:</p>
-                  {selectedSuggestion.species && <p className="text-sm">Species: {selectedSuggestion.species}</p>}
-                  {selectedSuggestion.breed && <p className="text-sm">Breed: {selectedSuggestion.breed}</p>}
-                </div>
-              )}
-
-              {/* Details */}
-              {selectedSuggestion.details && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Details:</p>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-md">
-                    {selectedSuggestion.details}
-                  </p>
-                </div>
-              )}
-
-              {/* Contact Info */}
-              {selectedSuggestion.contact_email && (
-                <div className="bg-blue-50 p-3 rounded-md">
-                  <p className="text-sm font-medium text-blue-700">Contact:</p>
-                  <p className="text-sm text-blue-600">{selectedSuggestion.contact_email}</p>
-                </div>
-              )}
-
-              {/* Admin Notes */}
-              {selectedSuggestion.admin_notes && (
-                <div className="bg-yellow-50 p-3 rounded-md">
-                  <p className="text-sm font-medium text-yellow-700">Admin Notes:</p>
-                  <p className="text-sm text-yellow-600">{selectedSuggestion.admin_notes}</p>
-                </div>
-              )}
-
-              {/* Status Actions */}
-              <div className="flex flex-wrap gap-2 pt-4 border-t">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => updateSuggestionStatus(selectedSuggestion.id, 'UNDER_REVIEW')}
-                  disabled={updating || selectedSuggestion.status === 'UNDER_REVIEW'}
-                >
-                  <Clock className="h-4 w-4 mr-1" />
-                  Under Review
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => updateSuggestionStatus(selectedSuggestion.id, 'PLANNED')}
-                  disabled={updating || selectedSuggestion.status === 'PLANNED'}
-                >
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  Plan
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => updateSuggestionStatus(selectedSuggestion.id, 'DONE')}
-                  disabled={updating || selectedSuggestion.status === 'DONE'}
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Done
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => updateSuggestionStatus(selectedSuggestion.id, 'DECLINED')}
-                  disabled={updating || selectedSuggestion.status === 'DECLINED'}
-                >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  Decline
-                </Button>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Admin Response</label>
+                <Textarea
+                  value={adminResponse}
+                  onChange={(e) => setAdminResponse(e.target.value)}
+                  placeholder="Write your response to the user..."
+                  rows={4}
+                />
               </div>
             </div>
-            
-            <DialogFooter>
-              <Button onClick={() => setShowDetailDialog(false)}>Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="flex gap-2 mt-6">
+              <Button variant="outline" onClick={() => {
+                setShowResponseDialog(false);
+                setAdminResponse('');
+                setSelectedSuggestion(null);
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => handleSuggestionAction(selectedSuggestion.id, 'approve', adminResponse)}
+                disabled={actionLoading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {actionLoading ? 'Approving...' : 'Approve with Response'}
+              </Button>
+              <Button 
+                onClick={() => handleSuggestionAction(selectedSuggestion.id, 'reject', adminResponse)}
+                disabled={actionLoading}
+                variant="outline"
+                className="text-red-600 hover:text-red-700"
+              >
+                {actionLoading ? 'Rejecting...' : 'Reject with Response'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
-}
+};
+
+export default AdminSuggestionsManagement;

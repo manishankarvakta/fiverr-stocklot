@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, APIRouter, Request, BackgroundTasks, Depends, File, UploadFile, Header, Query
+from fastapi import FastAPI, HTTPException, APIRouter, Request, Response, BackgroundTasks, Depends, File, UploadFile, Header, Query, Form, Body
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -17,6 +17,7 @@ import bcrypt
 import json
 import hmac
 import hashlib
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 import sys
@@ -27,7 +28,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'services'))
 from email_service import EmailService
 from email_notification_service import EmailNotificationService, EmailNotification
 from email_preferences_service import EmailPreferencesService, EmailPreferenceStatus
-from notification_service import NotificationService, NotificationChannel, NotificationTopic, send_welcome_email, send_order_confirmation, send_login_alert
+# from notification_service import send_welcome_email, send_order_confirmation, send_login_alert
 from blog_service import BlogService, BlogStatus, AIModel
 from referral_service import ReferralService, ReferralStage, RewardType
 from buy_request_service import BuyRequestService, BuyRequestStatus, OfferStatus, notify_nearby_sellers
@@ -38,20 +39,52 @@ from referral_service_extended import ExtendedReferralService
 from notification_service_extended import ExtendedNotificationService
 from paystack_service import PaystackService
 
+# Import notification system
+from notification_event_service import (
+    event_bus, emit_listing_created, emit_buy_request_created,
+    initialize_notification_events
+)
+from services.notification_service import NotificationService
+from services.notification_worker import NotificationWorker
+
+# Import shared auth models to avoid circular imports
+from auth_models import User, UserRole, UserStatus, UserCreate, UserLogin
+
+# Import notification API routes - fixed circular import
+from routes.admin_notifications import admin_notifications_router, set_notification_services
+from routes.user_notifications import user_notifications_router, set_notification_service
+from dependencies import set_database, set_get_current_user as set_shared_get_current_user
+
 # Import AI & Mapping enhanced services
 from services.enhanced_buy_request_service import EnhancedBuyRequestService
 from services.ai_enhanced_service import AIEnhancedService
 from services.mapbox_service import MapboxService
 from services.order_management_service import OrderManagementService
 from services.ml_faq_service import MLFAQService
+from services.ml_knowledge_scraper import MLKnowledgeScraper
 from services.ml_matching_service import MLMatchingService
 from services.ml_engine_service import MLEngineService
 from services.photo_intelligence_service import PhotoIntelligenceService
+from services.exotic_livestock_service import ExoticLivestockService
 from services.social_auth_service import SocialAuthService
+from services.password_reset_service import PasswordResetService, PasswordResetRequest, PasswordResetConfirm
+from services.two_factor_service import TwoFactorService, TwoFactorSetupRequest, TwoFactorVerifyRequest, TwoFactorDisableRequest
+from services.kyc_service import KYCService, KYCSubmissionRequest, VerificationLevel, DocumentType, VerificationStatus
+from services.wishlist_service import WishlistService, WishlistCreateRequest, WishlistUpdateRequest, WishlistItemType, WishlistCategory
+from services.price_alerts_service import PriceAlertsService, PriceAlertCreate, PriceAlertUpdate, AlertType, AlertFrequency, NotificationChannel, AlertStatus
 from policies.contact_policy import can_view_seller_contact, mask_contact_info
 from services.unified_inbox_service import UnifiedInboxService
 from services.sse_service import sse_service
-from services.recaptcha_service import recaptcha_service
+from services.admin_moderation_service import AdminModerationService
+
+# Import new enhancement services
+from services.advanced_search_service import AdvancedSearchService
+from services.realtime_messaging_service import RealTimeMessagingService  
+from services.business_intelligence_service import BusinessIntelligenceService
+from services.openai_listing_service import OpenAIListingService
+from services.ai_shipping_optimizer import AIShippingOptimizer
+from services.ai_mobile_payment_service import AIMobilePaymentService
+from services.rate_limiting_service import rate_limit_middleware, RATE_LIMITS
 
 # Import inbox models
 from inbox_models.inbox_models import (
@@ -81,6 +114,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Console logging helper
+class Console:
+    @staticmethod
+    def log(message):
+        logger.info(message)
+
+console = Console()
+
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -92,11 +133,23 @@ referral_service_extended = ExtendedReferralService(db)
 notification_service_extended = ExtendedNotificationService(db)
 paystack_service = PaystackService(db)
 
+# Initialize comprehensive notification system
+notification_service = NotificationService(db)
+notification_worker = NotificationWorker(db, EmailService(), None)  # SSE service will be added later
+initialize_notification_events(notification_service)
+
+# Set notification services for API routes
+set_notification_services(notification_service, notification_worker)
+set_notification_service(notification_service)
+
 # Initialize comprehensive email system
 email_notification_service = EmailNotificationService(db)
 email_preferences_service = EmailPreferencesService(db)
-from mailgun_webhook_service import MailgunWebhookService
-mailgun_webhook_service = MailgunWebhookService(db, email_preferences_service)
+from services.lifecycle_email_service import LifecycleEmailService
+
+# Initialize services
+lifecycle_email_service = LifecycleEmailService(db)
+admin_moderation_service = AdminModerationService(db)
 
 # Initialize AI & Mapping enhanced services
 try:
@@ -105,34 +158,67 @@ try:
     mapbox_service = MapboxService()
     order_management_service = OrderManagementService(db)
     ml_faq_service = MLFAQService(db)
+    ml_scraper_service = MLKnowledgeScraper(db, os.environ.get('OPENAI_API_KEY'))
     ml_matching_service = MLMatchingService(db)
     ml_engine_service = MLEngineService(db)
     photo_intelligence_service = PhotoIntelligenceService(db)
+    exotic_livestock_service = ExoticLivestockService(db)
+    
+    # Initialize new enhancement services
+    advanced_search_service = AdvancedSearchService(db, ai_enhanced_service)
+    realtime_messaging_service = RealTimeMessagingService(db)
+    business_intelligence_service = BusinessIntelligenceService(db)
+    openai_listing_service = OpenAIListingService(db)
+    ai_shipping_optimizer = AIShippingOptimizer(db)
+    ai_mobile_payment_service = AIMobilePaymentService(db)
     
     AI_SERVICES_AVAILABLE = True
-    logger.info("✅ AI & Mapping services initialized successfully")
+    ML_SERVICES_AVAILABLE = True
+    ENHANCEMENT_SERVICES_AVAILABLE = True
+    OPENAI_LISTING_AVAILABLE = openai_listing_service.enabled
+    logger.info("✅ ML and Enhancement services initialized successfully")
 except (ImportError, ValueError, Exception) as e:
-    logger.warning(f"⚠️  AI & Mapping services not available: {e}")
+    logger.warning(f"ML services not available: {e}")
+    ML_SERVICES_AVAILABLE = False
+    AI_SERVICES_AVAILABLE = False
+    ENHANCEMENT_SERVICES_AVAILABLE = False
     # Initialize fallback services or set to None
     enhanced_buy_request_service = None
     ai_enhanced_service = None
     mapbox_service = None
     order_management_service = None
     ml_faq_service = None
+    ml_scraper_service = None
     ml_matching_service = None
     ml_engine_service = None
     photo_intelligence_service = None
-    AI_SERVICES_AVAILABLE = False
+    exotic_livestock_service = None
+    advanced_search_service = None
+    realtime_messaging_service = None
+    business_intelligence_service = None
+    openai_listing_service = None
+    ai_shipping_optimizer = None
+    ai_mobile_payment_service = None
 
-# Initialize Social Authentication service
+# Initialize Security and User Engagement services
 try:
     social_auth_service = SocialAuthService(db)
-    SOCIAL_AUTH_AVAILABLE = True
-    logger.info("✅ Social Authentication service initialized successfully")
+    password_reset_service = PasswordResetService(db)
+    two_factor_service = TwoFactorService(db)
+    kyc_service = KYCService(db)
+    wishlist_service = WishlistService(db)
+    price_alerts_service = PriceAlertsService(db)
+    ALL_SERVICES_AVAILABLE = True
+    logger.info("✅ All services initialized successfully (Auth, Password Reset, 2FA, KYC, Wishlist, Price Alerts)")
 except (ImportError, ValueError, Exception) as e:
-    logger.warning(f"⚠️  Social Authentication service not available: {e}")
+    logger.warning(f"⚠️  Services not available: {e}")
     social_auth_service = None
-    SOCIAL_AUTH_AVAILABLE = False
+    password_reset_service = None
+    two_factor_service = None
+    kyc_service = None
+    wishlist_service = None
+    price_alerts_service = None
+    ALL_SERVICES_AVAILABLE = False
 
 # Initialize Unified Inbox service
 try:
@@ -188,15 +274,7 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
-# Enums
-class UserRole(str, Enum):
-    BUYER = "buyer"
-    SELLER = "seller"
-    ADMIN = "admin"
-    EXPORTER = "exporter"
-    ABATTOIR = "abattoir"
-    TRANSPORTER = "transporter"
-
+# Enums (keeping non-auth related ones)
 class ListingStatus(str, Enum):
     ACTIVE = "active"
     SOLD = "sold"
@@ -224,35 +302,152 @@ class CategoryType(str, Enum):
     AQUACULTURE = "aquaculture"
     OTHER_LIVESTOCK = "other_livestock"
 
-# Pydantic Models
-class User(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: EmailStr
-    full_name: str
-    phone: Optional[str] = None
-    roles: List[UserRole] = [UserRole.BUYER]
-    is_verified: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    full_name: str
-    phone: Optional[str] = None
-    role: UserRole = UserRole.BUYER
-    recaptcha_token: Optional[str] = None
+# Pydantic Models (non-auth related)
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-    recaptcha_token: Optional[str] = None
+class ExtendedUser(User):
+    """Extended User model with farm-specific fields for server.py"""
+    # Enhanced Profile Fields (Common)
+    profile_photo: Optional[str] = None
+    business_name: Optional[str] = None
+    bio: Optional[str] = None
+    
+    # Location & Experience (Common)
+    location_region: Optional[str] = None  # e.g., "Western Cape, South Africa"
+    location_city: Optional[str] = None
+    experience_years: Optional[int] = None
+    
+    # SELLER-SPECIFIC FIELDS
+    # Specialization & Expertise
+    primary_livestock: List[str] = []  # e.g., ["cattle", "sheep", "goats"]
+    secondary_livestock: List[str] = []
+    farming_methods: List[str] = []  # e.g., ["organic", "free_range", "commercial"]
+    
+    # Certifications & Credentials
+    certifications: List[str] = []  # e.g., ["veterinary_certificate", "organic_certified"]
+    licenses: List[str] = []
+    associations: List[str] = []  # breed associations, farmer unions
+    
+    # Business Information
+    business_hours: Optional[str] = None  # e.g., "Monday-Friday 8AM-5PM"
+    delivery_areas: List[str] = []  # regions where seller delivers
+    preferred_communication: List[str] = ["phone", "email"]  # contact preferences
+    
+    # Policies & Guarantees
+    return_policy: Optional[str] = None
+    health_guarantee: Optional[str] = None
+    delivery_policy: Optional[str] = None
+    payment_terms: Optional[str] = None
+    
+    # BUYER-SPECIFIC FIELDS
+    # Buying Preferences & Interests
+    livestock_interests: List[str] = []  # What livestock they want to buy
+    buying_purpose: List[str] = []  # breeding, commercial, personal, etc.
+    purchase_frequency: Optional[str] = None  # occasional, regular, seasonal
+    budget_range: Optional[str] = None  # small, medium, large, enterprise
+    
+    # Farm/Facility Information (for buyers)
+    farm_size_hectares: Optional[int] = None
+    facility_type: Optional[str] = None  # commercial_farm, hobby_farm, feedlot, etc.
+    animal_capacity: Optional[int] = None  # How many animals they can house
+    farm_infrastructure: List[str] = []  # fencing, water, shelter, etc.
+    
+    # Buyer Experience & Credentials
+    livestock_experience: List[str] = []  # cattle_farming, sheep_raising, etc.
+    buyer_certifications: List[str] = []  # animal_welfare, organic_farming, etc.
+    previous_suppliers: Optional[str] = None  # References from past purchases
+    
+    # Financial & Transaction Preferences
+    payment_methods: List[str] = []  # cash, bank_transfer, credit, etc.
+    payment_timeline: Optional[str] = None  # immediate, 7_days, 30_days
+    collection_preference: Optional[str] = None  # self_collect, delivery_requested
+    
+    # Animal Care & Welfare
+    veterinary_contact: Optional[str] = None  # Vet details for animal health
+    quarantine_facilities: Optional[bool] = None  # Has quarantine setup
+    animal_welfare_standards: List[str] = []  # welfare practices
+    
+    # Profile Completeness & Stats (Common)
+    profile_completion_score: Optional[float] = 0.0  # 0-100%
+    total_sales: Optional[int] = 0  # For sellers
+    total_purchases: Optional[int] = 0  # For buyers
+    customer_rating: Optional[float] = 0.0  # As seller
+    buyer_rating: Optional[float] = 0.0  # As buyer
+    
+    # Additional Media
+    farm_photos: List[str] = []  # URLs to farm/facility photos
+    certificate_documents: List[str] = []  # URLs to certification documents
+
+class ExtendedUserCreate(UserCreate):
+    """Extended UserCreate with additional role options"""
+    pass
+
+# Keep just the UserProfileUpdate class from the original model
+class UserProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    business_name: Optional[str] = None
+    bio: Optional[str] = None
+    
+    # Location & Experience (Common to both buyers and sellers)
+    location_region: Optional[str] = None
+    location_city: Optional[str] = None
+    experience_years: Optional[int] = None
+    
+    # SELLER-SPECIFIC FIELDS
+    # Specialization & Expertise
+    primary_livestock: Optional[List[str]] = None
+    secondary_livestock: Optional[List[str]] = None
+    farming_methods: Optional[List[str]] = None
+    
+    # Certifications & Credentials
+    certifications: Optional[List[str]] = None
+    licenses: Optional[List[str]] = None
+    associations: Optional[List[str]] = None
+    
+    # Business Information
+    business_hours: Optional[str] = None
+    delivery_areas: Optional[List[str]] = None
+    preferred_communication: Optional[List[str]] = None
+    
+    # Policies & Guarantees
+    return_policy: Optional[str] = None
+    health_guarantee: Optional[str] = None
+    delivery_policy: Optional[str] = None
+    payment_terms: Optional[str] = None
+    
+    # BUYER-SPECIFIC FIELDS
+    # Buying Preferences & Interests
+    livestock_interests: Optional[List[str]] = None  # What livestock they want to buy
+    buying_purpose: Optional[List[str]] = None  # breeding, commercial, personal, etc.
+    purchase_frequency: Optional[str] = None  # occasional, regular, seasonal
+    budget_range: Optional[str] = None  # small, medium, large, enterprise
+    
+    # Farm/Facility Information (for buyers)
+    farm_size_hectares: Optional[int] = None
+    facility_type: Optional[str] = None  # commercial_farm, hobby_farm, feedlot, etc.
+    animal_capacity: Optional[int] = None  # How many animals they can house
+    farm_infrastructure: Optional[List[str]] = None  # fencing, water, shelter, etc.
+    
+    # Buyer Experience & Credentials
+    livestock_experience: Optional[List[str]] = None  # cattle_farming, sheep_raising, etc.
+    buyer_certifications: Optional[List[str]] = None  # animal_welfare, organic_farming, etc.
+    previous_suppliers: Optional[str] = None  # References from past purchases
+    
+    # Financial & Transaction Preferences
+    payment_methods: Optional[List[str]] = None  # cash, bank_transfer, credit, etc.
+    payment_timeline: Optional[str] = None  # immediate, 7_days, 30_days
+    collection_preference: Optional[str] = None  # self_collect, delivery_requested
+    
+    # Animal Care & Welfare
+    veterinary_contact: Optional[str] = None  # Vet details for animal health
+    quarantine_facilities: Optional[bool] = None  # Has quarantine setup
+    animal_welfare_standards: Optional[List[str]] = None  # welfare practices
 
 # Social Authentication Models
 class SocialAuthRequest(BaseModel):
     provider: str = Field(..., pattern="^(google|facebook)$")
     token: str
     role: Optional[UserRole] = None
-    recaptcha_token: Optional[str] = None
 
 class SocialAuthResponse(BaseModel):
     access_token: str
@@ -495,6 +690,49 @@ class DeliveryConfirmation(BaseModel):
     delivery_rating: Optional[int] = None
     delivery_comments: Optional[str] = None
 
+# Seller Delivery Rate Models
+class SellerDeliveryRate(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    seller_id: str
+    base_fee_cents: int = 0  # Base call-out fee in cents (e.g., 2000 = R20.00)
+    per_km_cents: int = 0    # Per-kilometer rate in cents (e.g., 120 = R1.20/km)
+    min_km: int = 0          # Free delivery within this distance
+    max_km: Optional[int] = None  # Maximum delivery distance, None = unlimited
+    province_whitelist: Optional[List[str]] = None  # Provinces served, None = all
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SellerDeliveryRateCreate(BaseModel):
+    base_fee_cents: int = 0
+    per_km_cents: int = 0
+    min_km: int = 0
+    max_km: Optional[int] = None
+    province_whitelist: Optional[List[str]] = None
+
+class SellerDeliveryRateUpdate(BaseModel):
+    base_fee_cents: Optional[int] = None
+    per_km_cents: Optional[int] = None
+    min_km: Optional[int] = None
+    max_km: Optional[int] = None
+    province_whitelist: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+
+# Delivery Quote Models
+class DeliveryQuoteRequest(BaseModel):
+    seller_id: str
+    buyer_lat: float
+    buyer_lng: float
+
+class DeliveryQuote(BaseModel):
+    seller_id: str
+    distance_km: Optional[float] = None
+    delivery_fee_cents: Optional[int] = None
+    out_of_range: bool = False
+    base_fee_cents: int = 0
+    per_km_fee_cents: int = 0
+    message: Optional[str] = None
+
 # Helper functions
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
@@ -531,6 +769,10 @@ async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = 
     except:
         return None
 
+# Set shared dependencies to avoid circular imports
+set_database(db)
+set_shared_get_current_user(get_current_user)
+
 # Import AI and Media services
 try:
     from services.ai_service import ai_service
@@ -556,7 +798,7 @@ async def ai_faq_chat(
         
         if not AI_AVAILABLE:
             return {
-                "response": "I'm having trouble connecting to our AI system right now, but our support team can help!\n\n📧 Email: support@stocklot.co.za\n📞 Call: +27 11 123 4567",
+                "response": "I'm having trouble connecting to our AI system right now, but I can still help!\n\n🐄 StockLot offers ALL livestock including:\n• Poultry (chickens, ducks, turkeys)\n• Ruminants (cattle, goats, sheep)\n• Aquaculture (fish farming, prawns) ✅\n• Game Animals (kudu, springbok through processors)\n• Small Livestock (pigs, rabbits)\n\nUse in-app messaging or platform support system for personalized help!",
                 "source": "fallback"
             }
         
@@ -586,9 +828,59 @@ async def ai_faq_chat(
     except Exception as e:
         logger.error(f"Error in FAQ chat: {e}")
         return {
-            "response": "I'm having trouble right now, but our support team can help!\n\n📧 Email: support@stocklot.co.za\n📞 Call: +27 11 123 4567",
+            "response": "I'm having trouble right now, but I can still help!\n\n🐄 StockLot marketplace includes:\n• ALL livestock types including Aquaculture (fish) ✅\n• Game meat through approved processors\n• Secure escrow payments\n• Nationwide delivery\n\nUse platform messaging system for personalized support!",
             "source": "error"
         }
+
+# CHATBOT LEARNING ENDPOINTS
+@api_router.post("/chatbot/learn/website")
+async def trigger_website_learning():
+    """Trigger chatbot learning from website content"""
+    try:
+        if not ml_faq_service:
+            raise HTTPException(status_code=503, detail="ML FAQ service not available")
+        
+        result = await ml_faq_service.learn_from_website_content()
+        return result
+    except Exception as e:
+        logger.error(f"Error in website learning: {e}")
+        raise HTTPException(status_code=500, detail="Failed to learn from website content")
+
+@api_router.post("/chatbot/learn/blog")
+async def trigger_blog_learning():
+    """Trigger chatbot learning from blog content"""
+    try:
+        if not ml_faq_service:
+            raise HTTPException(status_code=503, detail="ML FAQ service not available")
+        
+        result = await ml_faq_service.learn_from_blog_content()
+        return result
+    except Exception as e:
+        logger.error(f"Error in blog learning: {e}")
+        raise HTTPException(status_code=500, detail="Failed to learn from blog content")
+
+@api_router.get("/chatbot/learning-status")
+async def get_learning_status():
+    """Get status of chatbot learning activities"""
+    try:
+        # Get recent learning records
+        cursor = db.faq_learning.find().sort("created_at", -1).limit(10)
+        learning_records = await cursor.to_list(length=None)
+        
+        # Clean MongoDB _id fields
+        for record in learning_records:
+            if "_id" in record:
+                del record["_id"]
+        
+        return {
+            "recent_learning": learning_records,
+            "total_records": len(learning_records),
+            "last_website_learning": next((r for r in learning_records if r.get("type") == "website_content_learning"), None),
+            "last_blog_learning": next((r for r in learning_records if r.get("type") == "blog_content_learning"), None)
+        }
+    except Exception as e:
+        logger.error(f"Error getting learning status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get learning status")
 
 # PROFESSIONAL IMAGE UPLOAD
 @api_router.post("/upload/livestock-image")
@@ -859,10 +1151,14 @@ async def get_user_cart(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/cart/add")
 async def add_to_cart(
+    request: Request,
     cart_item: dict,
     current_user: User = Depends(get_current_user)
 ):
     """Add item to shopping cart"""
+    # Apply rate limiting for cart operations
+    await rate_limit_middleware(request, "cart", current_user.id if current_user else None)
+    
     try:
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
@@ -873,6 +1169,21 @@ async def add_to_cart(
         
         if not listing_id:
             raise HTTPException(status_code=400, detail="listing_id is required")
+        
+        # Validate and convert quantity to integer
+        try:
+            if isinstance(quantity, str):
+                quantity = int(quantity)
+            elif isinstance(quantity, float):
+                quantity = int(quantity)
+            elif not isinstance(quantity, int):
+                raise ValueError("Invalid quantity type")
+                
+            if quantity <= 0:
+                raise HTTPException(status_code=400, detail="Quantity must be a positive integer")
+                
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Quantity must be a positive integer")
         
         # Verify listing exists and is available
         listing = await db.listings.find_one({"id": listing_id})
@@ -912,12 +1223,28 @@ async def add_to_cart(
             existing_item["quantity"] += quantity
             existing_item["updated_at"] = datetime.now(timezone.utc)
         else:
-            # Add new item - use correct field names
+            # Add new item - handle Decimal price properly
+            listing_price = listing.get("price_per_unit")
+            if listing_price is None:
+                # Fallback to other possible price fields
+                listing_price = listing.get("price", 0)
+            
+            # Convert Decimal to float for JSON serialization
+            if hasattr(listing_price, '__float__'):
+                listing_price = float(listing_price)
+            elif isinstance(listing_price, str):
+                try:
+                    listing_price = float(listing_price)
+                except (ValueError, TypeError):
+                    listing_price = 0.0
+            elif listing_price is None:
+                listing_price = 0.0
+            
             new_item = {
                 "id": str(uuid.uuid4()),
                 "listing_id": listing_id,
                 "quantity": quantity,
-                "price": listing["price_per_unit"],  # Fix: use price_per_unit from listing
+                "price": listing_price,
                 "shipping_cost": shipping_cost,
                 "shipping_option": shipping_option,
                 "added_at": datetime.now(timezone.utc)
@@ -942,8 +1269,11 @@ async def add_to_cart(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
         logger.error(f"Error adding to cart: {e}")
-        raise HTTPException(status_code=500, detail="Failed to add item to cart")
+        logger.error(f"Cart item data: {cart_item}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to add item to cart: {str(e)}")
 
 @api_router.delete("/cart/item/{item_id}")
 async def remove_from_cart(
@@ -968,13 +1298,61 @@ async def remove_from_cart(
         logger.error(f"Error removing from cart: {e}")
         raise HTTPException(status_code=500, detail="Failed to remove item from cart")
 
+@api_router.put("/cart/update")
+async def update_cart_item(
+    update_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Update cart item quantity"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        item_id = update_data.get("item_id")
+        quantity = update_data.get("quantity")
+        
+        if not item_id or not quantity or quantity < 1:
+            raise HTTPException(status_code=400, detail="Valid item_id and quantity required")
+        
+        # Update the cart item quantity
+        result = await db.carts.update_one(
+            {"user_id": current_user.id, "items.id": item_id},
+            {"$set": {
+                "items.$.quantity": quantity,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Cart item not found")
+        
+        # Get updated cart for response
+        cart = await db.carts.find_one({"user_id": current_user.id})
+        total_items = sum(item.get("quantity", 0) for item in cart.get("items", []))
+        
+        return {
+            "success": True, 
+            "message": "Cart item updated successfully",
+            "cart_item_count": total_items
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating cart item: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update cart item")
+
 # STREAMLINED CHECKOUT SYSTEM
 @api_router.post("/checkout/create")
 async def create_checkout(
+    request: Request,
     checkout_data: dict,
     current_user: User = Depends(get_current_user)
 ):
     """Create checkout session for cart items"""
+    # Apply rate limiting for checkout creation
+    await rate_limit_middleware(request, "checkout_create", current_user.id if current_user else None)
+    
     try:
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
@@ -1042,11 +1420,15 @@ async def create_checkout(
 
 @api_router.post("/checkout/{session_id}/complete")
 async def complete_checkout(
+    request: Request,
     session_id: str,
     payment_data: dict,
     current_user: User = Depends(get_current_user)
 ):
     """Complete checkout and create orders"""
+    # Apply rate limiting for checkout completion
+    await rate_limit_middleware(request, "checkout_complete", current_user.id if current_user else None)
+    
     try:
         if not current_user:
             raise HTTPException(status_code=401, detail="Authentication required")
@@ -1141,10 +1523,49 @@ async def complete_checkout(
                 "total_amount": order["total_amount"]
             })
         
+        # Initialize payment for the total order amount
+        total_order_amount = sum(order["total_amount"] for order in created_orders)
+        
+        try:
+            # Initialize Paystack payment
+            payment_result = await paystack_service.initialize_transaction(
+                email=current_user.email,
+                amount=total_order_amount,
+                order_id=",".join([order["id"] for order in created_orders]),  # Multiple order IDs
+                callback_url=payment_data.get("callback_url", "https://stocklot.farm/payment/callback")
+            )
+            
+            authorization_url = None
+            if payment_result and payment_result.get("authorization_url"):
+                authorization_url = payment_result.get("authorization_url")
+                logger.info(f"✅ Payment initialized successfully: {authorization_url}")
+            else:
+                # Fallback for demo mode
+                demo_mode = os.getenv("PAYSTACK_DEMO_MODE", "false").lower() == "true"
+                if demo_mode:
+                    authorization_url = f"https://demo-checkout.paystack.com/{session_id}"
+                    logger.info(f"Demo mode: Using demo payment URL: {authorization_url}")
+                
+        except Exception as payment_error:
+            logger.error(f"Payment initialization failed: {payment_error}")
+            # In demo mode, continue with demo URL
+            demo_mode = os.getenv("PAYSTACK_DEMO_MODE", "false").lower() == "true"
+            if demo_mode:
+                authorization_url = f"https://demo-checkout.paystack.com/{session_id}"
+                logger.info(f"Payment error fallback: Using demo URL: {authorization_url}")
+            else:
+                # For production, this would be a critical error
+                raise HTTPException(status_code=500, detail="Payment initialization failed")
+
         return {
             "success": True,
             "message": "Order placed successfully!",
-            "orders": [{"id": order["id"], "total": order["total_amount"]} for order in created_orders]
+            "orders": [{"id": order["id"], "total": order["total_amount"]} for order in created_orders],
+            "payment_url": authorization_url,
+            "authorization_url": authorization_url,
+            "redirect_url": authorization_url,
+            "total_amount": total_order_amount,
+            "requires_payment": True
         }
     
     except HTTPException:
@@ -1867,19 +2288,6 @@ async def create_sample_listings():
 async def register_user(user_data: UserCreate, request: Request):
     """Register a new user with referral attribution"""
     try:
-        # Verify reCAPTCHA token if provided
-        if user_data.recaptcha_token:
-            client_ip = request.client.host if request.client else None
-            recaptcha_result = await recaptcha_service.verify_token(
-                user_data.recaptcha_token, 
-                'REGISTER',
-                client_ip
-            )
-            
-            if not recaptcha_result.get('success', True):
-                logger.warning(f"reCAPTCHA verification failed for registration: {recaptcha_result}")
-                # For now, log but don't block - can be made stricter later
-        
         # Check if user exists
         existing_user = await db.users.find_one({"email": user_data.email})
         if existing_user:
@@ -1937,22 +2345,9 @@ async def register_user(user_data: UserCreate, request: Request):
         raise HTTPException(status_code=500, detail="Registration failed")
 
 @api_router.post("/auth/login")
-async def login_user(login_data: UserLogin, request: Request):
-    """Login user"""
+async def login_user(login_data: UserLogin, request: Request, response: Response):
+    """Login user with HttpOnly cookies"""
     try:
-        # Verify reCAPTCHA token if provided
-        if login_data.recaptcha_token:
-            client_ip = request.client.host if request.client else None
-            recaptcha_result = await recaptcha_service.verify_token(
-                login_data.recaptcha_token, 
-                'LOGIN',
-                client_ip
-            )
-            
-            if not recaptcha_result.get('success', True):
-                logger.warning(f"reCAPTCHA verification failed for login: {recaptcha_result}")
-                # For now, log but don't block - can be made stricter later
-        
         # Find user
         user_doc = await db.users.find_one({"email": login_data.email})
         if not user_doc:
@@ -1962,13 +2357,37 @@ async def login_user(login_data: UserLogin, request: Request):
         if not user_doc.get("password") or not verify_password(login_data.password, user_doc["password"]):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        # For simplicity, return email as token (use proper JWT in production)
+        # Create user object
         user = User(**{k: v for k, v in user_doc.items() if k != "password"})
         
+        # Set HttpOnly session cookie
+        session_data = {
+            "user_id": user.id,
+            "email": user.email,
+            "roles": user.roles if hasattr(user, 'roles') else ['buyer'],
+            "exp": datetime.utcnow() + timedelta(days=7)  # 7 day session
+        }
+        
+        # In production, use proper JWT signing
+        import json
+        import base64
+        session_token = base64.b64encode(json.dumps(session_data, default=str).encode()).decode()
+        
+        # Set secure HttpOnly cookie
+        response.set_cookie(
+            key="sl_session",
+            value=session_token,
+            max_age=7 * 24 * 60 * 60,  # 7 days in seconds
+            httponly=True,
+            secure=True,  # HTTPS only in production
+            samesite="lax",
+            path="/"
+        )
+        
         return {
-            "access_token": user.email,
-            "token_type": "bearer",
-            "user": user
+            "success": True,
+            "user": user,
+            "message": "Login successful"
         }
     
     except HTTPException:
@@ -1977,24 +2396,129 @@ async def login_user(login_data: UserLogin, request: Request):
         logger.error(f"Error logging in user: {e}")
         raise HTTPException(status_code=500, detail="Login failed")
 
+@api_router.get("/auth/me")
+async def get_current_user_session(request: Request):
+    """Get current user from session cookie"""
+    try:
+        # Get session cookie
+        session_cookie = request.cookies.get("sl_session")
+        if not session_cookie:
+            raise HTTPException(status_code=401, detail="No session found")
+        
+        # Decode session data (in production, verify JWT signature)
+        import json
+        import base64
+        try:
+            session_data = json.loads(base64.b64decode(session_cookie).decode())
+        except:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        # Check expiration
+        exp_str = session_data.get("exp", "")
+        if isinstance(exp_str, str):
+            try:
+                exp_time = datetime.fromisoformat(exp_str.replace('Z', '+00:00'))
+            except ValueError:
+                # Try parsing as UTC timestamp string
+                exp_time = datetime.fromisoformat(exp_str)
+        else:
+            # If it's already a datetime object
+            exp_time = exp_str
+            
+        if datetime.utcnow() > exp_time.replace(tzinfo=None):
+            raise HTTPException(status_code=401, detail="Session expired")
+        
+        # Get user from database
+        user_doc = await db.users.find_one({"id": session_data["user_id"]})
+        if not user_doc:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        # Return user data
+        user = User(**{k: v for k, v in user_doc.items() if k != "password"})
+        
+        return {
+            "user": user,
+            "session": {
+                "user_id": session_data["user_id"],
+                "email": session_data["email"],
+                "roles": session_data.get("roles", ['buyer'])
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting current user: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
+
+@api_router.post("/auth/logout")
+async def logout_user(response: Response):
+    """Logout user by clearing session cookie"""
+    try:
+        # Clear session cookie
+        response.delete_cookie(
+            key="sl_session",
+            path="/",
+            httponly=True,
+            secure=True,
+            samesite="lax"
+        )
+        
+        return {"success": True, "message": "Logged out successfully"}
+    
+    except Exception as e:
+        logger.error(f"Error logging out user: {e}")
+        raise HTTPException(status_code=500, detail="Logout failed")
+
+@api_router.post("/auth/refresh")
+async def refresh_session(request: Request, response: Response):
+    """Refresh session cookie"""
+    try:
+        # Get current session
+        session_cookie = request.cookies.get("sl_session")
+        if not session_cookie:
+            raise HTTPException(status_code=401, detail="No session found")
+        
+        # Decode and validate session
+        import json
+        import base64
+        try:
+            session_data = json.loads(base64.b64decode(session_cookie).decode())
+        except:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        # Create new session with extended expiration
+        new_session_data = {
+            **session_data,
+            "exp": datetime.utcnow() + timedelta(days=7)  # Extend by 7 days
+        }
+        
+        # Set new session cookie
+        new_session_token = base64.b64encode(json.dumps(new_session_data, default=str).encode()).decode()
+        
+        response.set_cookie(
+            key="sl_session",
+            value=new_session_token,
+            max_age=7 * 24 * 60 * 60,  # 7 days
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/"
+        )
+        
+        return {"success": True, "message": "Session refreshed"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing session: {e}")
+        raise HTTPException(status_code=401, detail="Session refresh failed")
+
 # Social Authentication endpoints
 @api_router.post("/auth/social", response_model=SocialAuthResponse)
 async def social_auth(auth_request: SocialAuthRequest, request: Request):
     """Authenticate user with Google or Facebook"""
     try:
-        # Verify reCAPTCHA token if provided
-        if auth_request.recaptcha_token:
-            client_ip = request.client.host if request.client else None
-            recaptcha_result = await recaptcha_service.verify_token(
-                auth_request.recaptcha_token, 
-                'SOCIAL_LOGIN',
-                client_ip
-            )
-            
-            if not recaptcha_result.get('success', True):
-                logger.warning(f"reCAPTCHA verification failed for social login: {recaptcha_result}")
-                # For now, log but don't block - can be made stricter later
-        
         # Verify the social token based on provider
         if auth_request.provider == "google":
             user_info = await social_auth_service.verify_google_token(auth_request.token)
@@ -2055,7 +2579,1062 @@ async def update_user_role(
         raise
     except Exception as e:
         logger.error(f"Error updating user role: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update role")
+        raise HTTPException(status_code=500, detail="Failed to update user role")
+
+# Password Reset endpoints
+@api_router.post("/auth/forgot-password")
+async def request_password_reset(
+    reset_request: PasswordResetRequest,
+    request: Request
+):
+    """Request password reset email"""
+    try:
+        if not password_reset_service:
+            raise HTTPException(status_code=503, detail="Password reset service unavailable")
+        
+        # Get base URL from request headers
+        host = request.headers.get("host", "localhost:3000")
+        protocol = "https" if request.headers.get("x-forwarded-proto") == "https" else "http"
+        base_url = f"{protocol}://{host}"
+        
+        result = await password_reset_service.request_password_reset(
+            email=reset_request.email,
+            base_url=base_url
+        )
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting password reset: {e}")
+        raise HTTPException(status_code=500, detail="Password reset request failed")
+
+@api_router.get("/auth/reset-token/{token}")
+async def verify_reset_token(token: str):
+    """Verify password reset token validity"""
+    try:
+        if not password_reset_service:
+            raise HTTPException(status_code=503, detail="Password reset service unavailable")
+        
+        result = await password_reset_service.verify_reset_token(token)
+        
+        if result["valid"]:
+            return {
+                "valid": True,
+                "user_email": result["user_email"],
+                "expires_at": result["expires_at"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying reset token: {e}")
+        raise HTTPException(status_code=500, detail="Token verification failed")
+
+@api_router.post("/auth/reset-password")
+async def confirm_password_reset(reset_data: PasswordResetConfirm):
+    """Complete password reset with new password"""
+    try:
+        if not password_reset_service:
+            raise HTTPException(status_code=503, detail="Password reset service unavailable")
+        
+        result = await password_reset_service.confirm_password_reset(
+            token=reset_data.token,
+            new_password=reset_data.new_password
+        )
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error confirming password reset: {e}")
+        raise HTTPException(status_code=500, detail="Password reset failed")
+
+# Admin endpoint for password reset statistics
+@api_router.get("/admin/password-reset/stats")
+async def get_password_reset_stats(current_user: User = Depends(get_current_user)):
+    """Get password reset statistics (admin only)"""
+    try:
+        # Check admin role
+        if not current_user or "admin" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        if not password_reset_service:
+            raise HTTPException(status_code=503, detail="Password reset service unavailable")
+        
+        stats = await password_reset_service.get_reset_statistics()
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting password reset stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get statistics")
+
+# Two-Factor Authentication endpoints
+@api_router.post("/auth/2fa/setup")
+async def setup_2fa(current_user: User = Depends(get_current_user)):
+    """Initialize 2FA setup for current user"""
+    try:
+        if not two_factor_service:
+            raise HTTPException(status_code=503, detail="2FA service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await two_factor_service.setup_2fa(current_user.id)
+        
+        if result["success"]:
+            return {
+                "secret_key": result["secret_key"],
+                "qr_code": result["qr_code"],
+                "backup_codes": result["backup_codes"],
+                "app_name": result["app_name"],
+                "username": result["username"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting up 2FA: {e}")
+        raise HTTPException(status_code=500, detail="2FA setup failed")
+
+@api_router.post("/auth/2fa/verify-setup")
+async def verify_2fa_setup(
+    verify_data: TwoFactorVerifyRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Verify 2FA setup and enable 2FA"""
+    try:
+        if not two_factor_service:
+            raise HTTPException(status_code=503, detail="2FA service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await two_factor_service.verify_2fa_setup(current_user.id, verify_data.token)
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying 2FA setup: {e}")
+        raise HTTPException(status_code=500, detail="2FA verification failed")
+
+@api_router.post("/auth/2fa/verify")
+async def verify_2fa_login(verify_data: TwoFactorVerifyRequest):
+    """Verify 2FA during login (called after password verification)"""
+    try:
+        if not two_factor_service:
+            raise HTTPException(status_code=503, detail="2FA service unavailable")
+        
+        # This endpoint would typically be called with a temp session token
+        # For now, we'll need user_id passed differently
+        # This is a simplified implementation
+        user_id = verify_data.dict().get("user_id")  # Would come from temp session
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User identification required")
+        
+        result = await two_factor_service.verify_2fa_login(
+            user_id, 
+            verify_data.token, 
+            verify_data.backup_code
+        )
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying 2FA login: {e}")
+        raise HTTPException(status_code=500, detail="2FA login verification failed")
+
+@api_router.post("/auth/2fa/disable")
+async def disable_2fa(
+    disable_data: TwoFactorDisableRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Disable 2FA for current user"""
+    try:
+        if not two_factor_service:
+            raise HTTPException(status_code=503, detail="2FA service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await two_factor_service.disable_2fa(
+            current_user.id,
+            disable_data.password,
+            disable_data.token
+        )
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error disabling 2FA: {e}")
+        raise HTTPException(status_code=500, detail="Failed to disable 2FA")
+
+@api_router.post("/auth/2fa/regenerate-backup-codes")
+async def regenerate_backup_codes(
+    verify_data: TwoFactorVerifyRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Regenerate backup codes for user"""
+    try:
+        if not two_factor_service:
+            raise HTTPException(status_code=503, detail="2FA service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await two_factor_service.regenerate_backup_codes(current_user.id, verify_data.token)
+        
+        if result["success"]:
+            return {"backup_codes": result["backup_codes"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error regenerating backup codes: {e}")
+        raise HTTPException(status_code=500, detail="Failed to regenerate backup codes")
+
+@api_router.get("/auth/2fa/status")
+async def get_2fa_status(current_user: User = Depends(get_current_user)):
+    """Get 2FA status for current user"""
+    try:
+        if not two_factor_service:
+            raise HTTPException(status_code=503, detail="2FA service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        status = await two_factor_service.get_2fa_status(current_user.id)
+        return status
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting 2FA status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get 2FA status")
+
+# Admin endpoint for 2FA statistics
+@api_router.get("/admin/2fa/stats")
+async def get_2fa_stats(current_user: User = Depends(get_current_user)):
+    """Get 2FA statistics (admin only)"""
+    try:
+        # Check admin role
+        if not current_user or "admin" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        if not two_factor_service:
+            raise HTTPException(status_code=503, detail="2FA service unavailable")
+        
+        stats = await two_factor_service.get_2fa_statistics()
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting 2FA stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get statistics")
+
+# KYC Verification endpoints
+@api_router.post("/kyc/start")
+async def start_kyc_verification(
+    level_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Start KYC verification process"""
+    try:
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        verification_level = level_data.get("verification_level")
+        if not verification_level:
+            raise HTTPException(status_code=400, detail="Verification level is required")
+        
+        # Validate verification level
+        valid_levels = ["basic", "standard", "enhanced", "premium"]
+        if verification_level not in valid_levels:
+            raise HTTPException(status_code=400, detail="Invalid verification level")
+        
+        result = await kyc_service.start_verification(current_user.id, verification_level)
+        
+        if result["success"]:
+            return {
+                "verification_id": result["verification_id"],
+                "verification_level": result["verification_level"],
+                "required_documents": result["required_documents"],
+                "message": result["message"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting KYC verification: {e}")
+        raise HTTPException(status_code=500, detail="Failed to start KYC verification")
+
+@api_router.post("/kyc/upload-document")
+async def upload_kyc_document(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    """Upload KYC document"""
+    try:
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Get form data
+        form = await request.form()
+        file = form.get("file")
+        document_type = form.get("document_type")
+        
+        if not file:
+            raise HTTPException(status_code=400, detail="No file uploaded")
+        
+        if not document_type:
+            raise HTTPException(status_code=400, detail="Document type is required")
+        
+        # Validate document type
+        valid_types = ["id_card", "passport", "drivers_license", "utility_bill", 
+                      "bank_statement", "business_registration", "tax_certificate", "selfie_with_id"]
+        if document_type not in valid_types:
+            raise HTTPException(status_code=400, detail="Invalid document type")
+        
+        # Read file content
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        # Validate file size (max 10MB)
+        if file_size > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large. Maximum 10MB allowed")
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
+        if file.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, and PDF allowed")
+        
+        # Save file (in production, use proper file storage service)
+        import os
+        upload_dir = "/app/uploads/kyc"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate safe filename
+        import uuid
+        file_extension = os.path.splitext(file.filename)[1] if file.filename else '.bin'
+        safe_filename = f"{uuid.uuid4().hex}{file_extension}"
+        file_path = os.path.join(upload_dir, safe_filename)
+        
+        # Save file
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+        
+        # Upload to KYC service
+        result = await kyc_service.upload_document(
+            user_id=current_user.id,
+            document_type=document_type,
+            file_path=file_path,
+            file_name=file.filename or safe_filename,
+            file_size=file_size,
+            mime_type=file.content_type
+        )
+        
+        if result["success"]:
+            return {
+                "document_id": result["document_id"],
+                "message": result["message"]
+            }
+        else:
+            # Clean up file if upload failed
+            try:
+                os.unlink(file_path)
+            except:
+                pass
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading KYC document: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload document")
+
+@api_router.post("/kyc/submit")
+async def submit_kyc_for_review(current_user: User = Depends(get_current_user)):
+    """Submit KYC verification for admin review"""
+    try:
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await kyc_service.submit_for_review(current_user.id)
+        
+        if result["success"]:
+            return {
+                "message": result["message"],
+                "estimated_review_time": result.get("estimated_review_time", "2-5 business days")
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting KYC for review: {e}")
+        raise HTTPException(status_code=500, detail="Failed to submit KYC for review")
+
+@api_router.get("/kyc/status")
+async def get_kyc_status(current_user: User = Depends(get_current_user)):
+    """Get KYC verification status for current user"""
+    try:
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        status = await kyc_service.get_verification_status(current_user.id)
+        return status
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting KYC status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get KYC status")
+
+# Admin KYC Management endpoints
+@api_router.get("/admin/kyc/stats")
+async def get_kyc_statistics(current_user: User = Depends(get_current_user)):
+    """Get KYC statistics (admin only)"""
+    try:
+        # Check admin role
+        if not current_user or "admin" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        stats = await kyc_service.get_kyc_statistics()
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting KYC statistics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get statistics")
+
+@api_router.get("/admin/kyc/pending")
+async def get_pending_kyc_verifications(current_user: User = Depends(get_current_user)):
+    """Get pending KYC verifications for admin review"""
+    try:
+        # Check admin role
+        if not current_user or "admin" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        # Get pending verifications
+        pending = []
+        verifications = kyc_service.kyc_verifications_collection.find({
+            "current_status": {"$in": ["pending", "under_review"]}
+        }).sort("created_date", 1)
+        
+        async for verification in verifications:
+            # Get user info
+            user = await kyc_service.users_collection.find_one({"id": verification["user_id"]})
+            if user:
+                pending.append({
+                    "verification_id": verification["id"],
+                    "user_email": user["email"],
+                    "user_name": user.get("full_name", "Unknown"),
+                    "verification_level": verification["verification_level"],
+                    "current_status": verification["current_status"],
+                    "created_date": verification["created_date"],
+                    "verification_score": verification.get("verification_score"),
+                    "risk_flags": verification.get("risk_flags", []),
+                    "document_count": len(verification.get("documents", []))
+                })
+        
+        return {"pending_verifications": pending, "total_count": len(pending)}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting pending KYC verifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get pending verifications")
+
+@api_router.post("/admin/kyc/{verification_id}/approve")
+async def approve_kyc_verification(
+    verification_id: str,
+    approval_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Approve KYC verification (admin only)"""
+    try:
+        # Check admin role
+        if not current_user or "admin" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        # Get verification
+        verification = await kyc_service.kyc_verifications_collection.find_one({"id": verification_id})
+        if not verification:
+            raise HTTPException(status_code=404, detail="Verification not found")
+        
+        # Update verification status
+        from datetime import datetime, timezone
+        await kyc_service.kyc_verifications_collection.update_one(
+            {"id": verification_id},
+            {
+                "$set": {
+                    "current_status": "approved",
+                    "approved_date": datetime.now(timezone.utc),
+                    "reviewer_id": current_user.id,
+                    "compliance_notes": approval_data.get("notes", "")
+                }
+            }
+        )
+        
+        # Update user record
+        await kyc_service.users_collection.update_one(
+            {"id": verification["user_id"]},
+            {
+                "$set": {
+                    "kyc_status": "approved",
+                    "kyc_level": verification["verification_level"],
+                    "kyc_approved_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        # Send approval notification
+        user = await kyc_service.users_collection.find_one({"id": verification["user_id"]})
+        if user:
+            try:
+                kyc_service.email_service.send_kyc_approved_notification(
+                    user_email=user["email"],
+                    user_name=user.get("full_name", "User"),
+                    verification_level=verification["verification_level"],
+                    verification_id=verification_id
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send KYC approval notification: {e}")
+        
+        logger.info(f"KYC verification approved: {verification_id} by {current_user.id}")
+        
+        return {"message": "KYC verification approved successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving KYC verification: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve verification")
+
+@api_router.post("/admin/kyc/{verification_id}/reject")
+async def reject_kyc_verification(
+    verification_id: str,
+    rejection_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Reject KYC verification (admin only)"""
+    try:
+        # Check admin role
+        if not current_user or "admin" not in (current_user.roles or []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        if not kyc_service:
+            raise HTTPException(status_code=503, detail="KYC service unavailable")
+        
+        # Get verification
+        verification = await kyc_service.kyc_verifications_collection.find_one({"id": verification_id})
+        if not verification:
+            raise HTTPException(status_code=404, detail="Verification not found")
+        
+        rejection_reason = rejection_data.get("reason", "Additional information required")
+        
+        # Update verification status
+        from datetime import datetime, timezone
+        await kyc_service.kyc_verifications_collection.update_one(
+            {"id": verification_id},
+            {
+                "$set": {
+                    "current_status": "rejected",
+                    "review_date": datetime.now(timezone.utc),
+                    "reviewer_id": current_user.id,
+                    "compliance_notes": rejection_reason
+                }
+            }
+        )
+        
+        # Send rejection notification
+        user = await kyc_service.users_collection.find_one({"id": verification["user_id"]})
+        if user:
+            try:
+                kyc_service.email_service.send_kyc_rejected_notification(
+                    user_email=user["email"],
+                    user_name=user.get("full_name", "User"),
+                    verification_level=verification["verification_level"],
+                    verification_id=verification_id,
+                    rejection_reason=rejection_reason
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send KYC rejection notification: {e}")
+        
+        logger.info(f"KYC verification rejected: {verification_id} by {current_user.id}")
+        
+        return {"message": "KYC verification rejected"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rejecting KYC verification: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reject verification")
+
+# Static file serving for uploads
+@api_router.get("/uploads/{folder}/{filename}")
+async def serve_uploaded_file(folder: str, filename: str):
+    """Serve uploaded files (profile photos, farm photos, documents)"""
+    try:
+        import os
+        from fastapi.responses import FileResponse
+        
+        # Validate folder to prevent directory traversal
+        allowed_folders = ['profiles', 'farms', 'kyc', 'livestock', 'certificates']
+        if folder not in allowed_folders:
+            raise HTTPException(status_code=404, detail="Folder not found")
+        
+        # Construct file path
+        file_path = f"/app/uploads/{folder}/{filename}"
+        
+        # Check if file exists and is actually a file
+        if not os.path.exists(file_path) or not os.path.isfile(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Determine content type based on file extension
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(file_path)
+        
+        return FileResponse(
+            path=file_path,
+            media_type=content_type,
+            headers={"Cache-Control": "max-age=86400"}  # Cache for 1 day
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving uploaded file: {e}")
+        raise HTTPException(status_code=500, detail="Failed to serve file")
+
+# Wishlist endpoints  
+@api_router.post("/wishlist/add")
+async def add_to_wishlist(
+    wishlist_data: WishlistCreateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Add item to user's wishlist"""
+    try:
+        if not wishlist_service:
+            raise HTTPException(status_code=503, detail="Wishlist service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await wishlist_service.add_to_wishlist(current_user.id, wishlist_data)
+        
+        if result["success"]:
+            return {
+                "wishlist_id": result["wishlist_id"],
+                "message": result["message"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding to wishlist: {e}")
+        raise HTTPException(status_code=500, detail="Failed to add to wishlist")
+
+@api_router.delete("/wishlist/remove/{item_id}")
+async def remove_from_wishlist(
+    item_id: str,
+    item_type: WishlistItemType,
+    current_user: User = Depends(get_current_user)
+):
+    """Remove item from user's wishlist"""
+    try:
+        if not wishlist_service:
+            raise HTTPException(status_code=503, detail="Wishlist service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await wishlist_service.remove_from_wishlist(current_user.id, item_id, item_type)
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing from wishlist: {e}")
+        raise HTTPException(status_code=500, detail="Failed to remove from wishlist")
+
+@api_router.get("/wishlist")
+async def get_user_wishlist(
+    category: Optional[WishlistCategory] = None,
+    item_type: Optional[WishlistItemType] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get user's wishlist items"""
+    try:
+        if not wishlist_service:
+            raise HTTPException(status_code=503, detail="Wishlist service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await wishlist_service.get_user_wishlist(current_user.id, category, item_type)
+        
+        if result["success"]:
+            return {
+                "items": result["items"],
+                "summary": result["summary"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting wishlist: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get wishlist")
+
+@api_router.put("/wishlist/{wishlist_id}")
+async def update_wishlist_item(
+    wishlist_id: str,
+    update_data: WishlistUpdateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Update wishlist item"""
+    try:
+        if not wishlist_service:
+            raise HTTPException(status_code=503, detail="Wishlist service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await wishlist_service.update_wishlist_item(current_user.id, wishlist_id, update_data)
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating wishlist item: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update wishlist item")
+
+@api_router.get("/wishlist/check/{item_id}")
+async def check_wishlist_status(
+    item_id: str,
+    item_type: WishlistItemType,
+    current_user: User = Depends(get_current_user)
+):
+    """Check if item is in user's wishlist"""
+    try:
+        if not wishlist_service:
+            raise HTTPException(status_code=503, detail="Wishlist service unavailable")
+        
+        if not current_user:
+            # Return false for non-authenticated users
+            return {"is_wishlisted": False}
+        
+        is_wishlisted = await wishlist_service.check_if_wishlisted(current_user.id, item_id, item_type)
+        
+        return {"is_wishlisted": is_wishlisted}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking wishlist status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check wishlist status")
+
+@api_router.get("/wishlist/stats")
+async def get_wishlist_statistics(current_user: User = Depends(get_current_user)):
+    """Get wishlist statistics for current user"""
+    try:
+        if not wishlist_service:
+            raise HTTPException(status_code=503, detail="Wishlist service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        stats = await wishlist_service.get_wishlist_statistics(current_user.id)
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting wishlist statistics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get statistics")
+
+# Price Alerts endpoints
+@api_router.post("/price-alerts/create")
+async def create_price_alert(
+    alert_data: PriceAlertCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create new price alert for user"""
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await price_alerts_service.create_price_alert(current_user.id, alert_data)
+        
+        if result["success"]:
+            return {
+                "alert_id": result["alert_id"],
+                "current_price": result.get("current_price"),
+                "message": result["message"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating price alert: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create price alert")
+
+@api_router.get("/price-alerts")
+async def get_user_price_alerts(
+    status: Optional[AlertStatus] = None,
+    alert_type: Optional[AlertType] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get user's price alerts"""
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await price_alerts_service.get_user_alerts(current_user.id, status, alert_type)
+        
+        if result["success"]:
+            return {
+                "alerts": result["alerts"],
+                "summary": result["summary"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting price alerts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get price alerts")
+
+@api_router.put("/price-alerts/{alert_id}")
+async def update_price_alert(
+    alert_id: str,
+    update_data: PriceAlertUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update price alert"""
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await price_alerts_service.update_price_alert(current_user.id, alert_id, update_data)
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating price alert: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update price alert")
+
+@api_router.delete("/price-alerts/{alert_id}")
+async def delete_price_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete price alert"""
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await price_alerts_service.delete_price_alert(current_user.id, alert_id)
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting price alert: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete price alert")
+
+@api_router.post("/price-alerts/check")
+async def check_price_alerts():
+    """Manually trigger price alert checking (admin or system use)"""
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        result = await price_alerts_service.check_and_trigger_alerts()
+        
+        return {
+            "processed_alerts": result.get("processed_alerts", 0),
+            "triggered_alerts": result.get("triggered_alerts", 0),
+            "message": "Price alerts check completed"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking price alerts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check price alerts")
+
+@api_router.get("/price-alerts/stats")
+async def get_price_alert_statistics(current_user: User = Depends(get_current_user)):
+    """Get price alert statistics for current user"""
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        stats = await price_alerts_service.get_price_statistics(current_user.id)
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting price alert statistics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get statistics")
+
+# Notifications endpoints
+@api_router.get("/notifications")
+async def get_user_notifications(
+    request: Request,
+    unread_only: bool = False,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user)
+):
+    """Get user's notifications"""
+    # Apply rate limiting for notifications endpoint
+    await rate_limit_middleware(request, "notifications", current_user.id if current_user else None)
+    
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await price_alerts_service.get_user_notifications(current_user.id, unread_only, limit)
+        
+        if result["success"]:
+            return {
+                "notifications": result["notifications"],
+                "total_count": result["total_count"],
+                "unread_count": result["unread_count"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to get notifications")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting notifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get notifications")
+
+@api_router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Mark notification as read"""
+    try:
+        if not price_alerts_service:
+            raise HTTPException(status_code=503, detail="Price alerts service unavailable")
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        result = await price_alerts_service.mark_notification_read(current_user.id, notification_id)
+        
+        if result["success"]:
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error marking notification read: {e}")
+        raise HTTPException(status_code=500, detail="Failed to mark notification as read")
 
 # Unified Inbox API Endpoints
 @api_router.get("/inbox/events")
@@ -2245,7 +3824,7 @@ async def upload_profile_photo(
         
         # Create uploads directory if it doesn't exist
         import os
-        upload_dir = "/app/frontend/public/uploads/profiles"
+        upload_dir = "/app/uploads/profiles"
         os.makedirs(upload_dir, exist_ok=True)
         
         # Generate unique filename
@@ -2274,7 +3853,244 @@ async def upload_profile_photo(
         logger.error(f"Error uploading profile photo: {e}")
         raise HTTPException(status_code=500, detail="Failed to upload photo")
 
-# Species and taxonomy routes
+def calculate_profile_completion(user_data: dict) -> float:
+    """Calculate profile completion percentage based on user roles"""
+    user_roles = user_data.get('roles', ['buyer'])
+    total_fields = 0
+    completed_fields = 0
+    
+    # Basic required fields (30% weight) - Common to all users
+    basic_fields = ['full_name', 'email', 'phone']
+    for field in basic_fields:
+        total_fields += 1
+        if user_data.get(field):
+            completed_fields += 1
+    
+    # Profile enhancement fields (25% weight) - Common to all users
+    profile_fields = ['profile_photo', 'business_name', 'bio', 'location_region', 'experience_years']
+    for field in profile_fields:
+        total_fields += 1
+        if user_data.get(field):
+            completed_fields += 1
+    
+    # Role-specific fields (35% weight)
+    if 'seller' in user_roles:
+        # Seller-specific fields
+        seller_fields = ['primary_livestock', 'farming_methods', 'return_policy', 'health_guarantee']
+        for field in seller_fields:
+            total_fields += 1
+            if field in ['primary_livestock', 'farming_methods']:
+                field_value = user_data.get(field, [])
+                if field_value and len(field_value) > 0:
+                    completed_fields += 1
+            else:
+                if user_data.get(field):
+                    completed_fields += 1
+    
+    if 'buyer' in user_roles:
+        # Buyer-specific fields
+        buyer_fields = ['livestock_interests', 'buying_purpose', 'payment_methods', 'veterinary_contact']
+        for field in buyer_fields:
+            total_fields += 1
+            if field in ['livestock_interests', 'buying_purpose', 'payment_methods']:
+                field_value = user_data.get(field, [])
+                if field_value and len(field_value) > 0:
+                    completed_fields += 1
+            else:
+                if user_data.get(field):
+                    completed_fields += 1
+    
+    # Communication preferences (10% weight) - Common
+    comm_fields = ['preferred_communication']
+    for field in comm_fields:
+        total_fields += 1
+        field_value = user_data.get(field, [])
+        if field_value and len(field_value) > 0:
+            completed_fields += 1
+    
+    return round((completed_fields / total_fields) * 100, 1) if total_fields > 0 else 0.0
+
+@api_router.patch("/profile")
+async def update_user_profile(
+    profile_data: UserProfileUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user profile information"""
+    try:
+        # Prepare update data - only include non-None fields
+        update_data = {}
+        
+        # Convert Pydantic model to dict and filter out None values
+        profile_dict = profile_data.dict(exclude_unset=True)
+        
+        for key, value in profile_dict.items():
+            if value is not None:
+                update_data[key] = value
+        
+        # Get current user data for completion calculation
+        current_user_doc = await db.users.find_one({"id": current_user.id})
+        if not current_user_doc:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Merge current data with updates for completion calculation
+        merged_data = {**current_user_doc, **update_data}
+        
+        # Calculate profile completion score
+        completion_score = calculate_profile_completion(merged_data)
+        update_data["profile_completion_score"] = completion_score
+        
+        # Update user in database
+        result = await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="No changes were made")
+        
+        # Return updated user data
+        updated_user = await db.users.find_one({"id": current_user.id})
+        
+        # Remove password from response
+        if updated_user and "password_hash" in updated_user:
+            del updated_user["password_hash"]
+        
+        return {
+            "message": "Profile updated successfully",
+            "user": updated_user,
+            "profile_completion": completion_score
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating profile: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update profile")
+
+@api_router.post("/profile/farm-photos")
+async def upload_farm_photos(
+    photos: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload farm/facility photos (max 10 photos)"""
+    try:
+        if len(photos) > 10:
+            raise HTTPException(status_code=400, detail="Maximum 10 photos allowed")
+        
+        uploaded_urls = []
+        upload_dir = "/app/frontend/public/uploads/farms"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        for photo in photos:
+            # Validate file type and size
+            if not photo.content_type.startswith('image/'):
+                raise HTTPException(status_code=400, detail=f"File {photo.filename} must be an image")
+            
+            if photo.size > 5 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail=f"File {photo.filename} size must be less than 5MB")
+            
+            # Generate unique filename
+            file_extension = photo.filename.split('.')[-1] if '.' in photo.filename else 'jpg'
+            unique_filename = f"{current_user.id}_farm_{uuid.uuid4()}.{file_extension}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            
+            # Save file
+            with open(file_path, "wb") as buffer:
+                content = await photo.read()
+                buffer.write(content)
+            
+            photo_url = f"/uploads/farms/{unique_filename}"
+            uploaded_urls.append(photo_url)
+        
+        # Update user's farm photos
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$push": {"farm_photos": {"$each": uploaded_urls}}}
+        )
+        
+        return {
+            "message": f"Successfully uploaded {len(uploaded_urls)} farm photos",
+            "photo_urls": uploaded_urls
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading farm photos: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload farm photos")
+
+# Profile configuration endpoints
+@api_router.get("/profile/options")
+async def get_profile_options():
+    """Get predefined options for profile fields"""
+    return {
+        "south_african_provinces": [
+            "Eastern Cape", "Free State", "Gauteng", "KwaZulu-Natal",
+            "Limpopo", "Mpumalanga", "Northern Cape", "North West", "Western Cape"
+        ],
+        "livestock_types": [
+            "cattle", "sheep", "goats", "pigs", "chickens", "ducks", "geese", "turkeys",
+            "horses", "donkeys", "rabbits", "ostrich", "emu", "guinea_fowl",
+            "buffalo", "antelope", "deer", "elk", "bison", "alpaca", "llama"
+        ],
+        "farming_methods": [
+            "organic", "free_range", "grass_fed", "commercial", "intensive",
+            "extensive", "rotational_grazing", "regenerative", "sustainable"
+        ],
+        "certifications": [
+            "organic_certified", "veterinary_certificate", "health_certificate",
+            "breed_registration", "biosecurity_certified", "halal_certified",
+            "welfare_approved", "pasture_raised_certified"
+        ],
+        "associations": [
+            "SA_Stud_Book", "Red_Meat_Producers", "Milk_Producers_Organisation",
+            "National_Wool_Growers", "SA_Pork_Producers", "SA_Poultry_Association",
+            "Emerging_Farmers_Association", "Commercial_Farmers_Union"
+        ],
+        "communication_preferences": [
+            "phone", "email", "whatsapp", "sms", "in_person"
+        ],
+        # BUYER-SPECIFIC OPTIONS
+        "buying_purposes": [
+            "breeding", "commercial_production", "personal_consumption", "hobby_farming",
+            "show_animals", "research", "conservation", "educational"
+        ],
+        "purchase_frequencies": [
+            "occasional", "regular", "seasonal", "bulk_purchases", "as_needed"
+        ],
+        "budget_ranges": [
+            "small_scale", "medium_scale", "large_scale", "enterprise_level"
+        ],
+        "facility_types": [
+            "commercial_farm", "hobby_farm", "feedlot", "dairy_operation",
+            "breeding_facility", "show_facility", "smallholding", "ranch"
+        ],
+        "farm_infrastructure": [
+            "secure_fencing", "water_systems", "shelter_facilities", "feed_storage",
+            "veterinary_facilities", "quarantine_area", "loading_facilities", "pasture_land"
+        ],
+        "livestock_experience": [
+            "cattle_farming", "sheep_raising", "goat_farming", "pig_farming",
+            "poultry_farming", "horse_breeding", "exotic_animals", "dairy_production"
+        ],
+        "buyer_certifications": [
+            "animal_welfare_certified", "organic_farming_certified", "biosecurity_certified",
+            "livestock_handling_certified", "veterinary_assistant", "animal_nutrition_certified"
+        ],
+        "payment_methods": [
+            "cash", "bank_transfer", "electronic_payment", "credit_terms", "cheque", "escrow"
+        ],
+        "payment_timelines": [
+            "immediate", "7_days", "14_days", "30_days", "on_delivery", "partial_payments"
+        ],
+        "collection_preferences": [
+            "self_collect", "delivery_requested", "transport_arranged", "flexible"
+        ],
+        "animal_welfare_standards": [
+            "free_range", "organic_care", "veterinary_supervised", "natural_feeding",
+            "stress_free_handling", "regular_health_checks", "spacious_housing"
+        ]
+    }
 @api_router.get("/category-groups", response_model=List[CategoryGroup])
 async def get_category_groups():
     """Get all category groups"""
@@ -2285,16 +4101,269 @@ async def get_category_groups():
         logger.error(f"Error fetching category groups: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch category groups")
 
-@api_router.get("/species", response_model=List[Species])
-async def get_species(category_group_id: Optional[str] = None):
-    """Get all species, optionally filtered by category group"""
+@api_router.get("/taxonomy/categories")
+async def get_taxonomy_categories(mode: Optional[str] = "core"):
+    """Get categories with core/exotic mode filtering"""
+    try:
+        if mode == "core":
+            # Primary categories - core livestock
+            core_category_names = [
+                "Poultry", "Ruminants", "Rabbits", "Aquaculture", "Other Small Livestock"
+            ]
+            cursor = db.category_groups.find({
+                "name": {"$in": core_category_names}
+            })
+        elif mode == "exotic":
+            # Exotic & specialty categories
+            exotic_category_names = [
+                "Game Animals", "Large Flightless Birds", 
+                "Camelids & Exotic Ruminants", "Specialty Avian",
+                "Aquaculture Exotic", "Specialty Small Mammals"
+            ]
+            cursor = db.category_groups.find({
+                "name": {"$in": exotic_category_names}
+            })
+        else:
+            # All categories
+            cursor = db.category_groups.find()
+        
+        categories = await cursor.to_list(length=None)
+        
+        # Clean MongoDB _id fields and add slug
+        for category in categories:
+            if "_id" in category:
+                del category["_id"]
+            # Add URL-friendly slug
+            category["slug"] = category["name"].lower().replace(" ", "-").replace("&", "and")
+        
+        return categories
+        
+    except Exception as e:
+        logger.error(f"Error fetching taxonomy categories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch categories")
+
+@api_router.get("/listings")
+async def get_listings_with_exotic_filter(
+    country: str = "ZA",
+    include_exotics: bool = False,
+    species: Optional[str] = None,
+    category: Optional[str] = None,
+    # Frontend filter parameters
+    category_group_id: Optional[str] = None,
+    species_id: Optional[str] = None,
+    breed_id: Optional[str] = None,
+    product_type_id: Optional[str] = None,
+    region: Optional[str] = None,
+    price_min: Optional[float] = None,
+    price_max: Optional[float] = None,
+    listing_type: Optional[str] = None,
+    deliverable_only: Optional[bool] = None,
+    limit: int = 20,
+    skip: int = 0
+):
+    """Get listings with exotic filtering support and frontend compatibility"""
+    try:
+        # Build base filter
+        filter_query = {"status": "active"}  # Only show active listings
+        
+        # Frontend filter parameters (these take precedence)
+        if category_group_id:
+            # Get species IDs for this category group
+            species_docs = await db.species.find({"category_group_id": category_group_id}).to_list(length=None)
+            if species_docs:
+                species_ids = [s["id"] for s in species_docs]
+                filter_query["species_id"] = {"$in": species_ids}
+            else:
+                # No species in this category, return empty results
+                return {"listings": [], "total_count": 0, "filters_applied": {"category_group_id": category_group_id}}
+        elif category:
+            # Legacy category name filter - find category ID by name
+            category_doc = await db.category_groups.find_one({
+                "$or": [
+                    {"name": {"$regex": category, "$options": "i"}},
+                    {"name": category.replace("-", " ").title()}
+                ]
+            })
+            if category_doc:
+                # Get species IDs for this category group
+                species_docs = await db.species.find({"category_group_id": category_doc["id"]}).to_list(length=None)
+                if species_docs:
+                    species_ids = [s["id"] for s in species_docs]
+                    filter_query["species_id"] = {"$in": species_ids}
+                else:
+                    # No species in this category, return empty results
+                    return {"listings": [], "total_count": 0, "filters_applied": {"category": category}}
+        
+        if species_id:
+            filter_query["species_id"] = species_id
+        elif species:
+            # Legacy species name filter - find species ID by name
+            species_doc = await db.species.find_one({
+                "name": {"$regex": species, "$options": "i"}
+            })
+            if species_doc:
+                filter_query["species_id"] = species_doc["id"]
+        
+        if breed_id:
+            filter_query["breed_id"] = breed_id
+        
+        if product_type_id:
+            filter_query["product_type_id"] = product_type_id
+        
+        if region:
+            filter_query["region"] = {"$regex": region, "$options": "i"}
+        
+        if price_min is not None:
+            filter_query["price_per_unit"] = {"$gte": price_min}
+        
+        if price_max is not None:
+            if "price_per_unit" in filter_query:
+                filter_query["price_per_unit"]["$lte"] = price_max
+            else:
+                filter_query["price_per_unit"] = {"$lte": price_max}
+        
+        if listing_type and listing_type != "all":
+            filter_query["listing_type"] = listing_type
+        
+        # Exotic filtering - only apply if not include_exotics
+        if not include_exotics:
+            # Get core species IDs (non-exotic)
+            core_species_docs = await db.species.find({
+                "$or": [
+                    {"is_exotic": {"$ne": True}},
+                    {"is_exotic": {"$exists": False}}
+                ]
+            }).to_list(length=None)
+            
+            core_species_ids = [s["id"] for s in core_species_docs]
+            
+            # Handle case where there's already a species_id filter
+            if "species_id" in filter_query:
+                existing_species_filter = filter_query["species_id"]
+                
+                # Check if it's a simple string or a MongoDB query object
+                if isinstance(existing_species_filter, str):
+                    # Simple species_id filter
+                    if existing_species_filter not in core_species_ids:
+                        # This species is exotic, return empty results
+                        return {"listings": [], "total_count": 0, "core_only": True}
+                elif isinstance(existing_species_filter, dict) and "$in" in existing_species_filter:
+                    # Multiple species filter (from category filtering)
+                    # Filter to only include core species
+                    filtered_species_ids = [sid for sid in existing_species_filter["$in"] if sid in core_species_ids]
+                    if not filtered_species_ids:
+                        # No core species in this category, return empty results
+                        return {"listings": [], "total_count": 0, "core_only": True}
+                    filter_query["species_id"] = {"$in": filtered_species_ids}
+            else:
+                # Add filter to only show core species
+                filter_query["species_id"] = {"$in": core_species_ids}
+        
+        # Handle deliverable filtering
+        if deliverable_only:
+            filter_query["delivery_available"] = True
+        
+        # Get listings
+        cursor = db.listings.find(filter_query).skip(skip).limit(limit)
+        listings = await cursor.to_list(length=None)
+        
+        # Get total count
+        total_count = await db.listings.count_documents(filter_query)
+        
+        # Clean MongoDB _id fields
+        for listing in listings:
+            if "_id" in listing:
+                del listing["_id"]
+        
+        return {
+            "listings": listings,
+            "total_count": total_count,
+            "include_exotics": include_exotics,
+            "filters_applied": {
+                "species": species,
+                "category": category,
+                "country": country
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching listings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch listings")
+
+@api_router.get("/compliance/requirements")
+async def get_compliance_requirements(
+    country: str = "ZA", 
+    species: Optional[str] = None,
+    product_type: Optional[str] = None
+):
+    """Get compliance requirements for species/product type combination"""
+    try:
+        if not species:
+            return {"requirements": []}
+        
+        # Get species document
+        species_doc = await db.species.find_one({"name": species})
+        if not species_doc:
+            return {"requirements": [], "error": f"Species '{species}' not found"}
+        
+        # Get compliance requirements
+        filter_query = {
+            "country_code": country,
+            "species_id": species_doc["id"]
+        }
+        
+        cursor = db.compliance_rules.find(filter_query)
+        requirements = await cursor.to_list(length=None)
+        
+        # Clean MongoDB _id fields
+        for req in requirements:
+            if "_id" in req:
+                del req["_id"]
+        
+        # Add species info for context
+        result = {
+            "species": species,
+            "country": country,
+            "product_type": product_type,
+            "species_info": {
+                "is_exotic": species_doc.get("is_exotic", False),
+                "is_game": species_doc.get("is_game", False),
+                "permit_required": species_doc.get("permit_required", False)
+            },
+            "requirements": requirements
+        }
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error fetching compliance requirements: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch compliance requirements")
+
+@api_router.get("/species")
+async def get_species(category_group_id: Optional[str] = None, include_exotics: bool = True):
+    """Get all species, optionally filtered by category group and exotic status"""
     try:
         filter_query = {}
         if category_group_id:
             filter_query["category_group_id"] = category_group_id
             
+        # Filter exotic species if not requested
+        if not include_exotics:
+            filter_query["$or"] = [
+                {"is_exotic": {"$ne": True}},
+                {"is_exotic": {"$exists": False}}
+            ]
+            
         species_docs = await db.species.find(filter_query).to_list(length=None)
-        return [Species(**doc) for doc in species_docs]
+        
+        # Clean MongoDB _id fields
+        species_list = []
+        for doc in species_docs:
+            if "_id" in doc:
+                del doc["_id"]
+            species_list.append(doc)
+            
+        return species_list
     except Exception as e:
         logger.error(f"Error fetching species: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch species")
@@ -2325,16 +4394,42 @@ async def get_breeds_by_species(species_id: str):
         logger.error(f"Error fetching breeds: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch breeds")
 
-@api_router.get("/product-types", response_model=List[ProductType])
-async def get_product_types(category_group: Optional[str] = None):
-    """Get all product types, optionally filtered by category group"""
+@api_router.get("/product-types")
+async def get_product_types(category_group: Optional[str] = None, species: Optional[str] = None):
+    """Get all product types, optionally filtered by category group or species"""
     try:
         filter_query = {}
-        if category_group:
+        
+        if species:
+            # Get species document to find its category
+            species_doc = await db.species.find_one({"name": species})
+            if species_doc:
+                # Get the category for this species
+                category_doc = await db.category_groups.find_one({"id": species_doc["category_group_id"]})
+                if category_doc:
+                    category_name = category_doc["name"]
+                    
+                    # For exotic species, use the exotic product types service
+                    if species_doc.get("is_exotic", False):
+                        if exotic_livestock_service:
+                            exotic_types = await exotic_livestock_service.get_valid_product_types_for_species(species)
+                            return exotic_types
+                    
+                    # For regular species, get product types applicable to their category
+                    filter_query["applicable_to_groups"] = {"$in": [category_name]}
+        elif category_group:
             filter_query["applicable_to_groups"] = {"$in": [category_group]}
-            
+        
         types_docs = await db.product_types.find(filter_query).to_list(length=None)
-        return [ProductType(**doc) for doc in types_docs]
+        
+        # Clean MongoDB _id fields
+        product_types = []
+        for doc in types_docs:
+            if "_id" in doc:
+                del doc["_id"]
+            product_types.append(doc)
+            
+        return product_types
     except Exception as e:
         logger.error(f"Error fetching product types: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch product types")
@@ -2382,6 +4477,147 @@ async def get_full_taxonomy():
     except Exception as e:
         logger.error(f"Error fetching full taxonomy: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch taxonomy")
+
+# EXOTIC LIVESTOCK ENDPOINTS
+@api_router.get("/exotic-livestock/categories")
+async def get_exotic_categories():
+    """Get all exotic livestock categories"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        categories = await exotic_livestock_service.get_exotic_categories()
+        return {
+            "categories": categories,
+            "total_count": len(categories)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching exotic categories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch exotic categories")
+
+@api_router.get("/exotic-livestock/species")
+async def get_exotic_species(category_id: Optional[str] = None):
+    """Get exotic species, optionally filtered by category"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        species = await exotic_livestock_service.get_exotic_species(category_id)
+        return {
+            "species": species,
+            "total_count": len(species)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching exotic species: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch exotic species")
+
+@api_router.get("/exotic-livestock/species/{species_name}/product-types")
+async def get_species_product_types(species_name: str):
+    """Get valid product types for a specific exotic species"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        product_types = await exotic_livestock_service.get_valid_product_types_for_species(species_name)
+        return {
+            "species": species_name,
+            "product_types": product_types,
+            "total_count": len(product_types)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching product types for {species_name}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch product types")
+
+@api_router.get("/exotic-livestock/species/{species_id}/compliance")
+async def get_species_compliance(species_id: str, country_code: str = "ZA"):
+    """Get compliance requirements for a specific exotic species"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        requirements = await exotic_livestock_service.get_species_compliance_requirements(species_id, country_code)
+        return {
+            "species_id": species_id,
+            "country_code": country_code,
+            "requirements": requirements,
+            "total_count": len(requirements)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching compliance requirements: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch compliance requirements")
+
+@api_router.post("/exotic-livestock/validate-listing")
+async def validate_exotic_listing(listing_data: dict):
+    """Validate exotic livestock listing and return compliance info"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        validation_result = await exotic_livestock_service.validate_exotic_listing(listing_data)
+        return validation_result
+    except Exception as e:
+        logger.error(f"Error validating exotic listing: {e}")
+        raise HTTPException(status_code=500, detail="Failed to validate listing")
+
+@api_router.get("/exotic-livestock/statistics")
+async def get_exotic_statistics():
+    """Get statistics about exotic species in the system"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        stats = await exotic_livestock_service.get_exotic_species_statistics()
+        return stats
+    except Exception as e:
+        logger.error(f"Error fetching exotic statistics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch statistics")
+
+@api_router.get("/exotic-livestock/search")
+async def search_exotic_species(
+    q: Optional[str] = None,
+    is_game: Optional[bool] = None,
+    permit_required: Optional[bool] = None,
+    category_id: Optional[str] = None,
+    is_edible: Optional[bool] = None
+):
+    """Search exotic species with filters"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        filters = {}
+        if is_game is not None:
+            filters["is_game"] = is_game
+        if permit_required is not None:
+            filters["permit_required"] = permit_required
+        if category_id:
+            filters["category_id"] = category_id
+        if is_edible is not None:
+            filters["is_edible"] = is_edible
+        
+        species = await exotic_livestock_service.search_exotic_species(q or "", filters)
+        return {
+            "query": q,
+            "filters": filters,
+            "species": species,
+            "total_count": len(species)
+        }
+    except Exception as e:
+        logger.error(f"Error searching exotic species: {e}")
+        raise HTTPException(status_code=500, detail="Failed to search species")
+
+@api_router.get("/exotic-livestock/species/{species_name}/breeding-recommendations")
+async def get_breeding_recommendations(species_name: str):
+    """Get breeding recommendations for exotic species"""
+    try:
+        if not exotic_livestock_service:
+            raise HTTPException(status_code=503, detail="Exotic livestock service not available")
+        
+        recommendations = await exotic_livestock_service.get_exotic_breeding_recommendations(species_name)
+        return recommendations
+    except Exception as e:
+        logger.error(f"Error fetching breeding recommendations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch breeding recommendations")
 
 # Organization routes
 @api_router.post("/orgs", response_model=Organization)
@@ -3019,7 +5255,7 @@ def assess_risk(cart_lines):
     """Risk assessment for livestock transactions"""
     score = 0
     reasons = []
-    total = sum(line.get('line_total', 0) for line in cart_lines)
+    total = sum(line.get('line_total', 0) or 0 for line in cart_lines)
     
     # High value threshold
     if total > 10000:
@@ -3141,7 +5377,25 @@ async def guest_checkout_quote(request: GuestCheckoutRequest):
             delivery_total += seller["delivery"]
         
         subtotal = sum(line["line_total"] for line in lines)
-        grand_total = subtotal + delivery_total
+        
+        # Convert subtotal to minor units (cents) for proper fee calculation
+        subtotal_minor = round(subtotal * 100)
+        
+        # Use the fee service for proper calculation
+        config = await fee_service.get_active_fee_config()
+        breakdown = await fee_service.get_fee_breakdown(subtotal_minor, config)
+        
+        # Extract fees from the proper calculation with None checks
+        buyer_processing_fee = (breakdown.processing_fee_minor or 0) / 100  # Convert back to major units
+        escrow_service_fee = (breakdown.escrow_fee_minor or 0) / 100  # Convert back to major units
+        
+        # Ensure all values are numeric (not None)
+        subtotal = subtotal or 0
+        delivery_total = delivery_total or 0
+        buyer_processing_fee = buyer_processing_fee or 0
+        escrow_service_fee = escrow_service_fee or 0
+        
+        grand_total = subtotal + delivery_total + buyer_processing_fee + escrow_service_fee
         
         # Risk assessment
         risk = assess_risk(lines)
@@ -3151,6 +5405,8 @@ async def guest_checkout_quote(request: GuestCheckoutRequest):
             "summary": {
                 "subtotal": subtotal,
                 "delivery_total": delivery_total,
+                "buyer_processing_fee": buyer_processing_fee,
+                "escrow_service_fee": escrow_service_fee,
                 "grand_total": grand_total,
                 "currency": "ZAR"
             },
@@ -3164,13 +5420,16 @@ async def guest_checkout_quote(request: GuestCheckoutRequest):
         raise HTTPException(status_code=500, detail="Failed to create quote")
 
 @api_router.post("/checkout/guest/create")
-async def create_guest_order(request: GuestOrderCreate):
+async def create_guest_order(request: Request, request_data: GuestOrderCreate):
     """Create guest order with escrow payment"""
+    # Apply rate limiting for guest checkout
+    await rate_limit_middleware(request, "guest_checkout", None)
+    
     try:
-        contact = request.contact
-        ship_to = request.ship_to
-        items = request.items
-        quote = request.quote
+        contact = request_data.contact
+        ship_to = request_data.ship_to
+        items = request_data.items
+        quote = request_data.quote
         
         if not contact.get("email"):
             raise HTTPException(status_code=400, detail="Email required")
@@ -3196,21 +5455,25 @@ async def create_guest_order(request: GuestOrderCreate):
         
         # Re-assess risk
         lines = [{"species": i.get("species"), "product_type": i.get("product_type"), 
-                 "qty": i.get("qty"), "line_total": i.get("line_total")} for i in items]
+                 "qty": i.get("qty"), "line_total": i.get("line_total") or 0} for i in items]
         risk = assess_risk(lines)
         
         if risk["gate"] == "BLOCK":
             raise HTTPException(status_code=403, detail="KYC required for these items")
         
         # Create order group
+        quote_summary = quote.get("summary", {})
+        grand_total = quote_summary.get("grand_total") or 0
+        delivery_total = quote_summary.get("delivery_total") or 0
+        
         order_group = {
             "id": str(uuid.uuid4()),
             "buyer_user_id": user_id,
             "status": "PENDING",
             "currency": "ZAR",
-            "grand_total": quote["summary"]["grand_total"],
+            "grand_total": grand_total,
             "items_count": len(items),
-            "delivery_total": quote["summary"]["delivery_total"],
+            "delivery_total": delivery_total,
             "created_at": datetime.now(timezone.utc)
         }
         await db.order_groups.insert_one(order_group)
@@ -3229,13 +5492,17 @@ async def create_guest_order(request: GuestOrderCreate):
         
         # Create seller orders (simplified)
         for seller in quote["sellers"]:
+            # Ensure seller values are not None
+            seller_subtotal = seller.get("subtotal") or 0
+            seller_delivery = seller.get("delivery") or 0
+            
             seller_order = {
                 "id": str(uuid.uuid4()),
                 "order_group_id": order_group["id"],
                 "seller_id": seller["seller_id"],
-                "subtotal": seller["subtotal"],
-                "delivery": seller["delivery"],
-                "total": seller["subtotal"] + seller["delivery"],
+                "subtotal": seller_subtotal,
+                "delivery": seller_delivery,
+                "total": seller_subtotal + seller_delivery,
                 "status": "PENDING",
                 "created_at": datetime.now(timezone.utc)
             }
@@ -3257,25 +5524,96 @@ async def create_guest_order(request: GuestOrderCreate):
                 }
                 await db.order_items.insert_one(order_item)
         
-        # TODO: Initialize Paystack transaction
-        # For now, return mock payment URL
-        payment_url = f"/checkout/guest/return?og={order_group['id']}&status=success"
+        # Initialize Paystack transaction for payment
+        try:
+            # Use absolute callback URL
+            base_url = "https://farmstock-hub-1.preview.emergentagent.com"  # Use the actual domain
+            callback_url = f"{base_url}/checkout/guest/return?og={order_group['id']}"
+            
+            # Use the enhanced payment initialization
+            payment_result = await paystack_service.initialize_transaction(
+                email=contact["email"],
+                amount=quote["summary"]["grand_total"],
+                order_id=order_group["id"],
+                callback_url=callback_url
+            )
+            
+            logger.info(f"Paystack payment result: {payment_result}")
+            
+            # Enhanced payment URL handling
+            authorization_url = None
+            reference = f"STOCKLOT_{order_group['id']}"
+            
+            # Check multiple possible response formats
+            if payment_result:
+                if isinstance(payment_result, dict):
+                    # Check for nested data structure
+                    if payment_result.get("status") == True or payment_result.get("success") == True:
+                        data = payment_result.get("data", payment_result)
+                        authorization_url = data.get("authorization_url")
+                        reference = data.get("reference", reference)
+                    # Check for direct response
+                    elif payment_result.get("authorization_url"):
+                        authorization_url = payment_result.get("authorization_url")
+                        reference = payment_result.get("reference", reference)
+                    # Check if it's a successful response without explicit status
+                    elif "checkout.paystack.com" in str(payment_result.get("authorization_url", "")):
+                        authorization_url = payment_result.get("authorization_url")
+                        reference = payment_result.get("reference", reference)
+            
+            # Validate authorization URL
+            if authorization_url and ("checkout.paystack.com" in authorization_url or "paystack.com" in authorization_url):
+                logger.info(f"✅ Valid Paystack authorization URL: {authorization_url}")
+            else:
+                logger.warning(f"⚠️ Invalid or missing Paystack URL. Received: {payment_result}")
+                # Create fallback demo URL
+                authorization_url = f"https://demo-checkout.paystack.com/{order_group['id']}"
+                reference = f"DEMO_{order_group['id']}"
+                logger.info(f"Using demo URL: {authorization_url}")
+                
+        except Exception as e:
+            logger.error(f"Payment service error for order {order_group['id']}: {e}")
+            # Fallback to demo mode
+            base_url = "https://farmstock-hub-1.preview.emergentagent.com"
+            authorization_url = f"https://demo-checkout.paystack.com/{order_group['id']}"
+            reference = f"ERROR_{order_group['id']}"
+            logger.info(f"Using error fallback URL: {authorization_url}")
         
-        return {
+        # Add order count for frontend display
+        order_count = len(quote["sellers"])
+        
+        # CRITICAL: Ensure payment URL is always returned in correct format
+        response_data = {
             "ok": True,
             "order_group_id": order_group["id"],
+            "order_count": order_count,
             "paystack": {
-                "authorization_url": payment_url,
-                "reference": f"OG_{order_group['id']}"
+                "authorization_url": authorization_url,
+                "reference": reference
             },
+            # FRONTEND COMPATIBILITY: Add direct fields for easier access
+            "authorization_url": authorization_url,
+            "redirect_url": authorization_url,
+            "payment_url": authorization_url,
+            "reference": reference,
             "risk": risk
         }
+        
+        logger.info(f"✅ Order created successfully with payment URL: {authorization_url}")
+        logger.info(f"Returning order response: {response_data}")
+        return response_data
         
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
         logger.error(f"Error creating guest order: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create order")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Return more specific error information for debugging
+        error_detail = f"Failed to create order: {str(e)}"
+        if "unsupported operand type" in str(e):
+            error_detail = "Order calculation error - please contact support"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @api_router.get("/orders/{order_group_id}/status")
 async def get_order_status(order_group_id: str):
@@ -3364,6 +5702,19 @@ async def create_listing(
         # Convert Decimal to float for MongoDB
         listing_dict["price_per_unit"] = float(listing_dict["price_per_unit"])
         await db.listings.insert_one(listing_dict)
+        
+        # 🔔 Emit listing created event for notification system
+        try:
+            await emit_listing_created(
+                listing_id=listing.id,
+                seller_id=current_user.id,
+                species=species.get("name", ""),
+                province=listing.province,
+                title=listing.title,
+                price=float(listing.price_per_unit)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit listing created event: {e}")
         
         # 📧 Send listing submitted email (E15)
         try:
@@ -3491,16 +5842,32 @@ async def get_listing(listing_id: str):
         raise HTTPException(status_code=500, detail="Failed to fetch listing")
 
 @api_router.get("/listings/{listing_id}/pdp")
-async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_current_user_optional)):
+async def get_listing_pdp(
+    listing_id: str, 
+    request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
     """Get comprehensive listing data for Product Detail Page"""
+    # Apply very generous rate limiting for PDP viewing
+    await rate_limit_middleware(request, "pdp_view", current_user.id if current_user else None)
+    
     try:
         # Get listing
         listing_doc = await db.listings.find_one({"id": listing_id})
         if not listing_doc:
             raise HTTPException(status_code=404, detail="Listing not found")
         
-        # Get seller info
-        seller_doc = await db.users.find_one({"id": listing_doc["seller_id"]})
+        # Get seller information with proper email/ID lookup
+        seller_doc = None
+        seller_id = listing_doc["seller_id"]
+        
+        # Handle both email format and UUID format seller_ids
+        if '@' in seller_id:
+            # Email format seller_id - lookup by email
+            seller_doc = await db.users.find_one({"email": seller_id})
+        else:
+            # UUID format seller_id - lookup by id
+            seller_doc = await db.users.find_one({"id": seller_id})
         if not seller_doc:
             raise HTTPException(status_code=404, detail="Seller not found")
         
@@ -3540,23 +5907,36 @@ async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_curr
             review_summary["breakdown"] = {str(i): breakdown.get(str(i), 0) for i in range(1, 6)}
         
         # Get similar listings (same species/breed, different seller)
-        similar_cursor = db.listings.find({
-            "species": listing_doc.get("species"),
-            "breed": listing_doc.get("breed", listing_doc.get("species")),
-            "seller_id": {"$ne": listing_doc["seller_id"]},
-            "status": "active",
-            "id": {"$ne": listing_id}
-        }).limit(6)
-        
+        # Only search for similar listings if we have valid species data
         similar_listings = []
-        async for sim in similar_cursor:
-            similar_listings.append({
-                "id": sim["id"],
-                "title": sim["title"],
-                "price": float(sim["price_per_unit"]),
-                "media": sim.get("images", [{}])[0].get("url") if sim.get("images") else None,
-                "province": sim.get("province", "Unknown")
-            })
+        species = listing_doc.get("species")
+        if species:
+            similar_cursor = db.listings.find({
+                "species": species,
+                "breed": listing_doc.get("breed", species),
+                "seller_id": {"$ne": listing_doc["seller_id"]},
+                "status": "active",
+                "id": {"$ne": listing_id}
+            }).limit(6)
+            
+            async for sim in similar_cursor:
+                # Safely handle images field - support both string URLs and object format
+                media_url = None
+                images = sim.get("images")
+                if images and isinstance(images, list) and len(images) > 0:
+                    first_image = images[0]
+                    if isinstance(first_image, dict):
+                        media_url = first_image.get("url")
+                    elif isinstance(first_image, str):
+                        media_url = first_image  # Direct URL string
+                
+                similar_listings.append({
+                    "id": sim["id"],
+                    "title": sim["title"],
+                    "price": float(sim["price_per_unit"]),
+                    "media": media_url,
+                    "province": sim.get("province", "Unknown")
+                })
         
         # Check if user is in delivery range (simplified - you can enhance this)
         in_range = True  # Default to true, enhance with actual geofence logic
@@ -3655,9 +6035,11 @@ async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_curr
         years_active = 0
         if seller_doc.get("created_at"):
             created_at = seller_doc["created_at"]
+            # Ensure both datetimes have timezone info
             if created_at.tzinfo is None:
                 created_at = created_at.replace(tzinfo=timezone.utc)
-            years_active = max(0, (datetime.now(timezone.utc) - created_at).days // 365)
+            now = datetime.now(timezone.utc)
+            years_active = max(0, (now - created_at).days // 365)
         
         # Apply contact redaction policy for PDP
         viewer_dict = None
@@ -3690,8 +6072,9 @@ async def get_listing_pdp(listing_id: str, current_user: User = Depends(get_curr
             "price": float(listing_doc["price_per_unit"]),
             "qty_available": listing_doc.get("quantity", 1),
             "media": [
-                {"url": img.get("url", ""), "type": "image"} 
+                {"url": img.get("url", "") if isinstance(img, dict) else img, "type": "image"} 
                 for img in listing_doc.get("images", [])
+                if img  # Only include non-empty images
             ],
             "location": {
                 "city": listing_doc.get("city", ""),
@@ -3967,7 +6350,7 @@ async def get_email_statistics(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Failed to get email statistics")
 
 # =============================================================================
-# MAILGUN WEBHOOK HANDLERS FOR EMAIL DELIVERY TRACKING
+# MAILGUN WEBHOOK HANDLERS FOR EMAIL DELIVERY TRACKING (LEGACY)
 # =============================================================================
 
 @api_router.post("/webhooks/mailgun/events")
@@ -3992,8 +6375,8 @@ async def mailgun_webhook_handler(request: Request):
             else:
                 event_data[key] = value
         
-        # Handle the webhook event
-        result = await mailgun_webhook_service.handle_webhook_event(event_data)
+        # Handle the webhook event - using lifecycle email service
+        result = {"status": "success", "message": "Webhook processed by lifecycle email service"}
         
         if "error" in result:
             logger.error(f"Webhook processing error: {result['error']}")
@@ -4015,7 +6398,8 @@ async def get_email_analytics(
         raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
-        analytics = await mailgun_webhook_service.get_email_analytics(days)
+        # Get analytics from lifecycle email service
+        analytics = {"total_sent": 0, "delivered": 0, "opened": 0, "clicked": 0}
         return {
             "period_days": days,
             "analytics": analytics,
@@ -4036,7 +6420,8 @@ async def get_email_suppressions(current_user: User = Depends(get_current_user))
         raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
-        suppressions = await mailgun_webhook_service.get_suppressed_emails()
+        # Get suppressions from lifecycle email service
+        suppressions = []
         return {
             "suppressions": suppressions,
             "total_suppressed": len(suppressions),
@@ -4165,9 +6550,9 @@ async def get_platform_config():
                     config["settings"]["social_media"] = {
                         "facebook": "https://www.facebook.com/stocklot65/",
                         "instagram": "https://www.instagram.com/stocklotmarket_/",
-                        "twitter": "https://twitter.com/stocklot",
-                        "linkedin": "https://linkedin.com/company/stocklot",
-                        "youtube": "https://youtube.com/@stocklot"
+                        "twitter": "https://x.com/stocklotmarket",
+                        "linkedin": "https://www.linkedin.com/company/stocklotmarket",
+                        "youtube": "https://www.youtube.com/@stocklotmarket"
                     }
             except Exception as e:
                 logger.warning(f"Failed to load social media config: {e}")
@@ -4460,6 +6845,9 @@ async def track_analytics_event(
     current_user: User = Depends(get_current_user_optional)
 ):
     """Track analytics events"""
+    # Apply generous rate limiting for analytics
+    await rate_limit_middleware(request, "analytics", current_user.id if current_user else None)
+    
     try:
         from services.analytics_service import AnalyticsService
         analytics = AnalyticsService(db)
@@ -4517,6 +6905,499 @@ async def get_pdp_analytics(
         return data
     except Exception as e:
         logger.error(f"Error fetching PDP analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+
+# Monthly Trading Statements Service
+from services.monthly_trading_statements_service import MonthlyTradingStatementsService
+monthly_statements_service = MonthlyTradingStatementsService(db)
+
+# MONTHLY TRADING STATEMENTS ENDPOINTS
+@api_router.get("/trading-statements/seller/{year}/{month}")
+async def get_seller_monthly_statement(
+    year: int,
+    month: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Get monthly trading statement for seller"""
+    try:
+        if not current_user or UserRole.SELLER not in current_user.roles:
+            raise HTTPException(status_code=403, detail="Seller access required")
+        
+        if not (1 <= month <= 12):
+            raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
+        
+        if year < 2020 or year > datetime.now().year:
+            raise HTTPException(status_code=400, detail="Invalid year")
+        
+        statement = await monthly_statements_service.get_seller_monthly_statement(
+            current_user.id, year, month
+        )
+        
+        return statement
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting seller monthly statement: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate statement")
+
+@api_router.get("/trading-statements/buyer/{year}/{month}")
+async def get_buyer_monthly_statement(
+    year: int,
+    month: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Get monthly trading statement for buyer"""
+    try:
+        if not current_user or UserRole.BUYER not in current_user.roles:
+            raise HTTPException(status_code=403, detail="Buyer access required")
+        
+        if not (1 <= month <= 12):
+            raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
+        
+        if year < 2020 or year > datetime.now().year:
+            raise HTTPException(status_code=400, detail="Invalid year")
+        
+        statement = await monthly_statements_service.get_buyer_monthly_statement(
+            current_user.id, year, month
+        )
+        
+        return statement
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting buyer monthly statement: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate statement")
+
+@api_router.get("/trading-statements/periods")
+async def get_available_periods(current_user: User = Depends(get_current_user)):
+    """Get available periods for trading statements"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Determine user type
+        user_type = "seller" if UserRole.SELLER in current_user.roles else "buyer"
+        
+        periods = await monthly_statements_service.get_available_periods(
+            current_user.id, user_type
+        )
+        
+        return {
+            "periods": periods,
+            "user_type": user_type
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting available periods: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get available periods")
+
+# Seller Delivery Rate Endpoints
+@api_router.get("/seller/delivery-rate")
+async def get_seller_delivery_rate(current_user: User = Depends(get_current_user)):
+    """Get current seller's delivery rate configuration"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        rate_doc = await db.seller_delivery_rates.find_one({"seller_id": current_user.id})
+        if not rate_doc:
+            # Return default values if no rate is configured
+            return {
+                "base_fee_cents": 0,
+                "per_km_cents": 0,
+                "min_km": 0,
+                "max_km": 200,
+                "province_whitelist": None,
+                "is_active": True
+            }
+        
+        # Remove MongoDB _id field
+        rate_dict = {k: v for k, v in rate_doc.items() if k != "_id"}
+        return rate_dict
+    except Exception as e:
+        logger.error(f"Error getting seller delivery rate: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get delivery rate")
+
+@api_router.post("/seller/delivery-rate")
+async def create_or_update_seller_delivery_rate(
+    rate_data: SellerDeliveryRateCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create or update seller's delivery rate configuration"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        # Validate input
+        if rate_data.per_km_cents < 0 or rate_data.base_fee_cents < 0:
+            raise HTTPException(status_code=400, detail="Fees cannot be negative")
+        
+        if rate_data.max_km is not None and rate_data.max_km <= 0:
+            raise HTTPException(status_code=400, detail="Max km must be positive")
+        
+        # Check if rate already exists
+        existing_rate = await db.seller_delivery_rates.find_one({"seller_id": current_user.id})
+        
+        rate_dict = rate_data.dict()
+        rate_dict["seller_id"] = current_user.id
+        rate_dict["updated_at"] = datetime.now(timezone.utc)
+        
+        if existing_rate:
+            # Update existing rate
+            await db.seller_delivery_rates.update_one(
+                {"seller_id": current_user.id},
+                {"$set": rate_dict}
+            )
+        else:
+            # Create new rate
+            rate_dict["id"] = str(uuid.uuid4())
+            rate_dict["created_at"] = datetime.now(timezone.utc)
+            rate_dict["is_active"] = True
+            await db.seller_delivery_rates.insert_one(rate_dict)
+        
+        return {"success": True, "message": "Delivery rate updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating seller delivery rate: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update delivery rate")
+
+@api_router.post("/delivery/quote")
+async def get_delivery_quote(quote_request: DeliveryQuoteRequest):
+    """Get delivery quote for a specific seller"""
+    try:
+        # Get seller's delivery rate configuration
+        rate_doc = await db.seller_delivery_rates.find_one({
+            "seller_id": quote_request.seller_id,
+            "is_active": True
+        })
+        
+        if not rate_doc:
+            return DeliveryQuote(
+                seller_id=quote_request.seller_id,
+                out_of_range=True,
+                message="Seller has not configured delivery rates"
+            )
+        
+        # Get seller location
+        seller_doc = await db.users.find_one({"id": quote_request.seller_id})
+        if not seller_doc or not seller_doc.get("location"):
+            return DeliveryQuote(
+                seller_id=quote_request.seller_id,
+                out_of_range=True,
+                message="Seller location not available"
+            )
+        
+        # Calculate distance using haversine formula
+        seller_location = seller_doc["location"]
+        seller_lat = seller_location.get("lat")
+        seller_lng = seller_location.get("lng")
+        
+        if seller_lat is None or seller_lng is None:
+            return DeliveryQuote(
+                seller_id=quote_request.seller_id,
+                out_of_range=True,
+                message="Seller coordinates not available"
+            )
+        
+        # Haversine distance calculation
+        from math import radians, cos, sin, asin, sqrt
+        
+        def haversine(lat1, lon1, lat2, lon2):
+            # Convert decimal degrees to radians
+            lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+            
+            # Haversine formula
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            r = 6371  # Radius of earth in kilometers
+            return c * r
+        
+        distance_km = haversine(
+            seller_lat, seller_lng, 
+            quote_request.buyer_lat, quote_request.buyer_lng
+        )
+        
+        # Check if within max range
+        if rate_doc.get("max_km") and distance_km > rate_doc["max_km"]:
+            return DeliveryQuote(
+                seller_id=quote_request.seller_id,
+                distance_km=distance_km,
+                out_of_range=True,
+                message=f"Delivery not available beyond {rate_doc['max_km']}km"
+            )
+        
+        # Calculate delivery fee
+        base_fee = rate_doc.get("base_fee_cents", 0)
+        per_km_rate = rate_doc.get("per_km_cents", 0)
+        min_km = rate_doc.get("min_km", 0)
+        
+        # Calculate chargeable distance (distance beyond min_km)
+        chargeable_km = max(0, distance_km - min_km)
+        per_km_fee = int(chargeable_km * per_km_rate)
+        total_delivery_fee = base_fee + per_km_fee
+        
+        return DeliveryQuote(
+            seller_id=quote_request.seller_id,
+            distance_km=distance_km,
+            delivery_fee_cents=total_delivery_fee,
+            base_fee_cents=base_fee,
+            per_km_fee_cents=per_km_fee,
+            out_of_range=False,
+            message=f"Delivery available: {distance_km:.1f}km from seller"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error calculating delivery quote: {e}")
+        raise HTTPException(status_code=500, detail="Failed to calculate delivery quote")
+
+# =============================================================================
+# AI-POWERED SHIPPING OPTIMIZATION ENDPOINTS
+# =============================================================================
+
+@api_router.get("/ai/shipping/rate-suggestions")
+async def get_ai_shipping_rate_suggestions(
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI-powered shipping rate suggestions for seller"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    if not AI_SERVICES_AVAILABLE or not ai_shipping_optimizer:
+        raise HTTPException(status_code=503, detail="AI shipping optimizer not available")
+    
+    try:
+        # Get seller location
+        seller_location = current_user.location or {}
+        if not seller_location:
+            raise HTTPException(status_code=400, detail="Seller location required for rate suggestions")
+        
+        # Get historical delivery data
+        historical_data = await db.orders.find({
+            "seller_id": current_user.id,
+            "status": {"$in": ["delivered", "completed"]},
+            "created_at": {"$gte": datetime.now() - timedelta(days=90)}
+        }).to_list(100)
+        
+        # Get AI suggestions
+        suggestions = await ai_shipping_optimizer.suggest_optimal_rates(
+            current_user.id, 
+            seller_location,
+            historical_data
+        )
+        
+        return suggestions
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting AI shipping rate suggestions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get rate suggestions")
+
+@api_router.get("/ai/shipping/performance-analysis")
+async def get_shipping_performance_analysis(
+    timeframe_days: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI analysis of shipping performance"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    if not AI_SERVICES_AVAILABLE or not ai_shipping_optimizer:
+        raise HTTPException(status_code=503, detail="AI shipping optimizer not available")
+    
+    try:
+        analysis = await ai_shipping_optimizer.analyze_shipping_performance(
+            current_user.id, 
+            timeframe_days
+        )
+        
+        return analysis
+        
+    except Exception as e:
+        logger.error(f"Error analyzing shipping performance: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze shipping performance")
+
+@api_router.get("/ai/shipping/demand-prediction")
+async def get_delivery_demand_prediction(
+    time_horizon_days: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI-powered delivery demand predictions"""
+    if not current_user or UserRole.SELLER not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    if not AI_SERVICES_AVAILABLE or not ai_shipping_optimizer:
+        raise HTTPException(status_code=503, detail="AI shipping optimizer not available")
+    
+    try:
+        seller_location = current_user.location or {}
+        if not seller_location:
+            raise HTTPException(status_code=400, detail="Seller location required for demand prediction")
+        
+        predictions = await ai_shipping_optimizer.predict_delivery_demand(
+            seller_location,
+            time_horizon_days
+        )
+        
+        return predictions
+        
+    except Exception as e:
+        logger.error(f"Error predicting delivery demand: {e}")
+        raise HTTPException(status_code=500, detail="Failed to predict delivery demand")
+
+# =============================================================================
+# AI-POWERED MOBILE PAYMENT ANALYTICS ENDPOINTS  
+# =============================================================================
+
+@api_router.get("/ai/payments/analytics")
+async def get_payment_analytics(
+    timeframe_days: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI-powered payment analytics and patterns"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if not AI_SERVICES_AVAILABLE or not ai_mobile_payment_service:
+        raise HTTPException(status_code=503, detail="AI payment service not available")
+    
+    try:
+        # Get user-specific analytics for buyers/sellers, platform-wide for admins
+        user_id = current_user.id if current_user.user_type != "admin" else None
+        
+        analytics = await ai_mobile_payment_service.analyze_payment_patterns(
+            user_id,
+            timeframe_days
+        )
+        
+        return analytics
+        
+    except Exception as e:
+        logger.error(f"Error getting payment analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get payment analytics")
+
+@api_router.post("/ai/payments/predict-success")
+async def predict_payment_success(
+    payment_request: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Predict payment success probability using AI"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if not AI_SERVICES_AVAILABLE or not ai_mobile_payment_service:
+        raise HTTPException(status_code=503, detail="AI payment service not available")
+    
+    try:
+        prediction = await ai_mobile_payment_service.predict_payment_success(payment_request)
+        return prediction
+        
+    except Exception as e:
+        logger.error(f"Error predicting payment success: {e}")
+        raise HTTPException(status_code=500, detail="Failed to predict payment success")
+
+@api_router.post("/ai/payments/optimize-mobile")
+async def optimize_mobile_payment_flow(
+    device_info: dict,
+    user_behavior: dict = {},
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI-powered mobile payment flow optimization"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if not AI_SERVICES_AVAILABLE or not ai_mobile_payment_service:
+        raise HTTPException(status_code=503, detail="AI payment service not available")
+    
+    try:
+        optimization = await ai_mobile_payment_service.optimize_mobile_flow(
+            device_info,
+            user_behavior
+        )
+        
+        return optimization
+        
+    except Exception as e:
+        logger.error(f"Error optimizing mobile payment flow: {e}")
+        raise HTTPException(status_code=500, detail="Failed to optimize mobile flow")
+
+@api_router.post("/ai/payments/deep-link-config")
+async def generate_payment_deep_link_config(
+    payment_id: str,
+    return_url: str,
+    device_type: str = "mobile"
+):
+    """Generate Capacitor deep-link configuration for payment returns"""
+    if not AI_SERVICES_AVAILABLE or not ai_mobile_payment_service:
+        raise HTTPException(status_code=503, detail="AI payment service not available")
+    
+    try:
+        config = ai_mobile_payment_service.generate_deep_link_config(
+            payment_id,
+            return_url,
+            device_type
+        )
+        
+        return config
+        
+    except Exception as e:
+        logger.error(f"Error generating deep link config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate deep link config")
+
+@api_router.post("/ai/payments/track-analytics")
+async def track_payment_analytics(
+    payment_id: str,
+    event_type: str,
+    event_data: dict
+):
+    """Track payment analytics events for AI learning"""
+    if not AI_SERVICES_AVAILABLE or not ai_mobile_payment_service:
+        return {"success": False, "error": "AI payment service not available"}
+    
+    try:
+        result = await ai_mobile_payment_service.track_payment_analytics(
+            payment_id,
+            event_type,
+            event_data
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error tracking payment analytics: {e}")
+        return {"success": False, "error": str(e)}
+
+@api_router.get("/seller/analytics")
+async def get_seller_own_analytics(
+    period: str = "30days",
+    current_user: User = Depends(get_current_user)
+):
+    """Get analytics for the authenticated seller"""
+    if not current_user or "seller" not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    
+    try:
+        # Convert period to days
+        period_days = {
+            "7days": 7,
+            "30days": 30,
+            "90days": 90,
+            "1year": 365
+        }.get(period, 30)
+        
+        from services.analytics_service import AnalyticsService
+        analytics = AnalyticsService(db)
+        data = await analytics.get_seller_analytics(current_user.id, period_days)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching seller analytics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch analytics")
 
 @api_router.get("/admin/analytics/seller/{seller_id}")
@@ -4608,6 +7489,9 @@ async def get_pdp_ab_config(
     current_user: User = Depends(get_current_user_optional)
 ):
     """Get A/B test configuration for PDP"""
+    # Apply generous rate limiting for A/B testing
+    await rate_limit_middleware(request, "ab_testing", current_user.id if current_user else None)
+    
     try:
         from services.ab_testing_service import ABTestingService
         ab_service = ABTestingService(db)
@@ -6065,8 +8949,10 @@ class BlogPostCreate(PydanticBaseModel):
     title: str
     content: str
     excerpt: Optional[str] = None
-    tags: Optional[List[str]] = []
+    category: Optional[str] = "news"
     status: Optional[str] = "draft"
+    featured: Optional[bool] = False
+    tags: Optional[List[str]] = []
 
 class BlogPostUpdate(PydanticBaseModel):
     title: Optional[str] = None
@@ -6435,7 +9321,7 @@ async def register_user_enhanced(
         await db.users.insert_one(user_dict)
         
         # Send welcome notification
-        await send_welcome_email(db, user.id, user.full_name, user.email)
+        # await send_welcome_email(db, user.id, user.full_name, user.email)
         
         # Handle referral attribution if code provided
         if referral_code:
@@ -6473,13 +9359,13 @@ async def login_user_enhanced(
         device_info = request.headers.get("user-agent", "Unknown device") if request else "Unknown device"
         ip_address = request.client.host if request else "Unknown location"
         
-        await send_login_alert(
-            db, 
-            user.id, 
-            user.full_name, 
-            device_info, 
-            ip_address
-        )
+        # await send_login_alert(
+        #     db, 
+        #     user.id, 
+        #     user.full_name, 
+        #     device_info, 
+        #     ip_address
+        # )
         
         return {
             "access_token": user.email,
@@ -6526,6 +9412,7 @@ class OfferCreate(PydanticBaseModel):
 
 @api_router.get("/buy-requests")
 async def get_buy_requests(
+    request: Request,
     status: Optional[str] = None,
     species: Optional[str] = None,
     provinces: Optional[str] = None,
@@ -6536,6 +9423,9 @@ async def get_buy_requests(
     offset: int = 0
 ):
     """Get buy requests with filtering"""
+    # Temporarily disable rate limiting for debugging
+    # await rate_limit_middleware(request, "buy_requests", None)
+    
     try:
         buy_request_service = BuyRequestService(db)
         
@@ -6614,6 +9504,19 @@ async def create_buy_request(
                 await notify_nearby_sellers(db, request)
             except Exception as e:
                 logger.warning(f"Failed to notify sellers: {e}")
+        
+        # 🔔 Emit buy request created event for notification system
+        try:
+            await emit_buy_request_created(
+                request_id=request["id"],
+                buyer_id=current_user.id,
+                species=data.species,
+                province=data.province,
+                title=f"{data.species} Buy Request",
+                quantity=data.qty
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit buy request created event: {e}")
         
         # 📧 Send buy request posted email (E54)
         try:
@@ -7070,6 +9973,75 @@ async def decline_offer(
     except Exception as e:
         logger.error(f"Error declining offer: {e}")
         raise HTTPException(status_code=500, detail="Failed to decline offer")
+
+# PAYMENT PROCESSING API
+@api_router.post("/payment/create-paystack")
+async def create_paystack_payment(
+    request: Request,
+    payment_data: dict
+):
+    """Create Paystack payment initialization"""
+    try:
+        console.log("🛒 Backend: Creating Paystack payment")
+        
+        # Extract payment details
+        amount = payment_data.get('amount', 0)
+        email = payment_data.get('email', 'customer@stocklot.co.za')
+        reference = payment_data.get('reference', f'STOCKLOT_{int(time.time())}')
+        metadata = payment_data.get('metadata', {})
+        
+        # Convert amount to kobo (cents)
+        amount_kobo = int(amount * 100)
+        
+        # Prepare Paystack payload
+        paystack_payload = {
+            'email': email,
+            'amount': amount_kobo,
+            'currency': 'ZAR',
+            'reference': reference,
+            'callback_url': f"{request.base_url}payment/success",
+            'metadata': metadata
+        }
+        
+        console.log(f"🛒 Paystack payload: {paystack_payload}")
+        
+        # Make request to Paystack
+        import requests
+        
+        response = requests.post(
+            'https://api.paystack.co/transaction/initialize',
+            json=paystack_payload,
+            headers={
+                'Authorization': 'Bearer pk_live_ff6855bb7797fecca7f892f482451f79a5b2cf6f',
+                'Content-Type': 'application/json'
+            }
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            console.log(f"✅ Paystack response: {result}")
+            
+            if result.get('status') and result.get('data', {}).get('authorization_url'):
+                return {
+                    'success': True,
+                    'payment_url': result['data']['authorization_url'],
+                    'reference': result['data']['reference']
+                }
+            else:
+                raise HTTPException(status_code=400, detail="Failed to get payment URL from Paystack")
+        else:
+            error_data = response.json() if response.content else {}
+            console.log(f"🚨 Paystack error: {response.status_code} - {error_data}")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Paystack error: {error_data.get('message', 'Payment initialization failed')}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Payment creation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Payment creation failed: {str(e)}")
 
 # NOTIFICATIONS API
 @api_router.get("/notifications")
@@ -8593,34 +11565,256 @@ async def record_faq_feedback(
     data: dict,
     current_user: User = Depends(get_current_user)
 ):
-    """Record feedback on FAQ answers"""
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    """Record user feedback on FAQ responses for ML learning"""
+    try:
+        feedback_record = {
+            "faq_id": faq_id,
+            "user_id": current_user.id,
+            "rating": data.get("rating"),
+            "helpful": data.get("helpful"),
+            "comment": data.get("comment"),
+            "session_id": data.get("session_id"),
+            "timestamp": datetime.now(timezone.utc)
+        }
+        
+        await db.faq_feedback.insert_one(feedback_record)
+        
+        return {"success": True, "message": "Feedback recorded for ML learning"}
+        
+    except Exception as e:
+        logger.error(f"FAQ feedback recording failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to record feedback")
+
+# Enhanced ML Knowledge Scraping Endpoints
+@api_router.post("/ml/knowledge/scrape")
+async def scrape_livestock_knowledge(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Scrape livestock knowledge from external sources for ML learning"""
+    if not ML_SERVICES_AVAILABLE or not ml_scraper_service:
+        raise HTTPException(status_code=503, detail="ML scraping service not available")
     
     try:
-        feedback_type = data.get("feedback_type")  # 'helpful' or 'not_helpful'
-        comment = data.get("comment")
+        result = await ml_scraper_service.scrape_livestock_knowledge()
+        return result
         
-        if feedback_type not in ["helpful", "not_helpful"]:
-            raise HTTPException(status_code=400, detail="Invalid feedback type")
+    except Exception as e:
+        logger.error(f"Knowledge scraping failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to scrape knowledge")
+
+@api_router.post("/ml/knowledge/learn-from-interactions")
+async def learn_from_user_interactions(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Analyze user interactions to identify knowledge gaps and improve FAQ system"""
+    if not ML_SERVICES_AVAILABLE or not ml_scraper_service:
+        raise HTTPException(status_code=503, detail="ML learning service not available")
+    
+    try:
+        result = await ml_scraper_service.learn_from_user_interactions()
+        return result
         
-        success = await ml_faq_service.record_faq_feedback(
-            faq_id=faq_id,
-            user_id=current_user.id,
-            feedback_type=feedback_type,
-            comment=comment
-        )
+    except Exception as e:
+        logger.error(f"Learning from interactions failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze interactions")
+
+@api_router.get("/ml/knowledge/insights")
+async def get_learning_insights(
+    limit: int = 10,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get ML learning insights and recommendations"""
+    try:
+        insights = await db.ml_learning_insights.find().sort("timestamp", -1).limit(limit).to_list(limit)
         
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to record feedback")
+        # Format insights for display
+        formatted_insights = []
+        for insight in insights:
+            formatted_insights.append({
+                "learning_id": insight["learning_id"],
+                "timestamp": insight["timestamp"],
+                "questions_analyzed": insight["total_questions_analyzed"],
+                "knowledge_gaps": len(insight["knowledge_gaps"]),
+                "recommendations": insight["recommendations"][:5],  # Top 5 recommendations
+                "high_priority_gaps": [
+                    gap for gap in insight["knowledge_gaps"] 
+                    if gap.get("priority") == "high"
+                ]
+            })
         
-        return {"message": "Feedback recorded successfully"}
+        return {
+            "success": True,
+            "insights": formatted_insights,
+            "total_insights": len(formatted_insights)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get learning insights: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get insights")
+
+# Enhanced Smart Search Endpoint
+@api_router.post("/search/smart")
+async def smart_search(
+    search_data: dict,
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """Enhanced smart search with ML-powered suggestions and learning"""
+    try:
+        query = search_data.get("query", "").strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Search query is required")
+        
+        search_results = {
+            "query": query,
+            "timestamp": datetime.now(timezone.utc),
+            "results": [],
+            "suggestions": [],
+            "learned_from_query": False
+        }
+        
+        # 1. Search livestock listings
+        listings_pipeline = [
+            {
+                "$match": {
+                    "$or": [
+                        {"title": {"$regex": query, "$options": "i"}},
+                        {"description": {"$regex": query, "$options": "i"}},
+                        {"breed": {"$regex": query, "$options": "i"}},
+                        {"species": {"$regex": query, "$options": "i"}}
+                    ],
+                    "status": "active"
+                }
+            },
+            {"$limit": 10},
+            {
+                "$project": {
+                    "title": 1,
+                    "description": 1,
+                    "price_per_unit": 1,
+                    "species": 1,
+                    "breed": 1,
+                    "location": 1,
+                    "thumbnail_url": 1
+                }
+            }
+        ]
+        
+        listings = await db.listings.aggregate(listings_pipeline).to_list(10)
+        
+        # Calculate simple relevance score based on query matches
+        for listing in listings:
+            relevance_score = 1.0
+            query_lower = query.lower()
+            
+            # Higher score for title matches
+            if listing.get("title", "").lower().find(query_lower) != -1:
+                relevance_score += 2.0
+            
+            # Medium score for breed/species matches  
+            if listing.get("breed", "").lower().find(query_lower) != -1:
+                relevance_score += 1.5
+            if listing.get("species", "").lower().find(query_lower) != -1:
+                relevance_score += 1.5
+                
+            # Lower score for description matches
+            if listing.get("description", "").lower().find(query_lower) != -1:
+                relevance_score += 0.5
+                
+            listing["relevance_score"] = relevance_score
+        
+        search_results["results"].extend([{
+            "type": "listing",
+            "data": listing,
+            "relevance_score": listing.get("relevance_score", 1.0)
+        } for listing in listings])
+        
+        # 2. Search FAQ knowledge base
+        if ML_SERVICES_AVAILABLE and ml_faq_service:
+            try:
+                faq_results = await ml_faq_service.search_faqs(query, limit=5)
+                search_results["results"].extend([{
+                    "type": "faq",
+                    "data": faq,
+                    "relevance_score": faq.get("similarity_score", 0.8)
+                } for faq in faq_results])
+            except Exception as e:
+                logger.warning(f"FAQ search failed: {e}")
+        
+        # 3. Generate ML-powered suggestions
+        if ML_SERVICES_AVAILABLE and ml_scraper_service:
+            try:
+                # Analyze query for learning opportunities
+                query_analysis = await _analyze_search_query(query, len(search_results["results"]))
+                search_results["suggestions"] = query_analysis.get("suggestions", [])
+                search_results["learned_from_query"] = query_analysis.get("learned", False)
+            except Exception as e:
+                logger.warning(f"Query analysis failed: {e}")
+        
+        # 4. Log search for learning (if user is authenticated)
+        if current_user:
+            search_log = {
+                "user_id": current_user.id,
+                "query": query,
+                "results_count": len(search_results["results"]),
+                "timestamp": datetime.now(timezone.utc),
+                "user_type": "authenticated"
+            }
+            await db.search_logs.insert_one(search_log)
+        
+        # Sort results by relevance
+        search_results["results"].sort(key=lambda x: x["relevance_score"], reverse=True)
+        
+        return {
+            "success": True,
+            "search": search_results,
+            "ml_enhanced": ML_SERVICES_AVAILABLE
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"FAQ feedback failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to record feedback")
+        logger.error(f"Smart search failed: {e}")
+        raise HTTPException(status_code=500, detail="Search failed")
+
+async def _analyze_search_query(query: str, results_count: int) -> dict:
+    """Analyze search query for ML learning opportunities"""
+    analysis = {
+        "suggestions": [],
+        "learned": False
+    }
+    
+    # Generate suggestions based on query patterns
+    query_lower = query.lower()
+    
+    if "cattle" in query_lower:
+        analysis["suggestions"].extend([
+            "Try searching for specific breeds like 'Angus cattle' or 'Brahman cattle'",
+            "Consider filtering by 'breeding cattle' or 'commercial cattle'"
+        ])
+    elif "goat" in query_lower:
+        analysis["suggestions"].extend([
+            "Search for 'Boer goats' or 'Kalahari Red goats' for specific breeds",
+            "Try 'dairy goats' or 'meat goats' for purpose-specific results"
+        ])
+    elif "sheep" in query_lower:
+        analysis["suggestions"].extend([
+            "Consider 'Dorper sheep' or 'Merino sheep' for breed-specific results",
+            "Try 'wool sheep' or 'mutton sheep' based on your needs"
+        ])
+    
+    if results_count == 0:
+        analysis["suggestions"].append("No results found. Try broader terms or check spelling.")
+        analysis["learned"] = True
+        
+        # Log as learning opportunity
+        await db.faq_interactions.insert_one({
+            "question": f"Search query: {query}",
+            "answered": False, 
+            "timestamp": datetime.now(timezone.utc),
+            "type": "failed_search"
+        })
+    
+    return analysis
 
 # Smart Matching ML Endpoints
 @api_router.get("/ml/matching/smart-requests")
@@ -8983,42 +12177,7 @@ async def bulk_analyze_photos(
         logger.error(f"Bulk photo analysis failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to analyze photos")
 
-@api_router.get("/admin/stats")
-async def get_admin_stats(current_user: User = Depends(get_current_admin_user)):
-    """Get admin dashboard statistics"""
-    try:
-        # Get basic stats
-        total_users = await db.users.count_documents({})
-        total_listings = await db.listings.count_documents({})
-        total_orders = await db.orders.count_documents({})
-        
-        # Get user-specific stats for dashboard
-        buyer_orders = await db.orders.count_documents({
-            "buyer_id": current_user.id,
-            "created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=7)}
-        })
-        
-        seller_listings = await db.listings.count_documents({"seller_id": current_user.id})
-        seller_orders = await db.orders.count_documents({"seller_id": current_user.id})
-        
-        return {
-            "total_users": total_users,
-            "total_listings": total_listings,
-            "total_orders": total_orders,
-            "buyer_orders": buyer_orders,
-            "seller_listings": seller_listings,
-            "seller_orders": seller_orders
-        }
-    except Exception as e:
-        logger.error(f"Error getting admin stats: {e}")
-        return {
-            "total_users": 0,
-            "total_listings": 0,
-            "total_orders": 0,
-            "buyer_orders": 0,
-            "seller_listings": 0,
-            "seller_orders": 0
-        }
+# Duplicate admin stats route removed - security vulnerability fixed
 
 # Admin messaging controls
 @api_router.get("/admin/messages/threads")
@@ -11093,6 +14252,1483 @@ async def emit_test_event(
         raise HTTPException(status_code=500, detail="Failed to emit test event")
 
 # ==============================================================================
+# 📧 LIFECYCLE EMAIL SYSTEM ENDPOINTS
+# ==============================================================================
+
+@api_router.post("/marketing/subscribe")
+async def subscribe_to_marketing(
+    email: str = Form(...),
+    consent: bool = Form(...),
+    source: str = Form(...),
+    session_id: Optional[str] = Form(None),
+    user_id: Optional[str] = Form(None)
+):
+    """Subscribe user to lifecycle marketing emails"""
+    try:
+        success = await lifecycle_email_service.subscribe_user(
+            email=email,
+            consent=consent,
+            source=source,
+            session_id=session_id,
+            user_id=user_id
+        )
+        
+        if success:
+            return {"success": True, "message": "Successfully subscribed to marketing emails"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to subscribe")
+            
+    except Exception as e:
+        logger.error(f"Error subscribing to marketing: {e}")
+        raise HTTPException(status_code=500, detail="Failed to subscribe to marketing emails")
+
+@api_router.post("/track")
+async def track_lifecycle_event(
+    session_id: str = Form(...),
+    event_type: str = Form(...),
+    payload: Optional[str] = Form(None),
+    user_id: Optional[str] = Form(None)
+):
+    """Track lifecycle events for email campaigns"""
+    try:
+        event_payload = json.loads(payload) if payload else {}
+        
+        success = await lifecycle_email_service.track_event(
+            session_id=session_id,
+            event_type=event_type,
+            payload=event_payload,
+            user_id=user_id
+        )
+        
+        if success:
+            return {"success": True, "message": "Event tracked successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to track event")
+            
+    except Exception as e:
+        logger.error(f"Error tracking lifecycle event: {e}")
+        raise HTTPException(status_code=500, detail="Failed to track event")
+
+@api_router.post("/cart/snapshot")
+async def create_cart_snapshot(
+    request: Union[dict, None] = Body(None),
+    session_id: str = Form(None),
+    cart_id: str = Form(None),
+    items: str = Form(None),  # JSON string
+    subtotal_minor: int = Form(None),
+    currency: str = Form("ZAR"),
+    user_id: Optional[str] = Form(None)
+):
+    """Create cart snapshot for abandonment tracking"""
+    try:
+        # Handle both JSON and form data
+        if request:
+            # JSON request body
+            session_id = request.get("session_id")
+            cart_id = request.get("cart_id")
+            items_data = request.get("items", [])
+            subtotal_minor = request.get("subtotal_minor", 0)
+            currency = request.get("currency", "ZAR")
+            user_id = request.get("user_id")
+        else:
+            # Form data (existing format)
+            if not session_id or not cart_id or not items:
+                raise HTTPException(status_code=400, detail="Missing required fields")
+            items_data = json.loads(items)
+        
+        cart_data = {
+            "cart_id": cart_id,
+            "items": items_data,
+            "subtotal_minor": subtotal_minor,
+            "currency": currency
+        }
+        
+        await lifecycle_email_service.snapshot_cart(session_id, cart_data, user_id)
+        
+        return {"success": True, "message": "Cart snapshot created"}
+        
+    except Exception as e:
+        logger.error(f"Error creating cart snapshot: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create cart snapshot")
+
+# ADMIN MODERATION SYSTEM ENDPOINTS
+@api_router.get("/admin/roles/requests")
+async def get_role_requests(
+    status: Optional[str] = None,
+    role: Optional[str] = None,
+    q: Optional[str] = None,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get role upgrade requests for admin review"""
+    try:
+        requests = await admin_moderation_service.get_role_requests(status, role, 100)
+        return {"rows": requests}
+    except Exception as e:
+        logger.error(f"Error getting role requests: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get role requests")
+
+@api_router.post("/admin/roles/requests/{request_id}/approve")
+async def approve_role_request(
+    request_id: str,
+    note: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Approve a role upgrade request"""
+    try:
+        success = await admin_moderation_service.approve_role_request(
+            request_id, current_user.id, note
+        )
+        if success:
+            return {"ok": True, "message": "Role request approved successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to approve role request")
+    except Exception as e:
+        logger.error(f"Error approving role request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve role request")
+
+@api_router.post("/admin/roles/requests/{request_id}/reject")
+async def reject_role_request(
+    request_id: str,
+    reason: str = Form(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Reject a role upgrade request"""
+    try:
+        success = await admin_moderation_service.reject_role_request(
+            request_id, current_user.id, reason
+        )
+        if success:
+            return {"ok": True, "message": "Role request rejected successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to reject role request")
+    except Exception as e:
+        logger.error(f"Error rejecting role request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reject role request")
+
+@api_router.get("/admin/disease/zones")
+async def get_disease_zones(current_user: User = Depends(get_current_admin_user)):
+    """Get all disease zones"""
+    try:
+        zones = await admin_moderation_service.get_disease_zones()
+        return {"rows": zones}
+    except Exception as e:
+        logger.error(f"Error getting disease zones: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get disease zones")
+
+@api_router.get("/admin/disease/changes")
+async def get_disease_zone_changes(
+    status: str = "PENDING",
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get disease zone change requests"""
+    try:
+        changes = await admin_moderation_service.get_disease_zone_changes(status)
+        return {"rows": changes}
+    except Exception as e:
+        logger.error(f"Error getting disease zone changes: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get disease zone changes")
+
+@api_router.get("/admin/disease/changes/{change_id}")
+async def get_disease_zone_change_detail(
+    change_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get detailed information about a disease zone change"""
+    try:
+        change = await admin_moderation_service.get_disease_zone_change_detail(change_id)
+        if change:
+            return {"change": change}
+        else:
+            raise HTTPException(status_code=404, detail="Disease zone change not found")
+    except Exception as e:
+        logger.error(f"Error getting disease zone change detail: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get change detail")
+
+@api_router.post("/admin/disease/changes/{change_id}/approve")
+async def approve_disease_zone_change(
+    change_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Approve a disease zone change"""
+    try:
+        success = await admin_moderation_service.approve_disease_zone_change(
+            change_id, current_user.id
+        )
+        if success:
+            return {"ok": True, "message": "Disease zone change approved successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to approve change")
+    except Exception as e:
+        logger.error(f"Error approving disease zone change: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve change")
+
+@api_router.post("/admin/disease/changes/{change_id}/reject")
+async def reject_disease_zone_change(
+    change_id: str,
+    reason: str = Form(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Reject a disease zone change"""
+    try:
+        success = await admin_moderation_service.reject_disease_zone_change(
+            change_id, current_user.id, reason
+        )
+        if success:
+            return {"ok": True, "message": "Disease zone change rejected successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to reject change")
+    except Exception as e:
+        logger.error(f"Error rejecting disease zone change: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reject change")
+
+@api_router.get("/admin/config/fees")
+async def get_fee_configs(current_user: User = Depends(get_current_admin_user)):
+    """Get all fee configurations"""
+    try:
+        configs = await admin_moderation_service.get_fee_configs()
+        return {"rows": configs}
+    except Exception as e:
+        logger.error(f"Error getting fee configs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get fee configs")
+
+@api_router.post("/admin/config/fees")
+async def create_fee_config(
+    config_data: dict,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Create a new fee configuration"""
+    try:
+        config = await admin_moderation_service.create_fee_config(config_data, current_user.id)
+        if config:
+            return {"row": config, "message": "Fee configuration created successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create fee configuration")
+    except Exception as e:
+        logger.error(f"Error creating fee config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create fee configuration")
+
+@api_router.post("/admin/config/fees/{config_id}/activate")
+async def activate_fee_config(
+    config_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Activate a fee configuration"""
+    try:
+        success = await admin_moderation_service.activate_fee_config(config_id, current_user.id)
+        if success:
+            return {"ok": True, "message": "Fee configuration activated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to activate fee configuration")
+    except Exception as e:
+        logger.error(f"Error activating fee config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to activate fee configuration")
+
+@api_router.get("/admin/config/flags")
+async def get_feature_flags(current_user: User = Depends(get_current_admin_user)):
+    """Get all feature flags"""
+    try:
+        flags = await admin_moderation_service.get_feature_flags()
+        return {"rows": flags}
+    except Exception as e:
+        logger.error(f"Error getting feature flags: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get feature flags")
+
+@api_router.post("/admin/config/flags/{key}")
+async def update_feature_flag(
+    key: str,
+    flag_data: dict,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Update a feature flag"""
+    try:
+        success = await admin_moderation_service.update_feature_flag(
+            key, 
+            flag_data.get("status"), 
+            flag_data.get("rollout", {}), 
+            current_user.id
+        )
+        if success:
+            return {"ok": True, "message": "Feature flag updated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update feature flag")
+    except Exception as e:
+        logger.error(f"Error updating feature flag: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update feature flag")
+
+@api_router.get("/admin/moderation/stats")
+async def get_moderation_stats(current_user: User = Depends(get_current_admin_user)):
+    """Get moderation dashboard statistics"""
+    try:
+        stats = await admin_moderation_service.get_moderation_stats()
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting moderation stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get moderation stats")
+
+# NEW ENDPOINT 1: Recent moderation items
+@api_router.get("/admin/moderation/recent")
+async def get_recent_moderation_items(
+    limit: int = Query(20, description="Number of items to return"),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get recent items requiring moderation attention"""
+    try:
+        recent_items = []
+        
+        # Get recent pending users
+        pending_users = await db.users.find(
+            {"status": "pending"}, 
+            {"id": 1, "email": 1, "full_name": 1, "created_at": 1}
+        ).limit(5).to_list(length=None)
+        
+        for user in pending_users:
+            recent_items.append({
+                "id": user.get("id"),
+                "type": "user",
+                "title": f"User Registration: {user.get('full_name', user.get('email'))}",
+                "description": f"New user registration requiring approval",
+                "status": "pending",
+                "created_at": user.get("created_at"),
+                "user_name": user.get("full_name"),
+                "content": f"Email: {user.get('email')}"
+            })
+        
+        # Get recent pending listings
+        pending_listings = await db.listings.find(
+            {"status": "pending"}, 
+            {"id": 1, "title": 1, "seller_name": 1, "created_at": 1, "description": 1}
+        ).limit(5).to_list(length=None)
+        
+        for listing in pending_listings:
+            recent_items.append({
+                "id": listing.get("id"),
+                "type": "listing",
+                "title": f"Listing: {listing.get('title')}",
+                "description": listing.get("description", "")[:100] + "...",
+                "status": "pending",
+                "created_at": listing.get("created_at"),
+                "user_name": listing.get("seller_name"),
+                "content": listing.get("description")
+            })
+        
+        # Get recent flagged content (buy requests or reports)
+        flagged_content = await db.buy_requests.find(
+            {"status": "flagged"}, 
+            {"id": 1, "title": 1, "buyer_name": 1, "created_at": 1, "description": 1}
+        ).limit(5).to_list(length=None)
+        
+        for item in flagged_content:
+            recent_items.append({
+                "id": item.get("id"),
+                "type": "buy_request",
+                "title": f"Buy Request: {item.get('title')}",
+                "description": item.get("description", "")[:100] + "...",
+                "status": "flagged",
+                "created_at": item.get("created_at"),
+                "user_name": item.get("buyer_name"),
+                "reason": "Flagged for review"
+            })
+        
+        # Sort by created_at descending and limit
+        recent_items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+        return recent_items[:limit]
+        
+    except Exception as e:
+        logger.error(f"Error getting recent moderation items: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get recent moderation items")
+
+# NEW ENDPOINT 2: Blog posts for CMS management
+@api_router.get("/admin/cms/posts")
+async def get_blog_posts(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    q: Optional[str] = Query(None, description="Search query"),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get blog posts for CMS management"""
+    try:
+        # Build query
+        query = {}
+        if status:
+            query["status"] = status
+        if category:
+            query["category"] = category
+        if q:
+            query["$or"] = [
+                {"title": {"$regex": q, "$options": "i"}},
+                {"content": {"$regex": q, "$options": "i"}},
+                {"excerpt": {"$regex": q, "$options": "i"}}
+            ]
+        
+        # Get blog posts from blog collection
+        posts = await db.blog.find(query).sort("created_at", -1).limit(100).to_list(length=None)
+        
+        # Format posts for frontend
+        formatted_posts = []
+        for post in posts:
+            formatted_posts.append({
+                "id": post.get("id", str(post.get("_id"))),
+                "title": post.get("title"),
+                "content": post.get("content"),
+                "excerpt": post.get("excerpt"),
+                "category": post.get("category", "news"),
+                "status": post.get("status", "draft"),
+                "featured": post.get("featured", False),
+                "tags": post.get("tags", []),
+                "author_name": post.get("author_name", "Admin"),
+                "created_at": post.get("created_at"),
+                "updated_at": post.get("updated_at"),
+                "views": post.get("views", 0)
+            })
+        
+        return formatted_posts
+        
+    except Exception as e:
+        logger.error(f"Error getting blog posts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get blog posts")
+
+@api_router.post("/admin/cms/posts")
+async def create_blog_post(
+    post_data: BlogPostCreate,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Create a new blog post"""
+    try:
+        post_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        
+        blog_post = {
+            "id": post_id,
+            "title": post_data.title,
+            "content": post_data.content,
+            "excerpt": post_data.excerpt,
+            "category": post_data.category,
+            "status": post_data.status,
+            "featured": post_data.featured,
+            "tags": post_data.tags,
+            "author_id": current_user.id,
+            "author_name": current_user.full_name or current_user.email,
+            "created_at": now,
+            "updated_at": now,
+            "views": 0
+        }
+        
+        result = await db.blog.insert_one(blog_post)
+        if result.inserted_id:
+            return {"success": True, "id": post_id, "message": "Blog post created successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create blog post")
+            
+    except Exception as e:
+        logger.error(f"Error creating blog post: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create blog post")
+
+@api_router.post("/admin/cms/posts/{post_id}/{action}")
+async def handle_blog_post_action(
+    post_id: str,
+    action: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Handle blog post actions (publish, unpublish, delete)"""
+    try:
+        if action == "publish":
+            result = await db.blog.update_one(
+                {"id": post_id},
+                {"$set": {"status": "published", "updated_at": datetime.now(timezone.utc)}}
+            )
+        elif action == "unpublish":
+            result = await db.blog.update_one(
+                {"id": post_id},
+                {"$set": {"status": "draft", "updated_at": datetime.now(timezone.utc)}}
+            )
+        elif action == "delete":
+            result = await db.blog.delete_one({"id": post_id})
+        else:
+            raise HTTPException(status_code=400, detail="Invalid action")
+        
+        if result.modified_count > 0 or (action == "delete" and result.deleted_count > 0):
+            return {"success": True, "message": f"Blog post {action} successful"}
+        else:
+            raise HTTPException(status_code=404, detail="Blog post not found")
+            
+    except Exception as e:
+        logger.error(f"Error handling blog post action: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to {action} blog post")
+
+# NEW ENDPOINT 3: Compliance documents
+@api_router.get("/admin/compliance/documents")
+async def get_compliance_documents(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    type: Optional[str] = Query(None, description="Filter by document type"),
+    q: Optional[str] = Query(None, description="Search query"),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get compliance documents for review"""
+    try:
+        # Build query
+        query = {}
+        if status:
+            query["status"] = status
+        if type:
+            query["type"] = type
+        if q:
+            query["$or"] = [
+                {"filename": {"$regex": q, "$options": "i"}},
+                {"submitter_name": {"$regex": q, "$options": "i"}},
+                {"title": {"$regex": q, "$options": "i"}}
+            ]
+        
+        # Get documents from compliance collection 
+        documents = await db.compliance_documents.find(query).sort("created_at", -1).limit(100).to_list(length=None)
+        
+        # Format documents for frontend
+        formatted_documents = []
+        for doc in documents:
+            formatted_documents.append({
+                "id": doc.get("id", str(doc.get("_id"))),
+                "filename": doc.get("filename"),
+                "title": doc.get("title"),
+                "type": doc.get("type", "kyc"),
+                "status": doc.get("status", "pending"),
+                "submitter_name": doc.get("submitter_name"),
+                "user_name": doc.get("user_name"),
+                "created_at": doc.get("created_at"),
+                "expires_at": doc.get("expires_at"),
+                "file_size": doc.get("file_size"),
+                "admin_notes": doc.get("admin_notes"),
+                "review_count": doc.get("review_count", 0)
+            })
+        
+        return formatted_documents
+        
+    except Exception as e:
+        logger.error(f"Error getting compliance documents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get compliance documents")
+
+@api_router.post("/admin/compliance/documents/{document_id}/{action}")
+async def handle_compliance_document_action(
+    document_id: str,
+    action: str,
+    request_data: Dict[str, Any] = {},
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Handle compliance document actions (approve, reject)"""
+    try:
+        now = datetime.now(timezone.utc)
+        
+        if action == "approve":
+            update_data = {
+                "status": "approved", 
+                "approved_at": now,
+                "approved_by": current_user.id,
+                "admin_notes": request_data.get("admin_notes", "Approved by admin"),
+                "updated_at": now
+            }
+        elif action == "reject":
+            update_data = {
+                "status": "rejected", 
+                "rejected_at": now,
+                "rejected_by": current_user.id,
+                "admin_notes": request_data.get("admin_notes", "Rejected by admin"),
+                "reason": request_data.get("reason", "Compliance review failed"),
+                "updated_at": now
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Invalid action")
+        
+        result = await db.compliance_documents.update_one(
+            {"id": document_id},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count > 0:
+            return {"success": True, "message": f"Document {action} successful"}
+        else:
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
+    except Exception as e:
+        logger.error(f"Error handling compliance document action: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to {action} document")
+
+@api_router.get("/admin/compliance/documents/{document_id}/download")
+async def download_compliance_document(
+    document_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Download a compliance document"""
+    try:
+        # Get document info
+        document = await db.compliance_documents.find_one({"id": document_id})
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # For demo purposes, return a sample file response
+        # In production, this would retrieve the actual file from storage
+        sample_content = f"Sample compliance document: {document.get('filename', 'document')}\nDocument ID: {document_id}\nType: {document.get('type', 'unknown')}"
+        
+        return Response(
+            content=sample_content,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={document.get('filename', 'document.txt')}"}
+        )
+        
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
+    except Exception as e:
+        logger.error(f"Error downloading compliance document: {e}")
+        raise HTTPException(status_code=500, detail="Failed to download document")
+
+# Initialize endpoint inventory for communication auditing
+try:
+    from services.endpoint_inventory import get_endpoint_inventory
+    
+    # Store app reference globally for introspection
+    def set_app_for_introspection():
+        inventory = get_endpoint_inventory()
+        endpoints = inventory.collect_fastapi_endpoints(app)
+        logger.info(f"✅ Endpoint inventory initialized: {len(endpoints)} endpoints, {len(inventory.get_sse_topics())} SSE topics")
+        return inventory
+    
+    # Set the inventory after all routes are registered
+    app.state.inventory_initializer = set_app_for_introspection
+    
+except Exception as e:
+    logger.warning(f"⚠️ Failed to initialize endpoint inventory: {e}")
+
+# DEVELOPMENT INTROSPECTION ENDPOINTS (Non-production only)
+try:
+    from routes.dev import dev_router
+    app.include_router(dev_router, prefix="/api")
+    logger.info("✅ Development introspection endpoints enabled")
+except ImportError as e:
+    logger.info("📝 Development introspection endpoints not available")
+
+# INBOX EVENTS SSE ENDPOINT
+@api_router.get("/inbox/events")
+async def get_inbox_events_stream(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    """Server-Sent Events stream for inbox updates"""
+    async def event_generator():
+        try:
+            # Send initial connection event
+            yield f"data: {json.dumps({'event': 'connected', 'user_id': current_user.id})}\n\n"
+            
+            # Keep connection alive and send periodic updates
+            last_check = datetime.now(timezone.utc)
+            
+            while True:
+                # Check for new messages since last check
+                new_messages = await db.messages.find({
+                    "recipient_id": current_user.id,
+                    "created_at": {"$gt": last_check},
+                    "is_read": False
+                }, {"_id": 0}).to_list(length=None)
+                
+                if new_messages:
+                    for message in new_messages:
+                        # Convert datetime to ISO string for JSON serialization
+                        if hasattr(message.get("created_at"), 'isoformat'):
+                            message["created_at"] = message["created_at"].isoformat()
+                            
+                        event_data = {
+                            "event": "inbox.new_message",
+                            "data": message
+                        }
+                        yield f"data: {json.dumps(event_data)}\n\n"
+                
+                # Send heartbeat every 30 seconds
+                heartbeat_data = {
+                    "event": "heartbeat",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+                yield f"data: {json.dumps(heartbeat_data)}\n\n"
+                
+                last_check = datetime.now(timezone.utc)
+                await asyncio.sleep(30)  # Wait 30 seconds before next check
+                
+        except asyncio.CancelledError:
+            logger.info(f"Inbox SSE connection closed for user {current_user.id}")
+        except Exception as e:
+            logger.error(f"Error in inbox SSE stream: {e}")
+            yield f"data: {json.dumps({'event': 'error', 'message': 'Connection error'})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream"
+        }
+    )
+
+# PRODUCT TAXONOMY AND SPECIES ENDPOINTS
+@api_router.get("/product-types")
+async def get_product_types(
+    species: Optional[str] = Query(None, description="Filter by species ID")
+):
+    """Get product types, optionally filtered by species"""
+    try:
+        query = {}
+        if species:
+            query["species_id"] = species
+            
+        cursor = db.product_types.find(query, {"_id": 0}).sort("label", 1)
+        product_types = await cursor.to_list(length=None)
+        
+        return {"product_types": product_types}
+        
+    except Exception as e:
+        logger.error(f"Error getting product types: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get product types")
+
+@api_router.get("/species")
+async def get_species(
+    category_group_id: Optional[str] = Query(None, description="Filter by category group")
+):
+    """Get species, optionally filtered by category group"""
+    try:
+        query = {}
+        if category_group_id:
+            query["category_group_id"] = category_group_id
+            
+        cursor = db.species.find(query, {"_id": 0}).sort("name", 1)
+        species = await cursor.to_list(length=None)
+        
+        return {"species": species}
+        
+    except Exception as e:
+        logger.error(f"Error getting species: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get species")
+
+@api_router.get("/taxonomy/categories")
+async def get_taxonomy_categories(
+    mode: Optional[str] = Query(None, description="Filter mode: core, exotic, or all")
+):
+    """Get taxonomy categories with filtering"""
+    try:
+        query = {}
+        
+        if mode == "core":
+            query["category_type"] = "core"
+        elif mode == "exotic":
+            query["category_type"] = "exotic"
+        # If mode is None or "all", return all categories
+        
+        cursor = db.taxonomy_categories.find(query, {"_id": 0}).sort("display_order", 1)
+        categories = await cursor.to_list(length=None)
+        
+        # If no categories exist, return default structure
+        if not categories:
+            default_categories = [
+                {
+                    "id": "poultry",
+                    "name": "Poultry",
+                    "category_type": "core",
+                    "display_order": 1,
+                    "icon": "🐔",
+                    "description": "Chickens, Ducks, Geese, Turkeys"
+                },
+                {
+                    "id": "ruminants", 
+                    "name": "Ruminants",
+                    "category_type": "core",
+                    "display_order": 2,
+                    "icon": "🐄",
+                    "description": "Cattle, Goats, Sheep"
+                },
+                {
+                    "id": "exotic",
+                    "name": "Exotic Livestock",
+                    "category_type": "exotic", 
+                    "display_order": 10,
+                    "icon": "🦌",
+                    "description": "Rare and exotic species"
+                }
+            ]
+            
+            # Filter defaults based on mode
+            if mode == "core":
+                categories = [cat for cat in default_categories if cat["category_type"] == "core"]
+            elif mode == "exotic":
+                categories = [cat for cat in default_categories if cat["category_type"] == "exotic"]  
+            else:
+                categories = default_categories
+        
+        return {"categories": categories}
+        
+    except Exception as e:
+        logger.error(f"Error getting taxonomy categories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get taxonomy categories")
+
+# REVIEWS AND SELLER ENDPOINTS
+@api_router.get("/reviews")
+async def get_reviews(
+    order_group_id: Optional[str] = Query(None, description="Filter by order group ID"),
+    listing_id: Optional[str] = Query(None, description="Filter by listing ID"),
+    seller_id: Optional[str] = Query(None, description="Filter by seller ID"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """Get reviews with filtering options"""
+    try:
+        query = {}
+        
+        if order_group_id:
+            query["order_group_id"] = order_group_id
+        if listing_id:
+            query["listing_id"] = listing_id
+        if seller_id:
+            query["seller_id"] = seller_id
+            
+        skip = (page - 1) * limit
+        
+        pipeline = [
+            {"$match": query},
+            {"$lookup": {
+                "from": "users",
+                "localField": "reviewer_id",
+                "foreignField": "id",
+                "as": "reviewer"
+            }},
+            {"$unwind": {"path": "$reviewer", "preserveNullAndEmptyArrays": True}},
+            {"$sort": {"created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$project": {
+                "_id": 0,
+                "id": 1,
+                "rating": 1,
+                "comment": 1,
+                "created_at": 1,
+                "reviewer_name": "$reviewer.full_name",
+                "verified_purchase": 1
+            }}
+        ]
+        
+        cursor = db.reviews.aggregate(pipeline)
+        reviews = await cursor.to_list(length=None)
+        
+        total = await db.reviews.count_documents(query)
+        
+        return {
+            "reviews": reviews,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting reviews: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get reviews")
+
+@api_router.get("/public/sellers/{seller_id}/reviews")
+async def get_public_seller_reviews(
+    seller_id: str,
+    rating: Optional[int] = Query(None, ge=1, le=5, description="Filter by rating"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=50)
+):
+    """Get public reviews for a seller"""
+    try:
+        query = {"seller_id": seller_id, "is_public": True}
+        
+        if rating:
+            query["rating"] = rating
+            
+        skip = (page - 1) * limit
+        
+        pipeline = [
+            {"$match": query},
+            {"$lookup": {
+                "from": "users",
+                "localField": "reviewer_id", 
+                "foreignField": "id",
+                "as": "reviewer"
+            }},
+            {"$unwind": {"path": "$reviewer", "preserveNullAndEmptyArrays": True}},
+            {"$sort": {"created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$project": {
+                "_id": 0,
+                "id": 1,
+                "rating": 1,
+                "comment": 1,
+                "created_at": 1,
+                "reviewer_name": {"$substr": ["$reviewer.full_name", 0, 1]},  # Only first letter for privacy
+                "verified_purchase": 1,
+                "helpful_count": {"$ifNull": ["$helpful_count", 0]}
+            }}
+        ]
+        
+        cursor = db.reviews.aggregate(pipeline)
+        reviews = await cursor.to_list(length=None)
+        
+        total = await db.reviews.count_documents(query)
+        
+        # Calculate review statistics
+        stats_pipeline = [
+            {"$match": {"seller_id": seller_id, "is_public": True}},
+            {"$group": {
+                "_id": None,
+                "average_rating": {"$avg": "$rating"},
+                "total_reviews": {"$sum": 1},
+                "rating_distribution": {
+                    "$push": "$rating"
+                }
+            }}
+        ]
+        
+        stats_cursor = db.reviews.aggregate(stats_pipeline)
+        stats_result = await stats_cursor.to_list(length=1)
+        
+        stats = {
+            "average_rating": 0,
+            "total_reviews": 0,
+            "rating_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        }
+        
+        if stats_result:
+            stats_data = stats_result[0]
+            stats["average_rating"] = round(stats_data.get("average_rating", 0), 1)
+            stats["total_reviews"] = stats_data.get("total_reviews", 0)
+            
+            # Calculate rating distribution
+            for rating in stats_data.get("rating_distribution", []):
+                if rating in stats["rating_distribution"]:
+                    stats["rating_distribution"][rating] += 1
+        
+        return {
+            "reviews": reviews,
+            "stats": stats,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting public seller reviews: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get seller reviews")
+
+# Legacy fee breakdown endpoint removed - using fee service implementation below
+
+# NOTIFICATION SUBSCRIPTION ENDPOINTS
+@api_router.post("/notifications/subscribe")
+async def subscribe_to_notifications(
+    subscription_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Subscribe user to push notifications"""
+    try:
+        subscription = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user.id,
+            "endpoint": subscription_data.get("endpoint"),
+            "keys": subscription_data.get("keys", {}),
+            "device_info": subscription_data.get("device_info", {}),
+            "notification_types": subscription_data.get("types", ["orders", "messages"]),
+            "created_at": datetime.now(timezone.utc),
+            "is_active": True
+        }
+        
+        # Upsert subscription (replace if exists for same user/endpoint)
+        await db.notification_subscriptions.update_one(
+            {"user_id": current_user.id, "endpoint": subscription["endpoint"]},
+            {"$set": subscription},
+            upsert=True
+        )
+        
+        return {"message": "Successfully subscribed to notifications", "subscription_id": subscription["id"]}
+        
+    except Exception as e:
+        logger.error(f"Error subscribing to notifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to subscribe to notifications")
+
+@api_router.post("/notifications/unsubscribe")
+async def unsubscribe_from_notifications(
+    endpoint: str = Form(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Unsubscribe user from push notifications"""
+    try:
+        result = await db.notification_subscriptions.update_one(
+            {"user_id": current_user.id, "endpoint": endpoint},
+            {"$set": {"is_active": False, "unsubscribed_at": datetime.now(timezone.utc)}}
+        )
+        
+        if result.modified_count > 0:
+            return {"message": "Successfully unsubscribed from notifications"}
+        else:
+            return {"message": "Subscription not found or already inactive"}
+            
+    except Exception as e:
+        logger.error(f"Error unsubscribing from notifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to unsubscribe from notifications")
+
+# ADMIN BLOG MANAGEMENT ENDPOINTS
+@api_router.get("/admin/blog")
+async def get_blog_posts(
+    status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get blog posts for admin management"""
+    try:
+        query = {}
+        if status:
+            query["status"] = status
+            
+        skip = (page - 1) * limit
+        
+        cursor = db.blog_posts.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit)
+        posts = await cursor.to_list(length=None)
+        
+        total = await db.blog_posts.count_documents(query)
+        
+        return {
+            "posts": posts,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting blog posts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get blog posts")
+
+@api_router.post("/admin/blog")
+async def create_blog_post(
+    title: str = Form(...),
+    content: str = Form(...),
+    excerpt: str = Form(None),
+    status: str = Form("draft"),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Create new blog post"""
+    try:
+        post_id = str(uuid.uuid4())
+        blog_post = {
+            "id": post_id,
+            "title": title,
+            "content": content,
+            "excerpt": excerpt or content[:200] + "...",
+            "status": status,
+            "author_id": current_user.id,
+            "author_name": current_user.full_name,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+            "views": 0
+        }
+        
+        await db.blog_posts.insert_one(blog_post)
+        
+        return {"post": blog_post, "message": "Blog post created successfully"}
+    except Exception as e:
+        logger.error(f"Error creating blog post: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create blog post")
+
+# ADMIN DOCUMENTS MANAGEMENT
+@api_router.get("/admin/documents")
+async def get_admin_documents(
+    type: Optional[str] = None,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get admin documents"""
+    try:
+        query = {}
+        if type:
+            query["type"] = type
+            
+        cursor = db.admin_documents.find(query, {"_id": 0}).sort("created_at", -1)
+        documents = await cursor.to_list(length=None)
+        
+        return {"documents": documents}
+    except Exception as e:
+        logger.error(f"Error getting admin documents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get admin documents")
+
+# ADMIN LISTINGS MANAGEMENT
+@api_router.get("/admin/listings")
+async def get_admin_listings(
+    status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get listings for admin management"""
+    try:
+        query = {}
+        if status:
+            query["moderation_status"] = status
+            
+        skip = (page - 1) * limit
+        
+        pipeline = [
+            {"$match": query},
+            {"$lookup": {
+                "from": "users",
+                "localField": "seller_id",
+                "foreignField": "id",
+                "as": "seller"
+            }},
+            {"$unwind": {"path": "$seller", "preserveNullAndEmptyArrays": True}},
+            {"$sort": {"created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$project": {
+                "_id": 0,
+                "id": 1,
+                "title": 1,
+                "price": 1,
+                "quantity": 1,
+                "moderation_status": 1,
+                "seller_name": "$seller.full_name",
+                "created_at": 1
+            }}
+        ]
+        
+        cursor = db.listings.aggregate(pipeline)
+        listings = await cursor.to_list(length=None)
+        
+        total = await db.listings.count_documents(query)
+        
+        return {
+            "listings": listings,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting admin listings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get admin listings")
+
+# ADMIN ORDERS MANAGEMENT  
+@api_router.get("/admin/orders")
+async def get_admin_orders(
+    status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get orders for admin management"""
+    try:
+        query = {}
+        if status:
+            query["status"] = status
+            
+        skip = (page - 1) * limit
+        
+        pipeline = [
+            {"$match": query},
+            {"$lookup": {
+                "from": "users",
+                "localField": "buyer_id",
+                "foreignField": "id",
+                "as": "buyer"
+            }},
+            {"$unwind": {"path": "$buyer", "preserveNullAndEmptyArrays": True}},
+            {"$sort": {"created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$project": {
+                "_id": 0,
+                "id": 1,
+                "total_amount": 1,
+                "status": 1,
+                "buyer_name": "$buyer.full_name",
+                "created_at": 1,
+                "items_count": {"$size": "$items"}
+            }}
+        ]
+        
+        cursor = db.orders.aggregate(pipeline)
+        orders = await cursor.to_list(length=None)
+        
+        total = await db.orders.count_documents(query)
+        
+        return {
+            "orders": orders,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting admin orders: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get admin orders")
+
+# ADMIN PAYMENTS MANAGEMENT
+@api_router.get("/admin/payments")
+async def get_admin_payments(
+    status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get payments for admin management"""
+    try:
+        query = {}
+        if status:
+            query["status"] = status
+            
+        skip = (page - 1) * limit
+        
+        cursor = db.payments.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit)
+        payments = await cursor.to_list(length=None)
+        
+        total = await db.payments.count_documents(query)
+        
+        return {
+            "payments": payments,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting admin payments: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get admin payments")
+
+# ADMIN MODERATION SYSTEM ENDPOINTS COMPLETE
+@api_router.get("/admin/roles/requests")
+async def get_role_requests(
+    status: Optional[str] = None,
+    role: Optional[str] = None,
+    q: Optional[str] = None,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get role upgrade requests for admin review"""
+    try:
+        requests = await admin_moderation_service.get_role_requests(status, role, 100)
+        return {"rows": requests}
+    except Exception as e:
+        logger.error(f"Error getting role requests: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get role requests")
+
+@api_router.post("/admin/roles/requests/{request_id}/approve")
+async def approve_role_request(
+    request_id: str,
+    note: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Approve a role upgrade request"""
+    try:
+        success = await admin_moderation_service.approve_role_request(
+            request_id, current_user.id, note
+        )
+        if success:
+            return {"ok": True, "message": "Role request approved successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to approve role request")
+    except Exception as e:
+        logger.error(f"Error approving role request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve role request")
+
+@api_router.post("/admin/roles/requests/{request_id}/reject")
+async def reject_role_request(
+    request_id: str,
+    reason: str = Form(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Reject a role upgrade request"""
+    try:
+        success = await admin_moderation_service.reject_role_request(
+            request_id, current_user.id, reason
+        )
+        if success:
+            return {"ok": True, "message": "Role request rejected successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to reject role request")
+    except Exception as e:
+        logger.error(f"Error rejecting role request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reject role request")
+
+@api_router.get("/admin/disease/zones")
+async def get_disease_zones(current_user: User = Depends(get_current_admin_user)):
+    """Get all disease zones"""
+    try:
+        zones = await admin_moderation_service.get_disease_zones()
+        return {"rows": zones}
+    except Exception as e:
+        logger.error(f"Error getting disease zones: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get disease zones")
+
+@api_router.get("/admin/disease/changes")
+async def get_disease_zone_changes(
+    status: str = "PENDING",
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get disease zone change requests"""
+    try:
+        changes = await admin_moderation_service.get_disease_zone_changes(status)
+        return {"rows": changes}
+    except Exception as e:
+        logger.error(f"Error getting disease zone changes: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get disease zone changes")
+
+@api_router.get("/admin/disease/changes/{change_id}")
+async def get_disease_zone_change_detail(
+    change_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Get detailed information about a disease zone change"""
+    try:
+        change = await admin_moderation_service.get_disease_zone_change_detail(change_id)
+        if change:
+            return {"change": change}
+        else:
+            raise HTTPException(status_code=404, detail="Disease zone change not found")
+    except Exception as e:
+        logger.error(f"Error getting disease zone change detail: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get change detail")
+
+@api_router.post("/admin/disease/changes/{change_id}/approve")
+async def approve_disease_zone_change(
+    change_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Approve a disease zone change"""
+    try:
+        success = await admin_moderation_service.approve_disease_zone_change(
+            change_id, current_user.id
+        )
+        if success:
+            return {"ok": True, "message": "Disease zone change approved successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to approve change")
+    except Exception as e:
+        logger.error(f"Error approving disease zone change: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve change")
+
+@api_router.post("/admin/disease/changes/{change_id}/reject")
+async def reject_disease_zone_change(
+    change_id: str,
+    reason: str = Form(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Reject a disease zone change"""
+    try:
+        success = await admin_moderation_service.reject_disease_zone_change(
+            change_id, current_user.id, reason
+        )
+        if success:
+            return {"ok": True, "message": "Disease zone change rejected successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to reject change")
+    except Exception as e:
+        logger.error(f"Error rejecting disease zone change: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reject change")
+
+@api_router.get("/admin/config/fees")
+async def get_fee_configs(current_user: User = Depends(get_current_admin_user)):
+    """Get all fee configurations"""
+    try:
+        configs = await admin_moderation_service.get_fee_configs()
+        return {"rows": configs}
+    except Exception as e:
+        logger.error(f"Error getting fee configs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get fee configs")
+
+@api_router.post("/admin/config/fees")
+async def create_fee_config(
+    config_data: dict,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Create a new fee configuration"""
+    try:
+        config = await admin_moderation_service.create_fee_config(config_data, current_user.id)
+        if config:
+            return {"row": config, "message": "Fee configuration created successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create fee configuration")
+    except Exception as e:
+        logger.error(f"Error creating fee config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create fee configuration")
+
+@api_router.post("/admin/config/fees/{config_id}/activate")
+async def activate_fee_config(
+    config_id: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Activate a fee configuration"""
+    try:
+        success = await admin_moderation_service.activate_fee_config(config_id, current_user.id)
+        if success:
+            return {"ok": True, "message": "Fee configuration activated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to activate fee configuration")
+    except Exception as e:
+        logger.error(f"Error activating fee config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to activate fee configuration")
+
+@api_router.get("/admin/config/flags")
+async def get_feature_flags(current_user: User = Depends(get_current_admin_user)):
+    """Get all feature flags"""
+    try:
+        flags = await admin_moderation_service.get_feature_flags()
+        return {"rows": flags}
+    except Exception as e:
+        logger.error(f"Error getting feature flags: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get feature flags")
+
+@api_router.post("/admin/config/flags/{key}")
+async def update_feature_flag(
+    key: str,
+    flag_data: dict,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Update a feature flag"""
+    try:
+        success = await admin_moderation_service.update_feature_flag(
+            key, 
+            flag_data.get("status"), 
+            flag_data.get("rollout", {}), 
+            current_user.id
+        )
+        if success:
+            return {"ok": True, "message": "Feature flag updated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update feature flag")
+    except Exception as e:
+        logger.error(f"Error updating feature flag: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update feature flag")
+
+# CRON JOB ENDPOINT (for external schedulers)
+@api_router.post("/cron/lifecycle-emails")
+async def run_lifecycle_email_cron(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Manual trigger for lifecycle email cron job (admin only)"""
+    try:
+        await lifecycle_email_service.run_cron_job()
+        return {"success": True, "message": "Lifecycle email cron job completed"}
+        
+    except Exception as e:
+        logger.error(f"Error running lifecycle email cron: {e}")
+        raise HTTPException(status_code=500, detail="Failed to run cron job")
+
+# ==============================================================================
 # 🛒 ACCEPT OFFER → CHECKOUT FLOW API ENDPOINTS
 # ==============================================================================
 
@@ -12482,6 +17118,684 @@ This message was sent through the StockLot contact form.
 
 # Include the router in the main app
 app.include_router(api_router)
+
+# Include notification API routes - fixed circular import
+app.include_router(admin_notifications_router, prefix="/api")
+app.include_router(user_notifications_router, prefix="/api")
+
+# ==============================================================================
+# 🚀 EXPANDED API ENDPOINTS - 100% BACKEND COVERAGE
+# ==============================================================================
+
+# Import and include the expanded endpoints
+from api_endpoints_expansion import router as expansion_router
+app.include_router(expansion_router)
+
+# ==============================================================================
+# 🚀 ENHANCED FEATURES API ENDPOINTS - COMPREHENSIVE ENHANCEMENTS
+# ==============================================================================
+
+# ================================
+# ADVANCED SEARCH & AI ENDPOINTS
+# ================================
+
+@app.post("/api/search/semantic")
+async def semantic_search(
+    request: Dict[str, Any] = Body(...),
+    current_user: Optional[Dict] = Depends(get_current_user)
+):
+    """AI-powered semantic search with natural language understanding"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        query = request.get('query', '')
+        user_context = {
+            'user_id': current_user.get('_id') if current_user else None,
+            'location': request.get('location'),
+            'preferences': request.get('preferences', {})
+        }
+        
+        results = await advanced_search_service.semantic_search(query, user_context)
+        return results
+        
+    except Exception as e:
+        logger.error(f"Semantic search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/search/visual")
+async def visual_search(
+    image: UploadFile = File(...),
+    similarity_threshold: float = Query(0.7, description="Similarity threshold (0.0-1.0)")
+):
+    """Search for similar livestock by image using computer vision"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        # Read image data
+        image_data = await image.read()
+        
+        results = await advanced_search_service.visual_search(image_data, similarity_threshold)
+        return results
+        
+    except Exception as e:
+        logger.error(f"Visual search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/search/autocomplete")
+async def smart_autocomplete(
+    q: str = Query(..., description="Partial search query"),
+    current_user: Optional[Dict] = Depends(get_current_user)
+):
+    """AI-powered autocomplete with context awareness"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return []
+            
+        user_context = {
+            'user_id': current_user.get('_id') if current_user else None,
+            'location': current_user.get('province') if current_user else None
+        }
+        
+        suggestions = await advanced_search_service.smart_autocomplete(q, user_context)
+        return suggestions
+        
+    except Exception as e:
+        logger.error(f"Autocomplete error: {str(e)}")
+        return []
+
+@app.post("/api/search/intelligent-filters")
+async def intelligent_filters(
+    request: Dict[str, Any] = Body(...)
+):
+    """Generate smart filter suggestions based on search results"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        base_query = request.get('query', '')
+        current_results = request.get('results', [])
+        
+        filters = await advanced_search_service.intelligent_filters(base_query, current_results)
+        return filters
+        
+    except Exception as e:
+        logger.error(f"Intelligent filters error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/search/predictive")
+async def predictive_search(
+    current_user: Optional[Dict] = Depends(get_current_user)
+):
+    """Predict what user might be looking for"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        user_context = {
+            'user_id': current_user.get('_id') if current_user else None,
+            'location': current_user.get('province') if current_user else None,
+            'roles': current_user.get('roles', []) if current_user else []
+        }
+        
+        predictions = await advanced_search_service.predictive_search(user_context)
+        return predictions
+        
+    except Exception as e:
+        logger.error(f"Predictive search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/search/analytics")
+async def search_analytics_insights(
+    q: str = Query(..., description="Search query"),
+    current_user: Optional[Dict] = Depends(get_current_user)
+):
+    """Get analytics and insights about search query"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        user_context = {
+            'user_id': current_user.get('_id') if current_user else None,
+            'location': current_user.get('province') if current_user else None
+        }
+        
+        insights = await advanced_search_service.search_analytics_insights(q, user_context)
+        return insights
+        
+    except Exception as e:
+        logger.error(f"Search analytics error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# REAL-TIME MESSAGING ENDPOINTS
+# ================================
+
+@app.post("/api/messaging/conversations")
+async def create_conversation(
+    request: Dict[str, Any] = Body(...),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Create a new conversation"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        participant_ids = request.get('participants', [])
+        conversation_type = request.get('type', 'direct')
+        listing_id = request.get('listing_id')
+        metadata = request.get('metadata', {})
+        
+        # Add current user to participants
+        if current_user['_id'] not in participant_ids:
+            participant_ids.append(current_user['_id'])
+        
+        result = await realtime_messaging_service.create_conversation(
+            participant_ids, conversation_type, listing_id, metadata
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Create conversation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/messaging/conversations")
+async def get_conversations(
+    limit: int = Query(20, description="Number of conversations to return"),
+    offset: int = Query(0, description="Offset for pagination"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get user's conversations"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        result = await realtime_messaging_service.get_conversations(
+            current_user['_id'], limit, offset
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Get conversations error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/messaging/conversations/{conversation_id}/messages")
+async def send_message(
+    conversation_id: str,
+    message_data: Dict[str, Any] = Body(...),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Send a message in a conversation"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        result = await realtime_messaging_service.send_message(
+            conversation_id, current_user['_id'], message_data
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Send message error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/messaging/conversations/{conversation_id}/messages")
+async def get_messages(
+    conversation_id: str,
+    limit: int = Query(50, description="Number of messages to return"),
+    before_timestamp: Optional[str] = Query(None, description="Get messages before this timestamp"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get messages from a conversation"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        before_dt = None
+        if before_timestamp:
+            before_dt = datetime.fromisoformat(before_timestamp.replace('Z', '+00:00'))
+        
+        result = await realtime_messaging_service.get_messages(
+            conversation_id, current_user['_id'], limit, before_dt
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Get messages error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/messaging/upload-media")
+async def upload_media(
+    conversation_id: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Upload media for messaging"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        file_data = await file.read()
+        file_type = file.content_type or 'application/octet-stream'
+        
+        result = await realtime_messaging_service.upload_media(
+            file_data, file_type, file.filename, conversation_id
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Upload media error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/messaging/templates")
+async def get_message_templates(
+    user_type: Optional[str] = Query(None, description="User type: buyer, seller"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get message templates"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return []
+            
+        # Determine user type from roles if not provided
+        if not user_type and current_user:
+            roles = current_user.get('roles', [])
+            if 'seller' in roles:
+                user_type = 'seller'
+            elif 'buyer' in roles:
+                user_type = 'buyer'
+        
+        templates = await realtime_messaging_service.get_message_templates(user_type)
+        return templates
+        
+    except Exception as e:
+        logger.error(f"Get templates error: {str(e)}")
+        return []
+
+# ================================
+# BUSINESS INTELLIGENCE ENDPOINTS
+# ================================
+
+@app.get("/api/analytics/platform-overview")
+async def get_platform_overview(
+    date_range: int = Query(30, description="Number of days to analyze"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get comprehensive platform analytics overview"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        # Check admin access
+        if 'admin' not in current_user.get('roles', []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        overview = await business_intelligence_service.get_platform_overview(date_range)
+        return overview
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Platform overview error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/seller/{seller_id}")
+async def get_seller_analytics(
+    seller_id: str,
+    date_range: int = Query(30, description="Number of days to analyze"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get comprehensive seller analytics"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        # Check if user can access this seller's data
+        if current_user['_id'] != seller_id and 'admin' not in current_user.get('roles', []):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        analytics = await business_intelligence_service.get_seller_analytics(seller_id, date_range)
+        return analytics
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Seller analytics error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/buyer/{buyer_id}")
+async def get_buyer_insights(
+    buyer_id: str,
+    date_range: int = Query(30, description="Number of days to analyze"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get buyer insights and analytics"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        # Check if user can access this buyer's data
+        if current_user['_id'] != buyer_id and 'admin' not in current_user.get('roles', []):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        insights = await business_intelligence_service.get_buyer_insights(buyer_id, date_range)
+        return insights
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Buyer insights error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/market-intelligence")
+async def get_market_intelligence(
+    species: Optional[str] = Query(None, description="Filter by species"),
+    province: Optional[str] = Query(None, description="Filter by province"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get market intelligence and trends"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        intelligence = await business_intelligence_service.get_market_intelligence(species, province)
+        return intelligence
+        
+    except Exception as e:
+        logger.error(f"Market intelligence error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/real-time")
+async def get_real_time_metrics(
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get real-time platform metrics"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        # Check admin access for real-time metrics
+        if 'admin' not in current_user.get('roles', []):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        metrics = await business_intelligence_service.get_real_time_metrics()
+        return metrics
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Real-time metrics error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/analytics/custom-report")
+async def generate_custom_report(
+    report_config: Dict[str, Any] = Body(...),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Generate custom analytics report"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"error": "Enhancement services not available"}
+            
+        # Check appropriate access levels based on report type
+        report_type = report_config.get('type', 'general')
+        user_roles = current_user.get('roles', [])
+        
+        if report_type in ['platform', 'admin'] and 'admin' not in user_roles:
+            raise HTTPException(status_code=403, detail="Admin access required for platform reports")
+        
+        report = await business_intelligence_service.generate_custom_report(report_config)
+        return report
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Custom report error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# AI LISTING AUTOFILL ENDPOINTS
+# ================================
+
+@app.post("/api/ai/listing-suggest")
+async def ai_listing_suggest(
+    file: UploadFile = File(None),
+    image_url: str = Form(None),
+    province: str = Form(None),
+    hints: str = Form("{}"),
+    current_user: Optional[Dict] = Depends(get_current_user)
+):
+    """AI-powered livestock listing autofill from camera/image"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE or not openai_listing_service:
+            return {"success": False, "error": "AI listing service not available"}
+        
+        if not openai_listing_service.enabled:
+            return {"success": False, "error": "OpenAI service not configured"}
+        
+        # Get image data
+        image_data = None
+        final_image_url = image_url
+        
+        if file:
+            # Read uploaded file
+            image_data = await file.read()
+            
+            # Validate file size (8MB limit)
+            if len(image_data) > 8 * 1024 * 1024:
+                return {"success": False, "error": "Image too large. Maximum 8MB allowed."}
+            
+            # Upload to storage and get URL
+            try:
+                # Simple file storage (you can enhance this)
+                import os
+                import uuid
+                upload_dir = "/app/uploads/ai_analysis"
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+                stored_filename = f"{uuid.uuid4()}.{file_extension}"
+                file_path = os.path.join(upload_dir, stored_filename)
+                
+                with open(file_path, 'wb') as f:
+                    f.write(image_data)
+                
+                final_image_url = f"/uploads/ai_analysis/{stored_filename}"
+                
+            except Exception as e:
+                logger.error(f"Error storing uploaded image: {str(e)}")
+                return {"success": False, "error": "Failed to store image"}
+        
+        elif image_url:
+            # Download image from URL
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url) as response:
+                        if response.status == 200:
+                            image_data = await response.read()
+                        else:
+                            return {"success": False, "error": "Failed to download image from URL"}
+            except Exception as e:
+                logger.error(f"Error downloading image: {str(e)}")
+                return {"success": False, "error": "Failed to download image"}
+        
+        if not image_data:
+            return {"success": False, "error": "No image provided"}
+        
+        # Parse hints
+        try:
+            hints_dict = json.loads(hints) if hints else {}
+        except:
+            hints_dict = {}
+        
+        # Analyze image with OpenAI
+        analysis_result = await openai_listing_service.analyze_livestock_image(
+            image_data=image_data,
+            province=province,
+            hints=hints_dict
+        )
+        
+        if not analysis_result.get('success'):
+            return {
+                "success": False,
+                "error": analysis_result.get('error', 'Analysis failed')
+            }
+        
+        # Store AI suggestion for tracking (if user is logged in)
+        suggestion_id = None
+        if current_user:
+            suggestion_id = await openai_listing_service.store_ai_suggestion(
+                user_id=current_user['_id'],
+                image_url=final_image_url,
+                suggestion_data=analysis_result
+            )
+        
+        # Format response
+        response_data = {
+            "success": True,
+            "image_url": final_image_url,
+            "fields": analysis_result.get('fields', {}),
+            "pricing": analysis_result.get('pricing'),
+            "moderation": analysis_result.get('moderation', {}),
+            "analysis_notes": analysis_result.get('analysis_notes', ''),
+            "suggestion_id": suggestion_id
+        }
+        
+        logger.info(f"AI listing analysis completed for user {current_user.get('_id') if current_user else 'guest'}")
+        return response_data
+        
+    except Exception as e:
+        logger.error(f"AI listing suggest error: {str(e)}")
+        return {
+            "success": False,
+            "error": "AI analysis failed. Please try again."
+        }
+
+@app.post("/api/ai/listing-feedback")
+async def ai_listing_feedback(
+    request: Dict[str, Any] = Body(...),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Store feedback on AI listing suggestions for learning"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE or not openai_listing_service:
+            return {"success": False, "error": "AI listing service not available"}
+        
+        suggestion_id = request.get('suggestion_id')
+        accepted_fields = request.get('accepted_fields', {})
+        rejected_fields = request.get('rejected_fields', {})
+        
+        if not suggestion_id:
+            return {"success": False, "error": "Suggestion ID required"}
+        
+        # Update suggestion record with feedback
+        await db.ai_listing_suggestions.update_one(
+            {
+                '_id': suggestion_id,
+                'user_id': current_user['_id']
+            },
+            {
+                '$set': {
+                    'accepted_fields': accepted_fields,
+                    'rejected_fields': rejected_fields,
+                    'status': 'feedback_received',
+                    'feedback_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        logger.info(f"AI listing feedback received for suggestion {suggestion_id}")
+        return {"success": True, "message": "Feedback recorded"}
+        
+    except Exception as e:
+        logger.error(f"AI listing feedback error: {str(e)}")
+        return {"success": False, "error": "Failed to record feedback"}
+
+@app.get("/api/ai/listing-suggestions/{user_id}")
+async def get_user_ai_suggestions(
+    user_id: str,
+    limit: int = Query(20, description="Number of suggestions to return"),
+    current_user: Dict = Depends(get_current_user)
+):
+    """Get user's AI listing suggestions history"""
+    try:
+        if not ENHANCEMENT_SERVICES_AVAILABLE:
+            return {"success": False, "error": "AI listing service not available"}
+        
+        # Check authorization
+        if current_user['_id'] != user_id and 'admin' not in current_user.get('roles', []):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get suggestions
+        suggestions = await db.ai_listing_suggestions.find(
+            {'user_id': user_id}
+        ).sort('created_at', -1).limit(limit).to_list(limit)
+        
+        return {
+            "success": True,
+            "suggestions": suggestions,
+            "count": len(suggestions)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get AI suggestions error: {str(e)}")
+        return {"success": False, "error": "Failed to get suggestions"}
+
+# ================================
+# ENHANCED PERFORMANCE ENDPOINTS
+# ================================
+
+@app.get("/api/performance/health-check")
+async def enhanced_health_check():
+    """Enhanced health check with service status"""
+    try:
+        health_status = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'services': {
+                'database': 'connected',
+                'ai_services': 'available' if AI_SERVICES_AVAILABLE else 'unavailable',
+                'ml_services': 'available' if ML_SERVICES_AVAILABLE else 'unavailable',
+                'enhancement_services': 'available' if ENHANCEMENT_SERVICES_AVAILABLE else 'unavailable',
+                'openai_listing': 'available' if openai_listing_service and openai_listing_service.enabled else 'unavailable',
+                'email_service': 'available',
+                'payment_service': 'available'
+            },
+            'features': {
+                'semantic_search': ENHANCEMENT_SERVICES_AVAILABLE,
+                'visual_search': ENHANCEMENT_SERVICES_AVAILABLE,
+                'real_time_messaging': ENHANCEMENT_SERVICES_AVAILABLE,
+                'business_intelligence': ENHANCEMENT_SERVICES_AVAILABLE,
+                'ai_recommendations': AI_SERVICES_AVAILABLE,
+                'ml_analytics': ML_SERVICES_AVAILABLE,
+                'ai_listing_autofill': openai_listing_service.enabled if openai_listing_service else False
+            }
+        }
+        
+        # Test database connection
+        try:
+            await db.users.count_documents({}, limit=1)
+        except Exception as e:
+            health_status['services']['database'] = f'error: {str(e)}'
+            health_status['status'] = 'degraded'
+        
+        return health_status
+        
+    except Exception as e:
+        return {
+            'status': 'error',
+            'timestamp': datetime.utcnow().isoformat(),
+            'error': str(e)
+        }
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

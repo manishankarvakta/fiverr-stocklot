@@ -1,0 +1,169 @@
+{
+  "summary": {
+    "total_tests": 21,
+    "passed_tests": 13,
+    "failed_tests": 8,
+    "success_rate": 61.904761904761905
+  },
+  "results": [
+    {
+      "test": "Health Check",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Backend is healthy",
+      "timestamp": "2025-09-14T16:22:15.569001"
+    },
+    {
+      "test": "GET /api/listings",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Retrieved 7 listings",
+      "timestamp": "2025-09-14T16:22:15.581947",
+      "response_data": {
+        "count": 7
+      }
+    },
+    {
+      "test": "GET /api/listings/{id}",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Retrieved listing: Ross 308 Day-Old Chicks - Premium Broiler Stock",
+      "timestamp": "2025-09-14T16:22:15.598061",
+      "response_data": {
+        "listing_id": "a985a5b3-4c39-4739-8f02-69c9542f3ef3"
+      }
+    },
+    {
+      "test": "GET /api/species",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Retrieved 43 species",
+      "timestamp": "2025-09-14T16:22:15.613411",
+      "response_data": {
+        "count": 43
+      }
+    },
+    {
+      "test": "GET /api/taxonomy/categories",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Retrieved 5 categories",
+      "timestamp": "2025-09-14T16:22:15.663626",
+      "response_data": {
+        "count": 5
+      }
+    },
+    {
+      "test": "POST /api/auth/register",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "User registration successful",
+      "timestamp": "2025-09-14T16:22:16.272400"
+    },
+    {
+      "test": "POST /api/auth/login",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "Login failed, using fallback token: No response",
+      "timestamp": "2025-09-14T16:22:16.514398"
+    },
+    {
+      "test": "GET /api/auth/me",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "Failed to get current user: No response",
+      "timestamp": "2025-09-14T16:22:16.563706"
+    },
+    {
+      "test": "POST /api/cart/add",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Added item to cart: Item added to cart successfully",
+      "timestamp": "2025-09-14T16:22:16.730109"
+    },
+    {
+      "test": "GET /api/cart",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Retrieved cart: 1 items, R131.0 total",
+      "timestamp": "2025-09-14T16:22:16.741732"
+    },
+    {
+      "test": "POST /api/checkout/preview",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "Failed to get checkout preview: No response",
+      "timestamp": "2025-09-14T16:22:16.751577"
+    },
+    {
+      "test": "POST /api/checkout/create",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Created checkout session: R131.0",
+      "timestamp": "2025-09-14T16:22:16.832407"
+    },
+    {
+      "test": "POST /api/checkout/complete",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Checkout completed with payment URL: True",
+      "timestamp": "2025-09-14T16:22:17.533100"
+    },
+    {
+      "test": "POST /api/checkout/guest/quote",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "Failed to get guest quote: No response",
+      "timestamp": "2025-09-14T16:22:17.553629"
+    },
+    {
+      "test": "POST /api/checkout/guest/create",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "Failed to create guest checkout: No response",
+      "timestamp": "2025-09-14T16:22:17.604383"
+    },
+    {
+      "test": "GET /api/guest/session",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "Failed to get guest session: No response",
+      "timestamp": "2025-09-14T16:22:17.614865"
+    },
+    {
+      "test": "GET /api/listings/{specific-id}",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Retrieved PDP for 'Ross 308 Day-Old Chicks - Premium Broiler Stock' by Unknown",
+      "timestamp": "2025-09-14T16:22:17.625327"
+    },
+    {
+      "test": "Seller Information",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "No seller information found",
+      "timestamp": "2025-09-14T16:22:17.820159"
+    },
+    {
+      "test": "Animal Statistics (via PDP)",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Animal statistics available in PDP response",
+      "timestamp": "2025-09-14T16:22:18.030108"
+    },
+    {
+      "test": "GET /api/fees/breakdown",
+      "status": "\u2705 PASS",
+      "success": true,
+      "details": "Fee breakdown: R0 processing fee",
+      "timestamp": "2025-09-14T16:22:18.040506"
+    },
+    {
+      "test": "GET /api/listings/search",
+      "status": "\u274c FAIL",
+      "success": false,
+      "details": "Search failed: No response",
+      "timestamp": "2025-09-14T16:22:18.048445"
+    }
+  ]
+}

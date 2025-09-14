@@ -293,7 +293,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any species" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any species</SelectItem>
+                    <SelectItem value="all-default">Any species</SelectItem>
                     {speciesOptions.map(species => (
                       <SelectItem key={species.code || species.name} value={species.code || species.name}>
                         {species.name}
@@ -310,7 +310,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any product type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any product type</SelectItem>
+                    <SelectItem value="all-default">Any product type</SelectItem>
                     {productTypeOptions.map(type => (
                       <SelectItem key={type.code || type.name} value={type.code || type.name}>
                         {type.name}
@@ -327,7 +327,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any province" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any province</SelectItem>
+                    <SelectItem value="all-default">Any province</SelectItem>
                     {provinces.map(province => (
                       <SelectItem key={province} value={province}>
                         {province}
@@ -417,7 +417,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="all-default">Any</SelectItem>
                     <SelectItem value="true">Yes</SelectItem>
                     <SelectItem value="false">No</SelectItem>
                   </SelectContent>
@@ -431,7 +431,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="all-default">Any</SelectItem>
                     <SelectItem value="true">Yes</SelectItem>
                     <SelectItem value="false">No</SelectItem>
                   </SelectContent>
@@ -445,7 +445,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="all-default">Any</SelectItem>
                     <SelectItem value="true">Yes</SelectItem>
                     <SelectItem value="false">No</SelectItem>
                   </SelectContent>
@@ -459,7 +459,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="all-default">Any</SelectItem>
                     <SelectItem value="true">Yes</SelectItem>
                     <SelectItem value="false">No</SelectItem>
                   </SelectContent>
@@ -473,7 +473,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="all-default">Any</SelectItem>
                     <SelectItem value="true">Yes</SelectItem>
                     <SelectItem value="false">No</SelectItem>
                   </SelectContent>
@@ -510,7 +510,7 @@ const AdvancedFiltersPanel = ({ onFiltersChange, isOpen, onClose }) => {
                     <SelectValue placeholder="Any time" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any time</SelectItem>
+                    <SelectItem value="all-default">Any time</SelectItem>
                     {timeRanges.map(range => (
                       <SelectItem key={range.value} value={range.value}>
                         {range.label}

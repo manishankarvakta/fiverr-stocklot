@@ -392,7 +392,7 @@ const MapViewBuyRequests = ({
             <SelectValue placeholder="All species" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All species</SelectItem>
+            <SelectItem value="all-default">All species</SelectItem>
             {speciesOpts.map(o => (
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}

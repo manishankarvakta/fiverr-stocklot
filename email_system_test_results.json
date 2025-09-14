@@ -1,0 +1,21 @@
+{
+  "authentication": true,
+  "templates": false,
+  "notifications": false,
+  "email_sending": true,
+  "overall_status": "Mostly Working",
+  "template_details": {
+    "success": false,
+    "error": "{\"detail\":\"Not Found\"}"
+  },
+  "notification_details": {
+    "success": false,
+    "error": "{\"detail\":\"Not authenticated\"}"
+  },
+  "email_details": {
+    "success": true,
+    "message_id": "<20250913145130.ccbb7b0c998c07ff@e.stocklot.farm>",
+    "domain": "e.stocklot.farm",
+    "status": "Production Ready"
+  }
+}

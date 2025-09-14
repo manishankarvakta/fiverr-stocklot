@@ -14,41 +14,66 @@ class AIService:
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
-        # System prompt for StockLot livestock marketplace
-        self.system_prompt = """
-You are a helpful AI assistant for StockLot, South Africa's premier livestock marketplace. 
-You help users with questions about buying and selling livestock, payments, shipping, and general marketplace usage.
+        # System prompt for StockLot livestock marketplace - COMPREHENSIVE & ACCURATE
+        self.system_prompt = """You are StockLot, the livestock & game marketplace assistant for South Africa and global exporters.
 
-Key information about StockLot:
-- We're a South African livestock marketplace connecting farmers and buyers
-- We sell cattle, goats, sheep, pigs, chickens, and other livestock
-- We use secure escrow payments for buyer protection
-- Sellers can set their own shipping costs (standard and express options)
-- We support South African banking for payments and payouts
-- Users can add livestock to cart and checkout like any e-commerce site
-- We have vet certification badges for animal health verification
-- We serve all 9 South African provinces
-- Our platform fee is 10% on successful sales
+CRITICAL - StockLot marketplace categories (YOU MUST ACKNOWLEDGE ALL OF THESE):
+✅ POULTRY: Chickens, ducks, turkeys, geese, ostriches
+✅ RUMINANTS: Cattle, goats, sheep, buffalo  
+✅ AQUACULTURE: Fish farming, prawns, aquatic livestock (WE DEFINITELY SELL FISH!)
+✅ GAME ANIMALS: Kudu, eland, springbok, ostrich (through approved processors)
+✅ SMALL LIVESTOCK: Pigs, rabbits
+✅ EXOTIC/OTHER: Any farmed animal for commercial purposes
 
-Important contact information:
-- Email: support@stocklot.co.za
-- Phone: +27 11 123 4567
-- Website: stocklot.co.za
+Your goals:
+1) Help users discover animals, breeds, game species (e.g., kudu, eland, ostrich), fertilised eggs, day-old chicks, AQUACULTURE (fish), and related logistics on StockLot.
+2) Explain our flows: Buy Requests, Listings, Auctions, Escrow, Delivery, Abattoirs, Export/Import.
+3) Answer general chat relevant to livestock/game trading, husbandry, transport, pricing, regulations, or meat processing.
 
-Always be helpful, professional, and focus on livestock trading in South Africa.
-If you don't know something specific, direct users to contact our support team.
-Keep responses concise and practical.
-"""
+CRITICAL RULES:
+- StockLot DOES sell fish through our Aquaculture category - never say we don't sell fish!
+- NEVER reveal phone numbers, email addresses, or direct contact details
+- Always use "Contact support through the platform" or "Use in-app messaging after escrow"
+- For wild pigs: clarify if they want meat (from processors) vs live animals (regulated)
+- For game meat: must be from approved abattoirs/processors with permits
+
+Platform Features:
+- Secure escrow payments for buyer protection  
+- Sellers set their own delivery rates (standard and express options)
+- South African banking integration for payments and payouts
+- Vet certification badges for animal health verification
+- Nationwide service across all 9 provinces
+- Platform fee varies by transaction type and value
+
+Constraints & Safety:
+- No illegal wildlife trade, endangered species, CITES-restricted items
+- Respect disease and quarantine controls (FMD, avian influenza)
+- Never complete payments or reveal internal admin actions
+- Be concise, friendly, actionable - use bullet points
+
+Output Style:
+- Short answers first, then optional "Next steps"
+- Group by species → product type (live, breeding stock, meat cuts)
+- Provide clear CTAs: "Create Buy Request", "Browse Aquaculture", "Browse Game/Exotic"
+- Convert money to ZAR format when relevant
+
+For support: Direct users to use "in-app messaging" or "platform support system" - NEVER provide phone numbers or email addresses."""
 
     async def get_faq_response(self, question: str, user_context: Optional[Dict[str, Any]] = None) -> str:
         """
         Get an AI-powered response to user questions about StockLot
         """
         try:
-            # Prepare the conversation
+            # Prepare the conversation with enhanced training examples
             messages = [
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": question}
+                {"role": "user", "content": "Do you have fish for sale?"},
+                {"role": "assistant", "content": "Yes! StockLot has an active Aquaculture category with various fish species, prawns, and aquatic livestock. You can find:\n• Live fish for farming\n• Fingerlings for stocking\n• Breeding stock\n• Aquaculture equipment\n\nNext steps:\n• Browse Aquaculture → Fish\n• Create a Buy Request with your specific fish requirements"},
+                {"role": "user", "content": "Do you have game meat?"},
+                {"role": "assistant", "content": "Yes! StockLot supports game farming and game meat through approved processors. Browse our Game/Exotic category for kudu, springbok, eland, and other game products. All game sales require proper permits and must come from registered processors with veterinary certificates."},
+                {"role": "user", "content": "How can I contact support?"},
+                {"role": "assistant", "content": "You can contact support through our platform messaging system. Once you're logged in, use the in-app messaging feature or contact support through the platform. This ensures secure communication and maintains your transaction protection."},
+                {"role": "user", "content": f"StockLot covers ALL livestock including Aquaculture (fish), Game Animals (kudu, eland), Poultry, Ruminants, and Small Livestock. NEVER provide phone numbers or emails - only mention platform messaging.\n\nQuestion: {question}"}
             ]
             
             # Add user context if available
@@ -61,16 +86,53 @@ Keep responses concise and practical.
                 model="gpt-4o-mini",  # Fast and cost-effective
                 messages=messages,
                 max_tokens=300,
-                temperature=0.7,
+                temperature=0.3,  # Lower temperature for consistency
                 presence_penalty=0.0,
                 frequency_penalty=0.0
             )
             
-            return response.choices[0].message.content.strip()
+            ai_response = response.choices[0].message.content.strip()
+            
+            # Filter out any contact information that might slip through
+            ai_response = self._remove_contact_details(ai_response)
+            
+            return ai_response
             
         except Exception as e:
             logger.error(f"Error getting AI response: {e}")
             return self._get_fallback_response()
+    
+    def _remove_contact_details(self, response: str) -> str:
+        """Remove any phone numbers, emails, or contact details from response"""
+        import re
+        
+        # Remove phone numbers (comprehensive patterns)
+        response = re.sub(r'\+?[\d\s\-\(\)]{10,}', '[contact removed]', response)
+        response = re.sub(r'(\+27|0)\s*\d{2}\s*\d{3}\s*\d{4}', '[contact removed]', response)
+        response = re.sub(r'\b\d{3}[\-\s]?\d{3}[\-\s]?\d{4}\b', '[contact removed]', response)
+        response = re.sub(r'\b\d{10,}\b', '[contact removed]', response)
+        
+        # Remove email addresses
+        response = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[contact removed]', response)
+        
+        # Remove specific StockLot contact details
+        response = re.sub(r'support@stocklot\.co\.za', 'platform support', response, flags=re.IGNORECASE)
+        response = re.sub(r'hello@stocklot\.farm', 'platform messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'info@stocklot\.(co\.za|farm)', 'platform support', response, flags=re.IGNORECASE)
+        
+        # Remove contact action phrases and replace with platform alternatives
+        response = re.sub(r'contact.*support.*team.*at.*', 'contact support through the platform', response, flags=re.IGNORECASE)
+        response = re.sub(r'call.*\d+', 'use in-app messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'phone.*\d+', 'platform messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'email.*us.*at.*', 'contact through the platform', response, flags=re.IGNORECASE)
+        
+        # Replace contact references with platform messaging
+        response = response.replace('[contact removed]', 'platform messaging')
+        response = response.replace('contact us', 'contact support through the platform')
+        response = response.replace('call us', 'use in-app messaging')
+        response = response.replace('email us', 'contact through platform support')
+        
+        return response
     
     async def generate_listing_description(self, animal_details: Dict[str, Any]) -> str:
         """
@@ -151,20 +213,25 @@ Be professional, factual, and appealing to livestock buyers.
     
     def _get_fallback_response(self) -> str:
         """
-        Fallback response when AI is unavailable
+        Fallback response when AI is unavailable - NO CONTACT DETAILS
         """
-        return """I'm having trouble connecting to our AI system right now, but our support team can help! 
+        return """I'm having trouble connecting to our AI system right now, but I can still help with basic information! 
 
-📧 Email: support@stocklot.co.za
-📞 Call: +27 11 123 4567
+🐄 **StockLot Marketplace Features:**
+• **Livestock Categories**: Poultry, Ruminants, Aquaculture (fish), Game Animals, Small Livestock
+• **Secure Payments**: Escrow system protects buyers and sellers
+• **Nationwide Delivery**: Sellers set their own transport rates
+• **Health Certified**: All animals come with vet certificates
 
-Common questions:
-• How to buy livestock: Browse marketplace → Add to Cart → Checkout
-• How to sell: Create listing with photos and details
-• Payments: Secure escrow system protects both buyers and sellers
-• Shipping: Sellers set their own rates, we connect you directly
+📋 **Quick Help:**
+• **Buy**: Browse marketplace → Add to Cart → Secure checkout
+• **Sell**: Create listing with photos and detailed descriptions  
+• **Support**: Use in-app messaging or platform support system
 
-Is there something specific I can help you with?"""
+🐟 **Yes, we have fish!** Browse our Aquaculture category for fish farming needs.
+🦌 **Game meat available** through approved processors with proper permits.
+
+Contact support through the platform messaging system for personalized help!"""
 
 # Global AI service instance
 ai_service = AIService()

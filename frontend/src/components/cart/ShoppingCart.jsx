@@ -9,6 +9,7 @@ import {
   ShoppingCart, Plus, Minus, Trash2, CreditCard, Truck, 
   MapPin, User, Phone, Mail, Check, AlertTriangle
 } from 'lucide-react';
+import { useRateLimitedRequest, RateLimitedButton, RateLimitErrorHandler } from '@/hooks/useRateLimiting';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -28,6 +29,14 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
     country: 'South Africa'
   });
 
+  // Rate limited checkout functionality
+  const {
+    makeRequest: makeCheckoutRequest,
+    isLoading: isCheckoutLoading,
+    error: checkoutError,
+    clearLimits: clearCheckoutLimits
+  } = useRateLimitedRequest('checkout', { maxRequests: 3, windowMs: 300000 }); // 3 per 5 minutes
+
   useEffect(() => {
     if (isOpen) {
       fetchCart();
@@ -37,14 +46,29 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
   const fetchCart = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API}/cart`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const token = localStorage.getItem('token');
       
-      if (response.ok) {
-        const data = await response.json();
-        setCart(data);
-        onCartUpdate?.(data.item_count);
+      if (token) {
+        // Authenticated user - fetch from backend
+        const response = await fetch(`${API}/cart`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCart(data);
+          onCartUpdate?.(data.item_count);
+        }
+      } else {
+        // Guest user - load from localStorage
+        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+        const cartData = {
+          items: guestCart,
+          total: guestCart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+          item_count: guestCart.reduce((sum, item) => sum + item.qty, 0)
+        };
+        setCart(cartData);
+        onCartUpdate?.(cartData.item_count);
       }
     } catch (error) {
       console.error('Error fetching cart:', error);
@@ -55,13 +79,24 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
 
   const removeFromCart = async (itemId) => {
     try {
-      const response = await fetch(`${API}/cart/item/${itemId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const token = localStorage.getItem('token');
       
-      if (response.ok) {
-        await fetchCart();
+      if (token) {
+        // Authenticated user - remove from backend
+        const response = await fetch(`${API}/cart/item/${itemId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          await fetchCart();
+        }
+      } else {
+        // Guest user - remove from localStorage
+        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+        const updatedCart = guestCart.filter(item => item.listing_id !== itemId);
+        localStorage.setItem('guest_cart', JSON.stringify(updatedCart));
+        await fetchCart(); // Refresh cart display
       }
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -73,57 +108,105 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
   };
 
   const completeCheckout = async () => {
-    setCheckingOut(true);
+    console.log('🛒 PROPER PAYSTACK API: Starting checkout...');
+    
     try {
-      // First create checkout session
-      const checkoutResponse = await fetch(`${API}/checkout/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          shipping_address: shippingAddress,
-          payment_method: 'card'
-        })
-      });
-
-      if (!checkoutResponse.ok) {
-        throw new Error('Failed to create checkout session');
+      // Basic validation
+      if (!shippingAddress.full_name || !shippingAddress.address_line_1) {
+        alert('Please fill in at least your name and address to continue.');
+        return;
       }
-
-      const checkoutData = await checkoutResponse.json();
-
-      // Complete the checkout
-      const completeResponse = await fetch(`${API}/checkout/${checkoutData.checkout_session_id}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          payment_method: 'card'
-        })
-      });
-
-      if (!completeResponse.ok) {
-        throw new Error('Failed to complete checkout');
-      }
-
-      const result = await completeResponse.json();
       
-      // Success!
-      alert(`Order placed successfully! ${result.orders.length} order(s) created.`);
-      setCart({ items: [], total: 0, item_count: 0 });
-      onCartUpdate?.(0);
-      onClose();
-      setShowCheckout(false);
+      console.log('🛒 Initializing Paystack transaction for cart:', cart.total);
+      
+      // Confirm payment
+      const confirmPayment = confirm(`
+🛒 PROCEED TO SECURE PAYMENT
 
+Order Summary:
+• Items: ${cart.items.length} livestock items
+• Total: R${cart.total}
+• Delivery: ${shippingAddress.address_line_1}, ${shippingAddress.city}
+
+Click OK to proceed to payment gateway.
+      `);
+      
+      if (!confirmPayment) {
+        console.log('🛒 Payment cancelled by user');
+        return;
+      }
+      
+      // Create Paystack transaction data
+      const paymentData = {
+        email: shippingAddress.email || 'customer@stocklot.co.za',
+        amount: cart.total * 100, // Convert to kobo (cents)
+        currency: 'ZAR',
+        reference: 'STOCKLOT_CART_' + Date.now(),
+        callback_url: `${window.location.origin}/payment/success`,
+        metadata: {
+          cart_items: cart.items.length,
+          total_amount: cart.total,
+          shipping_address: JSON.stringify(shippingAddress),
+          order_type: 'cart_checkout'
+        }
+      };
+      
+      console.log('🛒 Paystack transaction data:', paymentData);
+      
+      // Initialize transaction with Paystack API
+      const response = await fetch('https://api.paystack.co/transaction/initialize', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer pk_live_ff6855bb7797fecca7f892f482451f79a5b2cf6f',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(paymentData)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Paystack initialization response:', result);
+        
+        if (result.status && result.data.authorization_url) {
+          console.log('🛒 Redirecting to Paystack:', result.data.authorization_url);
+          // Redirect to properly initialized Paystack payment
+          window.location.href = result.data.authorization_url;
+          return;
+        } else {
+          throw new Error('Failed to get authorization URL from Paystack');
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('🚨 Paystack API error:', errorData);
+        throw new Error(`Paystack error: ${errorData.message || 'Payment initialization failed'}`);
+      }
+      
     } catch (error) {
-      console.error('Checkout error:', error);
-      alert(error.message || 'Failed to complete checkout. Please try again.');
-    } finally {
-      setCheckingOut(false);
+      console.error('🚨 Payment gateway error:', error);
+      
+      // Enhanced error handling with user options
+      const retryConfirm = confirm(`
+❌ Payment Gateway Error
+
+${error.message}
+
+Would you like to:
+• OK = Try again
+• Cancel = Save order for later
+      `);
+      
+      if (retryConfirm) {
+        // Retry payment
+        setTimeout(() => completeCheckout(), 2000);
+      } else {
+        // Save order for later
+        alert(`📋 Order Saved
+
+Items: ${cart.items.length} livestock items
+Total: R${cart.total}
+
+Your cart has been saved. Please try payment again later.`);
+      }
     }
   };
 
@@ -274,26 +357,28 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCheckout(false)} disabled={checkingOut}>
+            {/* Rate Limit Error Display */}
+            <RateLimitErrorHandler 
+              error={checkoutError}
+              onRetry={() => window.location.reload()}
+              onClear={clearCheckoutLimits}
+            />
+            
+            <Button variant="outline" onClick={() => setShowCheckout(false)} disabled={isCheckoutLoading}>
               Back to Cart
             </Button>
-            <Button 
+            <RateLimitedButton
+              rateLimitKey="checkout_complete"
+              maxRequests={3}
+              windowMs={300000}
               onClick={completeCheckout} 
-              disabled={checkingOut || !shippingAddress.full_name || !shippingAddress.phone}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={false}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-md cursor-pointer"
+              style={{ opacity: 1, pointerEvents: 'auto' }}
             >
-              {checkingOut ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Complete Order {formatPrice(cart.total)}
-                </>
-              )}
-            </Button>
+              <Check className="h-4 w-4 mr-2" />
+              Complete Order {formatPrice(cart.total)}
+            </RateLimitedButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

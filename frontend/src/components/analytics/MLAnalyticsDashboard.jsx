@@ -751,7 +751,7 @@ const MLAnalyticsDashboard = () => {
               <SelectValue placeholder="All Species" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Species</SelectItem>
+              <SelectItem value="all-default">All Species</SelectItem>
               {SPECIES_OPTIONS.map(species => (
                 <SelectItem key={species} value={species}>
                   {species.charAt(0).toUpperCase() + species.slice(1)}
@@ -765,7 +765,7 @@ const MLAnalyticsDashboard = () => {
               <SelectValue placeholder="All Regions" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Regions</SelectItem>
+              <SelectItem value="all-default">All Regions</SelectItem>
               {ZA_PROVINCES.map(province => (
                 <SelectItem key={province} value={province.toLowerCase()}>
                   {province}

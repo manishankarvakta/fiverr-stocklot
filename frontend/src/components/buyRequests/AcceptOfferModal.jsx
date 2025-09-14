@@ -374,7 +374,7 @@ const AcceptOfferModal = ({
                         <SelectValue placeholder="No processing required" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No processing</SelectItem>
+                        <SelectItem value="all-default">No processing</SelectItem>
                         {abattoirs.map(abattoir => (
                           <SelectItem key={abattoir.id} value={abattoir.id}>
                             {abattoir.name} - {abattoir.location}

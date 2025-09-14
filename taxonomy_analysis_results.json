@@ -1,0 +1,1674 @@
+{
+  "timestamp": "2025-09-08T23:58:37.854001",
+  "species_analysis": {
+    "total_count": 17,
+    "species_by_category": {
+      "8c0729c3-1b58-4da7-8a1d-eaec67b42415": [
+        {
+          "id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b",
+          "name": "Commercial Broilers",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Fast-growing meat chickens"
+        },
+        {
+          "id": "d855687b-3776-4880-95a3-b1bf21ff2865",
+          "name": "Commercial Layers",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "High egg production chickens"
+        },
+        {
+          "id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Dual-Purpose Chickens",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Heritage/Indigenous breeds for meat and eggs"
+        },
+        {
+          "id": "0415ae9f-1f84-4301-8120-a05442397761",
+          "name": "Free Range Chickens",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": true,
+          "description": "Free range certified chickens"
+        },
+        {
+          "id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Ducks",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Ducks for meat, eggs, or breeding"
+        },
+        {
+          "id": "116824b7-1389-4a54-9b90-673483b5fbd4",
+          "name": "Geese",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Geese for meat or breeding"
+        },
+        {
+          "id": "464d06b2-22c1-4173-9d47-134081789942",
+          "name": "Turkeys",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Turkeys for meat or breeding"
+        },
+        {
+          "id": "76e0e07b-171f-490a-abad-5cc38d346bc3",
+          "name": "Quail",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Quail for meat, eggs, or breeding"
+        },
+        {
+          "id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133",
+          "name": "Guinea Fowl",
+          "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Guinea fowl for meat or pest control"
+        }
+      ],
+      "55177ccf-a9c4-445f-8b5e-1628c5517c8e": [
+        {
+          "id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Cattle",
+          "category_group_id": "55177ccf-a9c4-445f-8b5e-1628c5517c8e",
+          "is_egg_laying": false,
+          "is_fish": false,
+          "is_ruminant": true,
+          "is_free_range": false,
+          "description": "Cattle for dairy, beef, or breeding"
+        },
+        {
+          "id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Goats",
+          "category_group_id": "55177ccf-a9c4-445f-8b5e-1628c5517c8e",
+          "is_egg_laying": false,
+          "is_fish": false,
+          "is_ruminant": true,
+          "is_free_range": false,
+          "description": "Goats for meat, milk, fiber, or breeding"
+        },
+        {
+          "id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "Sheep",
+          "category_group_id": "55177ccf-a9c4-445f-8b5e-1628c5517c8e",
+          "is_egg_laying": false,
+          "is_fish": false,
+          "is_ruminant": true,
+          "is_free_range": false,
+          "description": "Sheep for meat, wool, or breeding"
+        }
+      ],
+      "f918a375-d3eb-4a5e-b2c0-5d3727521007": [
+        {
+          "id": "6ce044d8-a033-4e95-bab9-140058ab0034",
+          "name": "Rabbits",
+          "category_group_id": "f918a375-d3eb-4a5e-b2c0-5d3727521007",
+          "is_egg_laying": false,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Rabbits for meat, fur, or breeding"
+        }
+      ],
+      "5d21c663-61b3-4b06-b37e-d3e9d861b765": [
+        {
+          "id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d",
+          "name": "Freshwater Fish",
+          "category_group_id": "5d21c663-61b3-4b06-b37e-d3e9d861b765",
+          "is_egg_laying": true,
+          "is_fish": true,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Freshwater fish species"
+        },
+        {
+          "id": "26a03037-636d-47ce-8fa3-2aec9231cab7",
+          "name": "Saltwater Fish",
+          "category_group_id": "5d21c663-61b3-4b06-b37e-d3e9d861b765",
+          "is_egg_laying": true,
+          "is_fish": true,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Saltwater fish species"
+        }
+      ],
+      "1134bab8-1e99-471e-82ae-08f583f1a809": [
+        {
+          "id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13",
+          "name": "Pigeons",
+          "category_group_id": "1134bab8-1e99-471e-82ae-08f583f1a809",
+          "is_egg_laying": true,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Pigeons and doves"
+        },
+        {
+          "id": "b476ce69-9b51-4174-b037-cec8283d710f",
+          "name": "Guinea Pigs",
+          "category_group_id": "1134bab8-1e99-471e-82ae-08f583f1a809",
+          "is_egg_laying": false,
+          "is_fish": false,
+          "is_ruminant": false,
+          "is_free_range": false,
+          "description": "Guinea pigs (Cuy) for meat"
+        }
+      ]
+    },
+    "existing_exotic_species": [],
+    "species_list": [
+      {
+        "name": "Commercial Broilers",
+        "id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Commercial Layers",
+        "id": "d855687b-3776-4880-95a3-b1bf21ff2865",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Dual-Purpose Chickens",
+        "id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Free Range Chickens",
+        "id": "0415ae9f-1f84-4301-8120-a05442397761",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Ducks",
+        "id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Geese",
+        "id": "116824b7-1389-4a54-9b90-673483b5fbd4",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Turkeys",
+        "id": "464d06b2-22c1-4173-9d47-134081789942",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Quail",
+        "id": "76e0e07b-171f-490a-abad-5cc38d346bc3",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Guinea Fowl",
+        "id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133",
+        "category_group_id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      {
+        "name": "Cattle",
+        "id": "54bdb144-566b-44d3-91e8-46934121e580",
+        "category_group_id": "55177ccf-a9c4-445f-8b5e-1628c5517c8e"
+      },
+      {
+        "name": "Goats",
+        "id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+        "category_group_id": "55177ccf-a9c4-445f-8b5e-1628c5517c8e"
+      },
+      {
+        "name": "Sheep",
+        "id": "5502b4e1-e980-400d-83bb-523b9d647578",
+        "category_group_id": "55177ccf-a9c4-445f-8b5e-1628c5517c8e"
+      },
+      {
+        "name": "Rabbits",
+        "id": "6ce044d8-a033-4e95-bab9-140058ab0034",
+        "category_group_id": "f918a375-d3eb-4a5e-b2c0-5d3727521007"
+      },
+      {
+        "name": "Freshwater Fish",
+        "id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d",
+        "category_group_id": "5d21c663-61b3-4b06-b37e-d3e9d861b765"
+      },
+      {
+        "name": "Saltwater Fish",
+        "id": "26a03037-636d-47ce-8fa3-2aec9231cab7",
+        "category_group_id": "5d21c663-61b3-4b06-b37e-d3e9d861b765"
+      },
+      {
+        "name": "Pigeons",
+        "id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13",
+        "category_group_id": "1134bab8-1e99-471e-82ae-08f583f1a809"
+      },
+      {
+        "name": "Guinea Pigs",
+        "id": "b476ce69-9b51-4174-b037-cec8283d710f",
+        "category_group_id": "1134bab8-1e99-471e-82ae-08f583f1a809"
+      }
+    ]
+  },
+  "category_analysis": {
+    "total_count": 5,
+    "categories": {
+      "8c0729c3-1b58-4da7-8a1d-eaec67b42415": {
+        "name": "Poultry",
+        "description": "All bird species raised for meat, eggs, or breeding",
+        "id": "8c0729c3-1b58-4da7-8a1d-eaec67b42415"
+      },
+      "55177ccf-a9c4-445f-8b5e-1628c5517c8e": {
+        "name": "Ruminants",
+        "description": "Cattle, goats, sheep and other cud-chewing livestock",
+        "id": "55177ccf-a9c4-445f-8b5e-1628c5517c8e"
+      },
+      "f918a375-d3eb-4a5e-b2c0-5d3727521007": {
+        "name": "Rabbits",
+        "description": "Rabbits for meat, fur, or breeding",
+        "id": "f918a375-d3eb-4a5e-b2c0-5d3727521007"
+      },
+      "5d21c663-61b3-4b06-b37e-d3e9d861b765": {
+        "name": "Aquaculture",
+        "description": "Fish and seafood farming",
+        "id": "5d21c663-61b3-4b06-b37e-d3e9d861b765"
+      },
+      "1134bab8-1e99-471e-82ae-08f583f1a809": {
+        "name": "Other Small Livestock",
+        "description": "Pigeons, guinea pigs and other small animals",
+        "id": "1134bab8-1e99-471e-82ae-08f583f1a809"
+      }
+    },
+    "category_names": [
+      "Poultry",
+      "Ruminants",
+      "Rabbits",
+      "Aquaculture",
+      "Other Small Livestock"
+    ]
+  },
+  "product_type_analysis": {
+    "total_count": 16,
+    "endpoint_used": "/product-types",
+    "product_types": {
+      "FRESH_EGGS": {
+        "label": "Fresh Eggs",
+        "description": "Table eggs for consumption",
+        "applicable_to_groups": [
+          "Poultry",
+          "Other Small Livestock"
+        ]
+      },
+      "FERTILIZED_EGGS": {
+        "label": "Fertilized Eggs",
+        "description": "Hatching eggs",
+        "applicable_to_groups": [
+          "Poultry",
+          "Aquaculture",
+          "Other Small Livestock"
+        ]
+      },
+      "DAY_OLD": {
+        "label": "Day-Old",
+        "description": "Day-old chicks/animals",
+        "applicable_to_groups": [
+          "Poultry",
+          "Other Small Livestock"
+        ]
+      },
+      "CALVES_KIDS_LAMBS": {
+        "label": "Calves/Kids/Lambs",
+        "description": "Young ruminants",
+        "applicable_to_groups": [
+          "Ruminants"
+        ]
+      },
+      "KITS": {
+        "label": "Kits",
+        "description": "Young rabbits",
+        "applicable_to_groups": [
+          "Rabbits"
+        ]
+      },
+      "FRY": {
+        "label": "Fry",
+        "description": "Day-old fish",
+        "applicable_to_groups": [
+          "Aquaculture"
+        ]
+      },
+      "FINGERLINGS": {
+        "label": "Fingerlings",
+        "description": "Juvenile fish",
+        "applicable_to_groups": [
+          "Aquaculture"
+        ]
+      },
+      "JUVENILES": {
+        "label": "Juveniles",
+        "description": "Juvenile/young animals",
+        "applicable_to_groups": [
+          "Aquaculture",
+          "Ruminants",
+          "Other Small Livestock"
+        ]
+      },
+      "POINT_OF_LAY": {
+        "label": "Point of Lay",
+        "description": "Near-lay pullets",
+        "applicable_to_groups": [
+          "Poultry"
+        ]
+      },
+      "GROWERS": {
+        "label": "Growers",
+        "description": "Growing stage animals",
+        "applicable_to_groups": [
+          "Poultry",
+          "Rabbits",
+          "Other Small Livestock",
+          "Aquaculture"
+        ]
+      },
+      "HEIFERS": {
+        "label": "Heifers",
+        "description": "Young female cattle",
+        "applicable_to_groups": [
+          "Ruminants"
+        ]
+      },
+      "BULLS": {
+        "label": "Bulls",
+        "description": "Male breeding cattle",
+        "applicable_to_groups": [
+          "Ruminants"
+        ]
+      },
+      "DAIRY_ANIMALS": {
+        "label": "Dairy Animals",
+        "description": "Milk producing animals",
+        "applicable_to_groups": [
+          "Ruminants"
+        ]
+      },
+      "LAYERS": {
+        "label": "Layers",
+        "description": "Egg laying birds",
+        "applicable_to_groups": [
+          "Poultry",
+          "Other Small Livestock"
+        ]
+      },
+      "MARKET_READY": {
+        "label": "Market-Ready",
+        "description": "Ready for slaughter/harvest",
+        "applicable_to_groups": [
+          "Poultry",
+          "Ruminants",
+          "Rabbits",
+          "Aquaculture",
+          "Other Small Livestock"
+        ]
+      },
+      "BREEDING_STOCK": {
+        "label": "Breeding Stock",
+        "description": "For breeding purposes",
+        "applicable_to_groups": [
+          "Poultry",
+          "Ruminants",
+          "Rabbits",
+          "Aquaculture",
+          "Other Small Livestock"
+        ]
+      }
+    },
+    "codes": [
+      "FRESH_EGGS",
+      "FERTILIZED_EGGS",
+      "DAY_OLD",
+      "CALVES_KIDS_LAMBS",
+      "KITS",
+      "FRY",
+      "FINGERLINGS",
+      "JUVENILES",
+      "POINT_OF_LAY",
+      "GROWERS",
+      "HEIFERS",
+      "BULLS",
+      "DAIRY_ANIMALS",
+      "LAYERS",
+      "MARKET_READY",
+      "BREEDING_STOCK"
+    ]
+  },
+  "breed_analysis": {
+    "total_count": 101,
+    "breeds_by_species": {
+      "ea61d77f-c4d0-4a05-ad20-e36e5622c81b": [
+        {
+          "id": "5c50d36b-13bf-4ebd-9474-bd7f3e00fe6f",
+          "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b",
+          "name": "Ross 308",
+          "purpose_hint": "meat",
+          "characteristics": "Fast-growing, high feed conversion"
+        },
+        {
+          "id": "d8681c29-a4f0-4bb5-b80e-de796b16ac66",
+          "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b",
+          "name": "Cobb 500",
+          "purpose_hint": "meat",
+          "characteristics": "Excellent breast meat yield"
+        },
+        {
+          "id": "7ab2b024-f79b-4eff-951e-e643cbcb1a96",
+          "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b",
+          "name": "Hubbard",
+          "purpose_hint": "meat",
+          "characteristics": "Good survivability"
+        },
+        {
+          "id": "35e67a92-fd46-4315-96cd-a737801b7ff7",
+          "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b",
+          "name": "Arbor Acres",
+          "purpose_hint": "meat",
+          "characteristics": "Uniform growth rate"
+        }
+      ],
+      "d855687b-3776-4880-95a3-b1bf21ff2865": [
+        {
+          "id": "acb7738f-a2ca-4a20-b829-07c748bd914a",
+          "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865",
+          "name": "ISA Brown",
+          "purpose_hint": "egg",
+          "characteristics": "High egg production, brown eggs"
+        },
+        {
+          "id": "1c102eb1-aaaa-4944-9ebb-0eb5b9336f76",
+          "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865",
+          "name": "Hy-Line Brown",
+          "purpose_hint": "egg",
+          "characteristics": "Excellent feed conversion"
+        },
+        {
+          "id": "8c0ce0a8-5bab-47f1-926e-c2615cedf66d",
+          "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865",
+          "name": "Lohmann Brown",
+          "purpose_hint": "egg",
+          "characteristics": "Calm temperament, good production"
+        },
+        {
+          "id": "9b6c60d8-c0b4-4b96-ac5d-ff00af633a80",
+          "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865",
+          "name": "White Leghorn",
+          "purpose_hint": "egg",
+          "characteristics": "White eggs, high production"
+        },
+        {
+          "id": "1804da76-886a-49cb-b814-5695be84fb7c",
+          "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865",
+          "name": "Australorp",
+          "purpose_hint": "egg",
+          "characteristics": "Good layers, dual purpose"
+        }
+      ],
+      "e16a3549-1f9b-42a7-9f80-f30880e730e5": [
+        {
+          "id": "ec743de0-5f6f-4524-952d-da53891bf455",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Rhode Island Red",
+          "purpose_hint": "dual",
+          "characteristics": "Hardy, good meat and egg production"
+        },
+        {
+          "id": "ebb2d0bc-047c-46aa-9c3e-5f066158e637",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Plymouth Rock",
+          "purpose_hint": "dual",
+          "characteristics": "Docile, good for beginners"
+        },
+        {
+          "id": "ad49a01b-d57a-4574-87ed-1732afd29627",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Sussex",
+          "purpose_hint": "dual",
+          "characteristics": "Hardy, good foragers"
+        },
+        {
+          "id": "f8bd1670-31bd-433f-b9a8-5da1b0bacdcf",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Orpington",
+          "purpose_hint": "dual",
+          "characteristics": "Broody, good mothers"
+        },
+        {
+          "id": "396ee236-079c-4a0e-964b-b0958f67a499",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Koekoek",
+          "purpose_hint": "dual",
+          "origin_country": "South Africa",
+          "characteristics": "Local adaptation, hardy"
+        },
+        {
+          "id": "cd491d58-1294-418a-8332-8a8f1456ecff",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Naked Neck",
+          "purpose_hint": "dual",
+          "characteristics": "Heat tolerant"
+        },
+        {
+          "id": "6a23a685-919b-4a75-893e-de3b249f6147",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Venda",
+          "purpose_hint": "dual",
+          "origin_country": "South Africa",
+          "characteristics": "Indigenous South African breed"
+        },
+        {
+          "id": "38178700-c331-45b0-946c-9a9ec8daf253",
+          "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5",
+          "name": "Ovambo",
+          "purpose_hint": "dual",
+          "origin_country": "South Africa",
+          "characteristics": "Indigenous Namibian/South African breed"
+        }
+      ],
+      "0415ae9f-1f84-4301-8120-a05442397761": [
+        {
+          "id": "407fc8b1-3af4-4305-ac42-b1c391e17318",
+          "species_id": "0415ae9f-1f84-4301-8120-a05442397761",
+          "name": "Rhode Island Red (Free Range)",
+          "purpose_hint": "dual",
+          "characteristics": "Free range certified, hardy"
+        },
+        {
+          "id": "907518d8-1b70-4aa3-b176-68212bd87bdc",
+          "species_id": "0415ae9f-1f84-4301-8120-a05442397761",
+          "name": "Koekoek (Free Range)",
+          "purpose_hint": "dual",
+          "origin_country": "South Africa",
+          "characteristics": "Free range certified, local adaptation"
+        },
+        {
+          "id": "7917ba4c-0058-4971-82d8-acbe6dad8032",
+          "species_id": "0415ae9f-1f84-4301-8120-a05442397761",
+          "name": "Sussex (Free Range)",
+          "purpose_hint": "dual",
+          "characteristics": "Free range certified, good foragers"
+        },
+        {
+          "id": "a951f155-2728-40b4-8b60-45b7eb777465",
+          "species_id": "0415ae9f-1f84-4301-8120-a05442397761",
+          "name": "Naked Neck (Free Range)",
+          "purpose_hint": "dual",
+          "characteristics": "Free range certified, heat tolerant"
+        },
+        {
+          "id": "63fef3bb-d1d1-407d-a70f-a096d7980e6a",
+          "species_id": "0415ae9f-1f84-4301-8120-a05442397761",
+          "name": "Venda (Free Range)",
+          "purpose_hint": "dual",
+          "origin_country": "South Africa",
+          "characteristics": "Free range certified indigenous breed"
+        }
+      ],
+      "802fd8cf-8f10-42e5-a07f-edea4359486b": [
+        {
+          "id": "ff4b1973-e6d4-41aa-abfc-101e99b4fe98",
+          "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Pekin",
+          "purpose_hint": "meat",
+          "characteristics": "Fast growing meat duck"
+        },
+        {
+          "id": "4d4bc68f-daf1-40c9-aed2-6adc98c964ba",
+          "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Muscovy",
+          "purpose_hint": "meat",
+          "characteristics": "Lean meat, good mothers"
+        },
+        {
+          "id": "719eaecc-09f1-4bec-af29-f5a0b66ffb6e",
+          "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Rouen",
+          "purpose_hint": "dual",
+          "characteristics": "Good meat and egg production"
+        },
+        {
+          "id": "da41825e-9ecb-44ba-9e4f-b260e7f640b6",
+          "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Khaki Campbell",
+          "purpose_hint": "egg",
+          "characteristics": "Excellent egg layers"
+        },
+        {
+          "id": "58f6ff60-69d2-403c-bd2f-37a896aa0ad6",
+          "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Indian Runner",
+          "purpose_hint": "egg",
+          "characteristics": "Upright posture, good layers"
+        },
+        {
+          "id": "5f7c7e36-5a34-470b-9053-a6c99a8b98f6",
+          "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Aylesbury",
+          "purpose_hint": "meat",
+          "characteristics": "Traditional meat duck"
+        },
+        {
+          "id": "fd9bcc52-8c25-440d-a424-2a3bbb788b6e",
+          "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b",
+          "name": "Swedish Blue",
+          "purpose_hint": "dual",
+          "characteristics": "Hardy, good foragers"
+        }
+      ],
+      "54bdb144-566b-44d3-91e8-46934121e580": [
+        {
+          "id": "2b4062ef-a711-4ce6-82e4-d45031abd500",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Nguni",
+          "purpose_hint": "beef",
+          "origin_country": "South Africa",
+          "characteristics": "Indigenous, heat tolerant"
+        },
+        {
+          "id": "ec7d834a-574b-4d6d-9a49-739d191d4796",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Bonsmara",
+          "purpose_hint": "beef",
+          "origin_country": "South Africa",
+          "characteristics": "Composite breed, adapted to SA conditions"
+        },
+        {
+          "id": "b5f4873c-b8b4-42c6-9f17-da50ba77e6dc",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Afrikaner",
+          "purpose_hint": "beef",
+          "origin_country": "South Africa",
+          "characteristics": "Indigenous, heat and drought tolerant"
+        },
+        {
+          "id": "0be08928-f0e5-4885-b100-99b4bdeda732",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Angus",
+          "purpose_hint": "beef",
+          "characteristics": "Excellent meat quality"
+        },
+        {
+          "id": "3d2d9bd0-b767-4c38-9f8c-37b0cc662d0e",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Hereford",
+          "purpose_hint": "beef",
+          "characteristics": "Good mothers, hardy"
+        },
+        {
+          "id": "26047896-caa2-491c-9856-df1acbd1b761",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Charolais",
+          "purpose_hint": "beef",
+          "characteristics": "Large frame, fast growing"
+        },
+        {
+          "id": "21991c84-dba9-4c65-b44b-c4e77da3f300",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Brahman",
+          "purpose_hint": "beef",
+          "characteristics": "Heat tolerant, tick resistant"
+        },
+        {
+          "id": "8b3d36ec-85db-46be-9256-c966f2090f8d",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Holstein-Friesian",
+          "purpose_hint": "dairy",
+          "characteristics": "High milk production"
+        },
+        {
+          "id": "a29f2fee-834c-44de-8c70-38f63e081bad",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Jersey",
+          "purpose_hint": "dairy",
+          "characteristics": "High butterfat content"
+        },
+        {
+          "id": "2212414e-c066-40df-bbb4-193517a83490",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Ayrshire",
+          "purpose_hint": "dairy",
+          "characteristics": "Hardy, good pasture utilization"
+        },
+        {
+          "id": "8e2c820e-dfc6-403e-b600-ee3db330a93e",
+          "species_id": "54bdb144-566b-44d3-91e8-46934121e580",
+          "name": "Guernsey",
+          "purpose_hint": "dairy",
+          "characteristics": "Golden milk, high protein"
+        }
+      ],
+      "197574db-1d24-44e7-b9d2-5c8487ffda0f": [
+        {
+          "id": "304487ca-38e5-40e3-b4e8-0220870efa87",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Boer",
+          "purpose_hint": "meat",
+          "origin_country": "South Africa",
+          "characteristics": "Fast growing, excellent meat quality"
+        },
+        {
+          "id": "eb065823-6f61-4964-bf2a-7cbdb2ce32e6",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Kalahari Red",
+          "purpose_hint": "meat",
+          "origin_country": "South Africa",
+          "characteristics": "Heat tolerant, good mothers"
+        },
+        {
+          "id": "cbfc4716-5441-4dd2-a45a-d584336d96e3",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Savanna",
+          "purpose_hint": "meat",
+          "origin_country": "South Africa",
+          "characteristics": "Hardy, good browsing ability"
+        },
+        {
+          "id": "9ef4c236-b758-419d-93e3-e1e9c9375868",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Saanen",
+          "purpose_hint": "dairy",
+          "characteristics": "High milk production"
+        },
+        {
+          "id": "3e41d3a6-1acd-40c9-a853-19986ee5968e",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Nubian",
+          "purpose_hint": "dairy",
+          "characteristics": "High butterfat milk"
+        },
+        {
+          "id": "a0a319e8-c511-4e07-b4cf-cadd2722bbcb",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Alpine",
+          "purpose_hint": "dairy",
+          "characteristics": "Good milk production, hardy"
+        },
+        {
+          "id": "4ae9ba00-8d26-4f37-9824-e384bff219d7",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Toggenburg",
+          "purpose_hint": "dairy",
+          "characteristics": "Consistent milk production"
+        },
+        {
+          "id": "09c42c97-6fda-48b9-a1cb-893833299687",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Angora",
+          "purpose_hint": "fiber",
+          "characteristics": "Mohair production"
+        },
+        {
+          "id": "77c052fb-1569-44b1-a4f7-e1aadf9856db",
+          "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f",
+          "name": "Cashmere",
+          "purpose_hint": "fiber",
+          "characteristics": "Fine fiber production"
+        }
+      ],
+      "5502b4e1-e980-400d-83bb-523b9d647578": [
+        {
+          "id": "0025fffa-ec0e-4650-b124-c6889781ca50",
+          "species_id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "Dorper",
+          "purpose_hint": "meat",
+          "origin_country": "South Africa",
+          "characteristics": "Hair sheep, no shearing required"
+        },
+        {
+          "id": "7301a512-f811-4fbe-b2ee-c48655b586ce",
+          "species_id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "Damara",
+          "purpose_hint": "meat",
+          "characteristics": "Fat-tailed, drought tolerant"
+        },
+        {
+          "id": "a94b1bee-7116-4db0-b895-9793a4417fd3",
+          "species_id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "Blackhead Persian",
+          "purpose_hint": "meat",
+          "characteristics": "Hair sheep, heat tolerant"
+        },
+        {
+          "id": "4571d73a-decc-42e3-9366-7007c461a20f",
+          "species_id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "Suffolk",
+          "purpose_hint": "meat",
+          "characteristics": "Fast growing, good meat quality"
+        },
+        {
+          "id": "9b512971-6846-4b8e-822f-b3791d8b4988",
+          "species_id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "Merino",
+          "purpose_hint": "wool",
+          "characteristics": "High quality wool"
+        },
+        {
+          "id": "06226439-1f40-420d-9c76-bb0f89f41073",
+          "species_id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "South African Mutton Merino",
+          "purpose_hint": "dual",
+          "origin_country": "South Africa",
+          "characteristics": "Meat and wool production"
+        },
+        {
+          "id": "da334f3c-e0e4-458b-9c2c-ad6d5749a0e3",
+          "species_id": "5502b4e1-e980-400d-83bb-523b9d647578",
+          "name": "Corriedale",
+          "purpose_hint": "dual",
+          "characteristics": "Good wool and meat"
+        }
+      ],
+      "116824b7-1389-4a54-9b90-673483b5fbd4": [
+        {
+          "id": "ef9258b6-77b0-434b-ad16-f7776a146079",
+          "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4",
+          "name": "Embden",
+          "purpose_hint": "meat",
+          "characteristics": "Large white geese, excellent meat production"
+        },
+        {
+          "id": "d24049d4-313a-40ee-ad7c-226e8306ed9b",
+          "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4",
+          "name": "Toulouse",
+          "purpose_hint": "meat",
+          "characteristics": "Heavy breed, good for meat and foie gras"
+        },
+        {
+          "id": "c8cdb2a4-50a8-4cff-82e5-767aeff59d69",
+          "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4",
+          "name": "Chinese",
+          "purpose_hint": "egg",
+          "characteristics": "Good egg layers, alert guardians"
+        },
+        {
+          "id": "dd266b9c-70a2-45af-ab21-c214c8b69685",
+          "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4",
+          "name": "African",
+          "purpose_hint": "dual",
+          "characteristics": "Good meat and egg production"
+        },
+        {
+          "id": "55cd4fc3-492d-4391-96e9-575cbff31ddc",
+          "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4",
+          "name": "Pilgrim",
+          "purpose_hint": "dual",
+          "characteristics": "Auto-sexing breed, calm temperament"
+        }
+      ],
+      "464d06b2-22c1-4173-9d47-134081789942": [
+        {
+          "id": "025a57c4-c1f6-4f7f-be0d-ab58e5f46e1c",
+          "species_id": "464d06b2-22c1-4173-9d47-134081789942",
+          "name": "Broad Breasted White",
+          "purpose_hint": "meat",
+          "characteristics": "Fast growing commercial breed"
+        },
+        {
+          "id": "d985a904-4c02-4deb-b53e-24057c45804e",
+          "species_id": "464d06b2-22c1-4173-9d47-134081789942",
+          "name": "Bronze",
+          "purpose_hint": "meat",
+          "characteristics": "Traditional heritage breed"
+        },
+        {
+          "id": "4461c1bf-e0a8-40ae-9fad-4eaf8cdcca8e",
+          "species_id": "464d06b2-22c1-4173-9d47-134081789942",
+          "name": "Bourbon Red",
+          "purpose_hint": "meat",
+          "characteristics": "Heritage breed with excellent flavor"
+        },
+        {
+          "id": "b2cce6cd-9bfe-4858-a4ee-8844c4f8f179",
+          "species_id": "464d06b2-22c1-4173-9d47-134081789942",
+          "name": "Narragansett",
+          "purpose_hint": "dual",
+          "characteristics": "Hardy heritage breed"
+        },
+        {
+          "id": "4bb32968-84ca-410c-8e95-7035ac38a87f",
+          "species_id": "464d06b2-22c1-4173-9d47-134081789942",
+          "name": "Black Spanish",
+          "purpose_hint": "meat",
+          "characteristics": "Early heritage breed, good foragers"
+        }
+      ],
+      "76e0e07b-171f-490a-abad-5cc38d346bc3": [
+        {
+          "id": "6abdfbe0-8fd3-41c4-a67c-5e0e14745ed1",
+          "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3",
+          "name": "Japanese Quail",
+          "purpose_hint": "egg",
+          "characteristics": "High egg production, fast maturing"
+        },
+        {
+          "id": "11e0af00-40e3-41d4-baef-af4177dec776",
+          "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3",
+          "name": "Bobwhite Quail",
+          "purpose_hint": "meat",
+          "characteristics": "Good meat quality, popular game bird"
+        },
+        {
+          "id": "c18ab510-3f02-4ec6-a52f-596c5e0478b9",
+          "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3",
+          "name": "Coturnix Quail",
+          "purpose_hint": "dual",
+          "characteristics": "Fast growing, good for meat and eggs"
+        },
+        {
+          "id": "cd83abc2-b180-4989-bcf6-5d9ee80cc5d6",
+          "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3",
+          "name": "California Quail",
+          "purpose_hint": "ornamental",
+          "characteristics": "Beautiful plumage, good for aviary"
+        },
+        {
+          "id": "de8ef2eb-0f78-4720-84b2-ae3406ce8ce0",
+          "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3",
+          "name": "Pharaoh Quail",
+          "purpose_hint": "meat",
+          "characteristics": "Large size, excellent meat production"
+        }
+      ],
+      "3b51dddd-dd39-4b56-a443-b39e8fdc4133": [
+        {
+          "id": "2d3cd065-ac7b-462a-9b36-e0ef4019c2b9",
+          "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133",
+          "name": "Pearl Guinea",
+          "purpose_hint": "meat",
+          "characteristics": "Most common variety, good pest control"
+        },
+        {
+          "id": "56e4b837-7b01-4dbe-b8cf-486240c09353",
+          "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133",
+          "name": "White Guinea",
+          "purpose_hint": "meat",
+          "characteristics": "White plumage, easier to process"
+        },
+        {
+          "id": "0e6bf004-773d-432a-9cc1-570e695faf03",
+          "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133",
+          "name": "Royal Purple",
+          "purpose_hint": "ornamental",
+          "characteristics": "Beautiful purple plumage"
+        },
+        {
+          "id": "5e13994c-738f-412d-a387-0d9048052f5b",
+          "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133",
+          "name": "Coral Blue",
+          "purpose_hint": "ornamental",
+          "characteristics": "Striking blue coloration"
+        },
+        {
+          "id": "fd543940-9555-4244-8b2b-d81f494ca182",
+          "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133",
+          "name": "Buff Dundotte",
+          "purpose_hint": "meat",
+          "characteristics": "Buff colored, good meat production"
+        }
+      ],
+      "d1a02318-1d7a-4f7e-94bf-90d33e75ae13": [
+        {
+          "id": "1e3ab481-dc5a-4b25-8748-ba0a04fe73f6",
+          "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13",
+          "name": "King Pigeon",
+          "purpose_hint": "meat",
+          "characteristics": "Large meat breed, excellent squab production"
+        },
+        {
+          "id": "e7b7a00c-2fb2-4692-b361-9762da65a223",
+          "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13",
+          "name": "Carneau",
+          "purpose_hint": "meat",
+          "characteristics": "French meat breed, good mothers"
+        },
+        {
+          "id": "ee876a85-ad0f-4ad8-bbfb-f90f39676d30",
+          "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13",
+          "name": "Mondain",
+          "purpose_hint": "meat",
+          "characteristics": "Heavy utility breed"
+        },
+        {
+          "id": "cfe5fd96-3da9-43ff-9027-7ca645e985ba",
+          "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13",
+          "name": "Racing Homer",
+          "purpose_hint": "sport",
+          "characteristics": "Excellent homing ability"
+        },
+        {
+          "id": "c8dbabc3-4712-4a3e-84e2-7a4dec138928",
+          "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13",
+          "name": "Fantail",
+          "purpose_hint": "ornamental",
+          "characteristics": "Beautiful fan-shaped tail"
+        }
+      ],
+      "b476ce69-9b51-4174-b037-cec8283d710f": [
+        {
+          "id": "b790b2ce-fc37-46e4-8ef7-3367141afcdf",
+          "species_id": "b476ce69-9b51-4174-b037-cec8283d710f",
+          "name": "Peruvian Cuy",
+          "purpose_hint": "meat",
+          "characteristics": "Traditional meat breed, fast growing"
+        },
+        {
+          "id": "166b30f9-d491-4322-9ea6-bfa31d1947e0",
+          "species_id": "b476ce69-9b51-4174-b037-cec8283d710f",
+          "name": "Andean Cuy",
+          "purpose_hint": "meat",
+          "characteristics": "High altitude adapted, good meat quality"
+        },
+        {
+          "id": "19a23334-b5e7-447c-9908-6ae1dcf96639",
+          "species_id": "b476ce69-9b51-4174-b037-cec8283d710f",
+          "name": "Criolla Cuy",
+          "purpose_hint": "meat",
+          "characteristics": "Native breed, hardy and productive"
+        },
+        {
+          "id": "6a6d198b-9ae5-47c5-beec-3d5b0f6fc7d3",
+          "species_id": "b476ce69-9b51-4174-b037-cec8283d710f",
+          "name": "Improved Cuy",
+          "purpose_hint": "meat",
+          "characteristics": "Selectively bred for meat production"
+        },
+        {
+          "id": "18d5e4a4-7496-4b0d-8123-548175ba5d63",
+          "species_id": "b476ce69-9b51-4174-b037-cec8283d710f",
+          "name": "White Cuy",
+          "purpose_hint": "meat",
+          "characteristics": "Fast growing, good feed conversion"
+        }
+      ],
+      "6ce044d8-a033-4e95-bab9-140058ab0034": [
+        {
+          "id": "1620eec5-4d74-409e-bd38-d5a4ef80d174",
+          "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034",
+          "name": "New Zealand White",
+          "purpose_hint": "meat",
+          "characteristics": "Fast growing, good meat quality"
+        },
+        {
+          "id": "5431fd45-ca0d-437d-b2b1-ed18e2b06ffc",
+          "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034",
+          "name": "Californian",
+          "purpose_hint": "meat",
+          "characteristics": "Good mothering ability"
+        },
+        {
+          "id": "48b1bba7-0942-4033-b0b9-7082a7f8dbd8",
+          "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034",
+          "name": "Flemish Giant",
+          "purpose_hint": "meat",
+          "characteristics": "Large size, docile"
+        },
+        {
+          "id": "539ef4a8-2113-44f3-bc16-1780c5574fe5",
+          "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034",
+          "name": "Rex",
+          "purpose_hint": "fur",
+          "characteristics": "Velvet-like fur"
+        },
+        {
+          "id": "07a9f7c0-ba9d-4594-ad91-7561609b08c0",
+          "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034",
+          "name": "Angora",
+          "purpose_hint": "fiber",
+          "characteristics": "Long fiber production"
+        }
+      ],
+      "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d": [
+        {
+          "id": "b09261c4-56f7-415d-8219-d8fecc1354b2",
+          "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d",
+          "name": "Nile Tilapia",
+          "purpose_hint": "food",
+          "characteristics": "Fast growing, good flavor"
+        },
+        {
+          "id": "4e92a1ac-6a97-46e0-9038-8e4b0ccf86a7",
+          "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d",
+          "name": "Blue Tilapia",
+          "purpose_hint": "food",
+          "characteristics": "Cold tolerant"
+        },
+        {
+          "id": "9d4ad834-2365-4e23-b604-9b3857582858",
+          "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d",
+          "name": "African Catfish",
+          "purpose_hint": "food",
+          "characteristics": "High protein, hardy"
+        },
+        {
+          "id": "a608f5c0-687b-4f86-8758-da8da54facac",
+          "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d",
+          "name": "Common Carp",
+          "purpose_hint": "food",
+          "characteristics": "Hardy, fast growing"
+        },
+        {
+          "id": "9a191226-6268-4588-946f-a13f0b530683",
+          "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d",
+          "name": "Rainbow Trout",
+          "purpose_hint": "food",
+          "characteristics": "Premium eating fish"
+        }
+      ],
+      "26a03037-636d-47ce-8fa3-2aec9231cab7": [
+        {
+          "id": "42bc1c2b-6acc-4eae-9a82-f9f03a9ec7e2",
+          "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7",
+          "name": "Sea Bass",
+          "purpose_hint": "food",
+          "characteristics": "Premium white fish, excellent flavor"
+        },
+        {
+          "id": "da466ac3-f398-47fb-8999-a1e5a4f64b33",
+          "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7",
+          "name": "Sea Bream",
+          "purpose_hint": "food",
+          "characteristics": "Popular Mediterranean fish"
+        },
+        {
+          "id": "3ac42030-7608-4dde-abc7-38c39bb855cb",
+          "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7",
+          "name": "Yellowtail",
+          "purpose_hint": "food",
+          "characteristics": "Fast growing, high value"
+        },
+        {
+          "id": "33ad1d49-b554-42a8-8fab-faa3c86cac10",
+          "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7",
+          "name": "Red Snapper",
+          "purpose_hint": "food",
+          "characteristics": "Premium eating fish"
+        },
+        {
+          "id": "c81ca866-7722-4756-8f10-4e7ffacd3649",
+          "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7",
+          "name": "Salmon",
+          "purpose_hint": "food",
+          "characteristics": "High omega-3 content, premium fish"
+        }
+      ]
+    },
+    "existing_exotic_breeds": [],
+    "breed_list": [
+      {
+        "name": "Ross 308",
+        "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b"
+      },
+      {
+        "name": "Cobb 500",
+        "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b"
+      },
+      {
+        "name": "Hubbard",
+        "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b"
+      },
+      {
+        "name": "Arbor Acres",
+        "species_id": "ea61d77f-c4d0-4a05-ad20-e36e5622c81b"
+      },
+      {
+        "name": "ISA Brown",
+        "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865"
+      },
+      {
+        "name": "Hy-Line Brown",
+        "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865"
+      },
+      {
+        "name": "Lohmann Brown",
+        "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865"
+      },
+      {
+        "name": "White Leghorn",
+        "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865"
+      },
+      {
+        "name": "Australorp",
+        "species_id": "d855687b-3776-4880-95a3-b1bf21ff2865"
+      },
+      {
+        "name": "Rhode Island Red",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Plymouth Rock",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Sussex",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Orpington",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Koekoek",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Naked Neck",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Venda",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Ovambo",
+        "species_id": "e16a3549-1f9b-42a7-9f80-f30880e730e5"
+      },
+      {
+        "name": "Rhode Island Red (Free Range)",
+        "species_id": "0415ae9f-1f84-4301-8120-a05442397761"
+      },
+      {
+        "name": "Koekoek (Free Range)",
+        "species_id": "0415ae9f-1f84-4301-8120-a05442397761"
+      },
+      {
+        "name": "Sussex (Free Range)",
+        "species_id": "0415ae9f-1f84-4301-8120-a05442397761"
+      },
+      {
+        "name": "Naked Neck (Free Range)",
+        "species_id": "0415ae9f-1f84-4301-8120-a05442397761"
+      },
+      {
+        "name": "Venda (Free Range)",
+        "species_id": "0415ae9f-1f84-4301-8120-a05442397761"
+      },
+      {
+        "name": "Pekin",
+        "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b"
+      },
+      {
+        "name": "Muscovy",
+        "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b"
+      },
+      {
+        "name": "Rouen",
+        "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b"
+      },
+      {
+        "name": "Khaki Campbell",
+        "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b"
+      },
+      {
+        "name": "Indian Runner",
+        "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b"
+      },
+      {
+        "name": "Aylesbury",
+        "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b"
+      },
+      {
+        "name": "Swedish Blue",
+        "species_id": "802fd8cf-8f10-42e5-a07f-edea4359486b"
+      },
+      {
+        "name": "Nguni",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Bonsmara",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Afrikaner",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Angus",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Hereford",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Charolais",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Brahman",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Holstein-Friesian",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Jersey",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Ayrshire",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Guernsey",
+        "species_id": "54bdb144-566b-44d3-91e8-46934121e580"
+      },
+      {
+        "name": "Boer",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Kalahari Red",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Savanna",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Saanen",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Nubian",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Alpine",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Toggenburg",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Angora",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Cashmere",
+        "species_id": "197574db-1d24-44e7-b9d2-5c8487ffda0f"
+      },
+      {
+        "name": "Dorper",
+        "species_id": "5502b4e1-e980-400d-83bb-523b9d647578"
+      },
+      {
+        "name": "Damara",
+        "species_id": "5502b4e1-e980-400d-83bb-523b9d647578"
+      },
+      {
+        "name": "Blackhead Persian",
+        "species_id": "5502b4e1-e980-400d-83bb-523b9d647578"
+      },
+      {
+        "name": "Suffolk",
+        "species_id": "5502b4e1-e980-400d-83bb-523b9d647578"
+      },
+      {
+        "name": "Merino",
+        "species_id": "5502b4e1-e980-400d-83bb-523b9d647578"
+      },
+      {
+        "name": "South African Mutton Merino",
+        "species_id": "5502b4e1-e980-400d-83bb-523b9d647578"
+      },
+      {
+        "name": "Corriedale",
+        "species_id": "5502b4e1-e980-400d-83bb-523b9d647578"
+      },
+      {
+        "name": "Embden",
+        "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4"
+      },
+      {
+        "name": "Toulouse",
+        "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4"
+      },
+      {
+        "name": "Chinese",
+        "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4"
+      },
+      {
+        "name": "African",
+        "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4"
+      },
+      {
+        "name": "Pilgrim",
+        "species_id": "116824b7-1389-4a54-9b90-673483b5fbd4"
+      },
+      {
+        "name": "Broad Breasted White",
+        "species_id": "464d06b2-22c1-4173-9d47-134081789942"
+      },
+      {
+        "name": "Bronze",
+        "species_id": "464d06b2-22c1-4173-9d47-134081789942"
+      },
+      {
+        "name": "Bourbon Red",
+        "species_id": "464d06b2-22c1-4173-9d47-134081789942"
+      },
+      {
+        "name": "Narragansett",
+        "species_id": "464d06b2-22c1-4173-9d47-134081789942"
+      },
+      {
+        "name": "Black Spanish",
+        "species_id": "464d06b2-22c1-4173-9d47-134081789942"
+      },
+      {
+        "name": "Japanese Quail",
+        "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3"
+      },
+      {
+        "name": "Bobwhite Quail",
+        "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3"
+      },
+      {
+        "name": "Coturnix Quail",
+        "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3"
+      },
+      {
+        "name": "California Quail",
+        "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3"
+      },
+      {
+        "name": "Pharaoh Quail",
+        "species_id": "76e0e07b-171f-490a-abad-5cc38d346bc3"
+      },
+      {
+        "name": "Pearl Guinea",
+        "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133"
+      },
+      {
+        "name": "White Guinea",
+        "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133"
+      },
+      {
+        "name": "Royal Purple",
+        "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133"
+      },
+      {
+        "name": "Coral Blue",
+        "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133"
+      },
+      {
+        "name": "Buff Dundotte",
+        "species_id": "3b51dddd-dd39-4b56-a443-b39e8fdc4133"
+      },
+      {
+        "name": "King Pigeon",
+        "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13"
+      },
+      {
+        "name": "Carneau",
+        "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13"
+      },
+      {
+        "name": "Mondain",
+        "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13"
+      },
+      {
+        "name": "Racing Homer",
+        "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13"
+      },
+      {
+        "name": "Fantail",
+        "species_id": "d1a02318-1d7a-4f7e-94bf-90d33e75ae13"
+      },
+      {
+        "name": "Peruvian Cuy",
+        "species_id": "b476ce69-9b51-4174-b037-cec8283d710f"
+      },
+      {
+        "name": "Andean Cuy",
+        "species_id": "b476ce69-9b51-4174-b037-cec8283d710f"
+      },
+      {
+        "name": "Criolla Cuy",
+        "species_id": "b476ce69-9b51-4174-b037-cec8283d710f"
+      },
+      {
+        "name": "Improved Cuy",
+        "species_id": "b476ce69-9b51-4174-b037-cec8283d710f"
+      },
+      {
+        "name": "White Cuy",
+        "species_id": "b476ce69-9b51-4174-b037-cec8283d710f"
+      },
+      {
+        "name": "New Zealand White",
+        "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034"
+      },
+      {
+        "name": "Californian",
+        "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034"
+      },
+      {
+        "name": "Flemish Giant",
+        "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034"
+      },
+      {
+        "name": "Rex",
+        "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034"
+      },
+      {
+        "name": "Angora",
+        "species_id": "6ce044d8-a033-4e95-bab9-140058ab0034"
+      },
+      {
+        "name": "Nile Tilapia",
+        "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d"
+      },
+      {
+        "name": "Blue Tilapia",
+        "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d"
+      },
+      {
+        "name": "African Catfish",
+        "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d"
+      },
+      {
+        "name": "Common Carp",
+        "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d"
+      },
+      {
+        "name": "Rainbow Trout",
+        "species_id": "934c7c11-7e43-4f2a-9f45-6c9a2ecad83d"
+      },
+      {
+        "name": "Sea Bass",
+        "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7"
+      },
+      {
+        "name": "Sea Bream",
+        "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7"
+      },
+      {
+        "name": "Yellowtail",
+        "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7"
+      },
+      {
+        "name": "Red Snapper",
+        "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7"
+      },
+      {
+        "name": "Salmon",
+        "species_id": "26a03037-636d-47ce-8fa3-2aec9231cab7"
+      }
+    ]
+  },
+  "schema_analysis": {
+    "species_fields": [
+      "name",
+      "id",
+      "category_group_id"
+    ],
+    "species_exotic_fields": [],
+    "category_fields": [
+      "name",
+      "description",
+      "id"
+    ],
+    "product_type_fields": [
+      "label",
+      "description",
+      "applicable_to_groups"
+    ],
+    "breed_fields": [
+      "name",
+      "species_id"
+    ]
+  },
+  "exotic_readiness": {
+    "readiness_score": 20,
+    "max_score": 100,
+    "percentage": 20.0,
+    "assessment": {
+      "existing_exotic_support": "\u274c No existing exotic species or breeds found",
+      "category_structure": "\u26a0\ufe0f  No dedicated exotic/game category - needs creation",
+      "product_type_diversity": "\u2705 Good product type diversity (16 types)",
+      "schema_flexibility": "\u26a0\ufe0f  Schema may need exotic-specific fields",
+      "compliance_support": "\u26a0\ufe0f  May need compliance/permit field support"
+    },
+    "recommendations": [
+      "Add exotic species (Ostrich, Emu, Game animals) to species table",
+      "Add exotic breeds (Kudu, Springbok, Impala, etc.) to breeds table",
+      "Create 'Game Animals' or 'Exotic Livestock' category group",
+      "Add exotic-related fields to Species model (is_exotic, is_edible, is_game)",
+      "Add compliance fields (permit_required, hunting_season, regulations)"
+    ]
+  }
+}

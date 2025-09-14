@@ -1,561 +1,346 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, CardContent, CardHeader, CardTitle,
-  Button, Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-  Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Alert, AlertDescription
-} from '@/components/ui';
-import { 
-  CreditCard, Plus, Edit, Trash2, CheckCircle, XCircle, AlertTriangle,
-  Shield, DollarSign, Globe, Settings, Eye
-} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Input, Textarea } from '../ui';
+import { CreditCard, Plus, Edit, Trash2, Eye, Settings, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL || '/api';
-
-export default function AdminPaymentMethods() {
+const AdminPaymentMethods = () => {
   const [paymentMethods, setPaymentMethods] = useState([]);
-  const [showAddMethod, setShowAddMethod] = useState(false);
-  const [showEditMethod, setShowEditMethod] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState(null);
   const [newMethod, setNewMethod] = useState({
     name: '',
-    type: 'credit_card',
+    type: 'card',
     provider: '',
-    description: '',
-    status: 'active',
-    supported_currencies: ['ZAR'],
-    processing_fee: 0,
-    fixed_fee: 0,
+    config: {},
+    is_active: true,
     min_amount: 0,
     max_amount: 0,
-    settings: {}
+    fee_percentage: 0,
+    fee_fixed: 0,
+    supported_currencies: ['ZAR'],
+    description: ''
   });
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetchPaymentMethods();
+    loadPaymentMethods();
   }, []);
 
-  const fetchPaymentMethods = async () => {
+  const loadPaymentMethods = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`${API}/admin/payment-methods`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/payment-methods`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        setPaymentMethods(data.payment_methods || []);
+        setPaymentMethods(Array.isArray(data) ? data : data.payment_methods || []);
+      } else {
+        console.error('Failed to load payment methods:', response.status);
+        alert('Failed to load payment methods. Please check your permissions.');
       }
     } catch (error) {
-      console.error('Error fetching payment methods:', error);
+      console.error('Error loading payment methods:', error);
+      alert('Error loading payment methods: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAddPaymentMethod = async () => {
-    setLoading(true);
+  const handleCreateMethod = async () => {
+    setActionLoading(true);
     try {
-      const methodData = {
-        ...newMethod,
-        processing_fee: parseFloat(newMethod.processing_fee) || 0,
-        fixed_fee: parseFloat(newMethod.fixed_fee) || 0,
-        min_amount: parseFloat(newMethod.min_amount) || 0,
-        max_amount: parseFloat(newMethod.max_amount) || 0
-      };
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
 
-      const response = await fetch(`${API}/admin/payment-methods`, {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/payment-methods`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(methodData)
+        body: JSON.stringify(newMethod)
       });
 
       if (response.ok) {
-        setShowAddMethod(false);
-        setNewMethod({
-          name: '', type: 'credit_card', provider: '', description: '',
-          status: 'active', supported_currencies: ['ZAR'], processing_fee: 0,
-          fixed_fee: 0, min_amount: 0, max_amount: 0, settings: {}
-        });
-        fetchPaymentMethods();
-        alert('Payment method added successfully!');
+        const result = await response.json();
+        if (result.success || result.id) {
+          alert('Payment method created successfully!');
+          setShowCreateDialog(false);
+          setNewMethod({
+            name: '',
+            type: 'card',
+            provider: '',
+            config: {},
+            is_active: true,
+            min_amount: 0,
+            max_amount: 0,
+            fee_percentage: 0,
+            fee_fixed: 0,
+            supported_currencies: ['ZAR'],
+            description: ''
+          });
+          loadPaymentMethods();
+        } else {
+          alert('Failed to create payment method: ' + (result.message || 'Unknown error'));
+        }
       } else {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to add payment method');
+        alert('Failed to create payment method: ' + (error.detail || 'Server error'));
       }
     } catch (error) {
-      console.error('Error adding payment method:', error);
-      alert('Failed to add payment method: ' + error.message);
+      console.error('Error creating payment method:', error);
+      alert('Error creating payment method: ' + error.message);
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
-  const handleEditPaymentMethod = async () => {
-    setLoading(true);
+  const handleMethodAction = async (methodId, action) => {
+    setActionLoading(true);
     try {
-      const methodData = {
-        ...selectedMethod,
-        processing_fee: parseFloat(selectedMethod.processing_fee) || 0,
-        fixed_fee: parseFloat(selectedMethod.fixed_fee) || 0,
-        min_amount: parseFloat(selectedMethod.min_amount) || 0,
-        max_amount: parseFloat(selectedMethod.max_amount) || 0
-      };
-
-      const response = await fetch(`${API}/admin/payment-methods/${selectedMethod.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(methodData)
-      });
-
-      if (response.ok) {
-        setShowEditMethod(false);
-        setSelectedMethod(null);
-        fetchPaymentMethods();
-        alert('Payment method updated successfully!');
-      } else {
-        throw new Error('Failed to update payment method');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
       }
-    } catch (error) {
-      console.error('Error updating payment method:', error);
-      alert('Failed to update payment method');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleDeletePaymentMethod = async (methodId) => {
-    if (window.confirm('Are you sure you want to delete this payment method?')) {
-      try {
-        const response = await fetch(`${API}/admin/payment-methods/${methodId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-
-        if (response.ok) {
-          fetchPaymentMethods();
-          alert('Payment method deleted successfully!');
-        } else {
-          throw new Error('Failed to delete payment method');
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/payment-methods/${methodId}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (error) {
-        console.error('Error deleting payment method:', error);
-        alert('Failed to delete payment method');
-      }
-    }
-  };
-
-  const handleToggleStatus = async (methodId, currentStatus) => {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    try {
-      const response = await fetch(`${API}/admin/payment-methods/${methodId}/toggle`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ status: newStatus })
       });
 
       if (response.ok) {
-        fetchPaymentMethods();
-        alert(`Payment method ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+        const result = await response.json();
+        if (result.success) {
+          alert(`Payment method ${action} successful!`);
+          loadPaymentMethods();
+        } else {
+          alert(`Failed to ${action} payment method: ` + (result.message || 'Unknown error'));
+        }
       } else {
-        throw new Error('Failed to toggle payment method status');
+        const error = await response.json();
+        alert(`Failed to ${action} payment method: ` + (error.detail || 'Server error'));
       }
     } catch (error) {
-      console.error('Error toggling payment method status:', error);
-      alert('Failed to toggle payment method status');
+      console.error(`Error ${action} payment method:`, error);
+      alert(`Error ${action} payment method: ` + error.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const openEditDialog = (method) => {
-    setSelectedMethod({ ...method });
-    setShowEditMethod(true);
+  const getStatusBadge = (isActive) => {
+    return isActive ? 
+      <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge> :
+      <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Inactive</Badge>;
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-red-100 text-red-800';
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getTypeBadge = (type) => {
+    const typeColors = {
+      'card': 'bg-blue-100 text-blue-800',
+      'bank_transfer': 'bg-green-100 text-green-800',
+      'ewallet': 'bg-purple-100 text-purple-800',
+      'crypto': 'bg-orange-100 text-orange-800',
+      'mobile_money': 'bg-yellow-100 text-yellow-800'
+    };
+    return <Badge className={typeColors[type] || 'bg-gray-100 text-gray-800'}>{type?.replace('_', ' ').toUpperCase()}</Badge>;
   };
-
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'credit_card': return <CreditCard className="h-4 w-4" />;
-      case 'bank_transfer': return <Globe className="h-4 w-4" />;
-      case 'digital_wallet': return <Shield className="h-4 w-4" />;
-      default: return <DollarSign className="h-4 w-4" />;
-    }
-  };
-
-  const paymentMethodTypes = [
-    { value: 'credit_card', label: 'Credit Card' },
-    { value: 'debit_card', label: 'Debit Card' },
-    { value: 'bank_transfer', label: 'Bank Transfer' },
-    { value: 'digital_wallet', label: 'Digital Wallet' },
-    { value: 'cryptocurrency', label: 'Cryptocurrency' },
-    { value: 'mobile_money', label: 'Mobile Money' }
-  ];
-
-  const activeCount = paymentMethods.filter(m => m.status === 'active').length;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Payment Methods</h1>
-          <Badge className="bg-green-100 text-green-800 mt-2">
-            {activeCount} Active Methods
-          </Badge>
+          <h2 className="text-2xl font-bold text-gray-900">Payment Methods</h2>
+          <p className="text-gray-600">Configure and manage payment processing methods</p>
         </div>
-        <Button onClick={() => setShowAddMethod(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Payment Method
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={loadPaymentMethods} disabled={loading} variant="outline">
+            <Settings className="h-4 w-4 mr-2" />
+            {loading ? 'Loading...' : 'Refresh'}
+          </Button>
+          <Button onClick={() => setShowCreateDialog(true)} className="bg-green-600 hover:bg-green-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Payment Method
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-green-600">{activeCount}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Inactive</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {paymentMethods.filter(m => m.status === 'inactive').length}
-                </p>
-              </div>
-              <XCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Credit Cards</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {paymentMethods.filter(m => m.type === 'credit_card').length}
-                </p>
-              </div>
-              <CreditCard className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Methods</p>
-                <p className="text-2xl font-bold">{paymentMethods.length}</p>
-              </div>
-              <Settings className="h-8 w-8 text-gray-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Payment Methods Table */}
+      {/* Payment Methods List */}
       <Card>
         <CardHeader>
           <CardTitle>Payment Methods ({paymentMethods.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Method</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Fees</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Currencies</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paymentMethods.map((method) => (
-                <TableRow key={method.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0">
-                        {getTypeIcon(method.type)}
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+                <p>Loading payment methods...</p>
+              </div>
+            </div>
+          ) : paymentMethods.length === 0 ? (
+            <div className="text-center py-8">
+              <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No payment methods configured</p>
+              <Button onClick={() => setShowCreateDialog(true)} className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Payment Method
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {paymentMethods.map(method => (
+                <div key={method.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="font-semibold">{method.name}</h3>
+                          <p className="text-sm text-gray-600">{method.description || 'No description'}</p>
+                        </div>
+                        {getStatusBadge(method.is_active)}
+                        {getTypeBadge(method.type)}
+                        <Badge variant="outline">{method.provider}</Badge>
                       </div>
-                      <div>
-                        <div className="font-medium">{method.name}</div>
-                        <div className="text-sm text-gray-500">{method.description}</div>
+                      <div className="mt-2 text-sm text-gray-600 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <p>Fee: {method.fee_percentage}% + R{(method.fee_fixed / 100).toFixed(2)}</p>
+                        <p>Min: R{(method.min_amount / 100).toFixed(2)}</p>
+                        <p>Max: R{method.max_amount ? (method.max_amount / 100).toLocaleString() : 'Unlimited'}</p>
+                        <p>Currencies: {method.supported_currencies?.join(', ') || 'ZAR'}</p>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {paymentMethodTypes.find(t => t.value === method.type)?.label || method.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{method.provider}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {method.processing_fee > 0 && (
-                        <div>{method.processing_fee}% + </div>
+                      {method.config && Object.keys(method.config).length > 0 && (
+                        <div className="mt-2 text-xs bg-gray-100 p-2 rounded">
+                          <strong>Config:</strong> {Object.keys(method.config).join(', ')}
+                        </div>
                       )}
-                      <div>R{method.fixed_fee || 0}</div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(method.status)}>
-                      {method.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {method.supported_currencies?.map((currency, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {currency}
-                        </Badge>
-                      )) || <Badge variant="outline">ZAR</Badge>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
+                    <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => openEditDialog(method)}
+                        onClick={() => {
+                          setSelectedMethod(method);
+                          setShowEditDialog(true);
+                        }}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleToggleStatus(method.id, method.status)}
+                        className={method.is_active ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                        onClick={() => handleMethodAction(method.id, method.is_active ? 'deactivate' : 'activate')}
+                        disabled={actionLoading}
                       >
-                        {method.status === 'active' ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                        {method.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeletePaymentMethod(method.id)}
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this payment method?')) {
+                            handleMethodAction(method.id, 'delete');
+                          }
+                        }}
+                        disabled={actionLoading}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Add Payment Method Dialog */}
-      <Dialog open={showAddMethod} onOpenChange={setShowAddMethod}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add Payment Method</DialogTitle>
-            <DialogDescription>
-              Configure a new payment method for the platform
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Method Name *</Label>
-              <Input
-                value={newMethod.name}
-                onChange={(e) => setNewMethod({...newMethod, name: e.target.value})}
-                placeholder="e.g., Visa Credit Card"
-              />
+      {/* Create Payment Method Dialog */}
+      {showCreateDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Add Payment Method</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Method Name</label>
+                <Input
+                  value={newMethod.name}
+                  onChange={(e) => setNewMethod({...newMethod, name: e.target.value})}
+                  placeholder="e.g., Paystack Cards"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Provider</label>
+                <Input
+                  value={newMethod.provider}
+                  onChange={(e) => setNewMethod({...newMethod, provider: e.target.value})}
+                  placeholder="e.g., Paystack, PayPal"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Description</label>
+                <Textarea
+                  value={newMethod.description}
+                  onChange={(e) => setNewMethod({...newMethod, description: e.target.value})}
+                  placeholder="Brief description of this payment method"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Fee %</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={newMethod.fee_percentage}
+                    onChange={(e) => setNewMethod({...newMethod, fee_percentage: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Fixed Fee (cents)</label>
+                  <Input
+                    type="number"
+                    value={newMethod.fee_fixed}
+                    onChange={(e) => setNewMethod({...newMethod, fee_fixed: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <Label>Type *</Label>
-              <Select value={newMethod.type} onValueChange={(value) => setNewMethod({...newMethod, type: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethodTypes.map(type => (
-                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Provider *</Label>
-              <Input
-                value={newMethod.provider}
-                onChange={(e) => setNewMethod({...newMethod, provider: e.target.value})}
-                placeholder="e.g., Stripe, PayPal, Paystack"
-              />
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={newMethod.status} onValueChange={(value) => setNewMethod({...newMethod, status: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Processing Fee (%)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={newMethod.processing_fee}
-                onChange={(e) => setNewMethod({...newMethod, processing_fee: e.target.value})}
-                placeholder="2.9"
-              />
-            </div>
-            <div>
-              <Label>Fixed Fee (R)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={newMethod.fixed_fee}
-                onChange={(e) => setNewMethod({...newMethod, fixed_fee: e.target.value})}
-                placeholder="0.30"
-              />
-            </div>
-            <div className="col-span-2">
-              <Label>Description</Label>
-              <Textarea
-                value={newMethod.description}
-                onChange={(e) => setNewMethod({...newMethod, description: e.target.value})}
-                placeholder="Brief description of this payment method"
-              />
+            <div className="flex gap-2 mt-6">
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreateMethod}
+                disabled={actionLoading || !newMethod.name || !newMethod.provider}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {actionLoading ? 'Creating...' : 'Create Method'}
+              </Button>
             </div>
           </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddMethod(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAddPaymentMethod} 
-              disabled={loading || !newMethod.name || !newMethod.provider}
-            >
-              {loading ? 'Adding...' : 'Add Payment Method'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Payment Method Dialog */}
-      <Dialog open={showEditMethod} onOpenChange={setShowEditMethod}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Payment Method</DialogTitle>
-            <DialogDescription>
-              Update payment method configuration
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedMethod && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Method Name *</Label>
-                <Input
-                  value={selectedMethod.name}
-                  onChange={(e) => setSelectedMethod({...selectedMethod, name: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label>Type *</Label>
-                <Select value={selectedMethod.type} onValueChange={(value) => setSelectedMethod({...selectedMethod, type: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethodTypes.map(type => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Provider *</Label>
-                <Input
-                  value={selectedMethod.provider}
-                  onChange={(e) => setSelectedMethod({...selectedMethod, provider: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select value={selectedMethod.status} onValueChange={(value) => setSelectedMethod({...selectedMethod, status: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Processing Fee (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={selectedMethod.processing_fee}
-                  onChange={(e) => setSelectedMethod({...selectedMethod, processing_fee: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label>Fixed Fee (R)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={selectedMethod.fixed_fee}
-                  onChange={(e) => setSelectedMethod({...selectedMethod, fixed_fee: e.target.value})}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label>Description</Label>
-                <Textarea
-                  value={selectedMethod.description}
-                  onChange={(e) => setSelectedMethod({...selectedMethod, description: e.target.value})}
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditMethod(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditPaymentMethod} disabled={loading}>
-              {loading ? 'Updating...' : 'Update Method'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default AdminPaymentMethods;

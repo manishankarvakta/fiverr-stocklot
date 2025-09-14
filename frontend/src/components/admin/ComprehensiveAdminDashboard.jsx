@@ -12,8 +12,9 @@ import {
   BarChart3, Bell, Search, Filter, Eye, Edit, Trash2, Plus,
   Download, Upload, MapPin, Clock, CheckCircle, XCircle,
   AlertTriangle, Building, CreditCard, Globe, Mail, Phone,
-  FileText, Image, Zap, RefreshCw, ArrowRight, ArrowLeft
+  FileText, Image, Zap, RefreshCw, ArrowRight, ArrowLeft, ShoppingCart
 } from 'lucide-react';
+import api from '../../api/client';
 
 const ComprehensiveAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -34,7 +35,7 @@ const ComprehensiveAdminDashboard = () => {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      // Simulate API calls - replace with actual API calls
+      // Use api client with cookie-based auth
       const [
         statsData,
         usersData,
@@ -44,13 +45,13 @@ const ComprehensiveAdminDashboard = () => {
         disputesData,
         analyticsData
       ] = await Promise.all([
-        fetch('/api/admin/stats').then(r => r.json()).catch(() => ({})),
-        fetch('/api/admin/users').then(r => r.json()).catch(() => []),
-        fetch('/api/admin/listings').then(r => r.json()).catch(() => []),
-        fetch('/api/admin/orders').then(r => r.json()).catch(() => []),
-        fetch('/api/admin/organizations').then(r => r.json()).catch(() => []),
-        fetch('/api/admin/disputes').then(r => r.json()).catch(() => []),
-        fetch('/api/admin/analytics').then(r => r.json()).catch(() => ({}))
+        api.get('/admin/stats').then(r => r.data).catch(() => ({})),
+        api.get('/admin/users').then(r => r.data).catch(() => []),
+        api.get('/admin/listings').then(r => r.data).catch(() => []),
+        api.get('/admin/orders').then(r => r.data).catch(() => []),
+        api.get('/admin/organizations').then(r => r.data).catch(() => []),
+        api.get('/admin/disputes').then(r => r.data).catch(() => []),
+        api.get('/admin/analytics').then(r => r.data).catch(() => ({}))
       ]);
 
       setStats(statsData);

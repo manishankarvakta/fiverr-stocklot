@@ -5,6 +5,17 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#000000" />
         <meta name="description" content="South Africa's premier livestock marketplace connecting farmers, buyers, and exporters with secure escrow payments." />
+        
+        <!-- Mobile Optimization Headers -->
+        <meta http-equiv="Cache-Control" content="no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+        
+        <!-- Mobile Safari Optimizations -->
+        <meta name="format-detection" content="telephone=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        
         <link rel="icon" href="%PUBLIC_URL%/favicon.png" />
         <link rel="apple-touch-icon" href="%PUBLIC_URL%/cow-logo.png" />
         <!--
@@ -37,8 +48,75 @@
           });
         </script>
         
-        <!-- Google reCAPTCHA Enterprise -->
-        <script src="https://www.google.com/recaptcha/enterprise.js?render=6LcWQcErAAAAAIAvfqLJdBhY-B5bObuMadHp2jDz"></script>
+        <!-- Mobile Optimization: Preconnects for faster loading -->
+        <link rel="preconnect" href="https://farmstock-hub-1.preview.emergentagent.com" crossorigin>
+        <link rel="dns-prefetch" href="https://farmstock-hub-1.preview.emergentagent.com">
+        
+        <!-- Emergency Service Worker Kill Switch -->
+        <script>
+          // Temporary SW kill switch - uncomment to force clear all SWs and caches
+          // window.KILL_SW = true;
+          
+          if (window.KILL_SW && 'serviceWorker' in navigator) {
+            console.log('🚨 Emergency SW kill switch activated');
+            navigator.serviceWorker.getRegistrations()
+              .then(regs => {
+                console.log('Unregistering', regs.length, 'service workers');
+                return Promise.all(regs.map(r => r.unregister()));
+              })
+              .then(() => {
+                if ('caches' in window) {
+                  return caches.keys().then(keys => {
+                    console.log('Deleting', keys.length, 'caches');
+                    return Promise.all(keys.map(k => caches.delete(k)));
+                  });
+                }
+              })
+              .then(() => {
+                console.log('✅ All SWs and caches cleared');
+                location.reload();
+              })
+              .catch(e => console.error('SW kill failed:', e));
+          }
+        </script>
+        
+        <!-- Global Error Boundary for Mobile Debug -->
+        <script>
+          // Make backend URL available globally for consistent access
+          window.REACT_APP_BACKEND_URL = '%REACT_APP_BACKEND_URL%';
+          
+          window.addEventListener('error', function(e) {
+            console.error('🚨 Global Error:', e.error || e.message);
+            // Log to external service if needed
+          });
+          
+          window.addEventListener('unhandledrejection', function(e) {
+            console.error('🚨 Unhandled Promise Rejection:', e.reason);
+            e.preventDefault();
+          });
+          
+          // Detect blank screen (no paint after 4s)
+          let painted = false;
+          if ('PerformanceObserver' in window) {
+            new PerformanceObserver((list) => {
+              for (const entry of list.getEntries()) {
+                if (entry.name === 'first-contentful-paint') {
+                  painted = true;
+                  console.log('✅ First paint:', entry.startTime + 'ms');
+                }
+              }
+            }).observe({ type: 'paint', buffered: true });
+            
+            setTimeout(() => {
+              if (!painted) {
+                console.error('🚨 Blank screen detected - no paint after 4s');
+                // Could auto-reload or show fallback UI
+              }
+            }, 4000);
+          }
+        </script>
+        
+        <!-- Social Authentication Scripts -->
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>

@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useSocialAuth } from '../../hooks/useSocialAuth';
 import RoleSelectionModal from './RoleSelectionModal';
-import recaptchaService from '../../services/recaptchaService';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const FACEBOOK_APP_ID = process.env.REACT_APP_FACEBOOK_APP_ID;
@@ -18,10 +17,7 @@ const SocialLoginButtons = ({ onSuccess, onError, className = "" }) => {
 
   const handleGoogleSuccess = async (response) => {
     try {
-      // Execute reCAPTCHA before social login
-      const recaptchaToken = await recaptchaService.executeSocialLogin();
-      
-      const result = await authenticateWithSocial('google', response.tokenId, null, recaptchaToken);
+      const result = await authenticateWithSocial('google', response.tokenId, null);
       
       if (result.success) {
         if (result.data.needs_role_selection) {
@@ -46,10 +42,7 @@ const SocialLoginButtons = ({ onSuccess, onError, className = "" }) => {
   const handleFacebookSuccess = async (response) => {
     try {
       if (response.accessToken) {
-        // Execute reCAPTCHA before social login
-        const recaptchaToken = await recaptchaService.executeSocialLogin();
-        
-        const result = await authenticateWithSocial('facebook', response.accessToken, null, recaptchaToken);
+        const result = await authenticateWithSocial('facebook', response.accessToken, null);
         
         if (result.success) {
           if (result.data.needs_role_selection) {

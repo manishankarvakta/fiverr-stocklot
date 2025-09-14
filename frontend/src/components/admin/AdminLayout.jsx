@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Package, ShoppingCart, DollarSign, CreditCard,
   Building2, FileText, MessageSquare, Gift, Webhook, MapPin, Truck,
   Gavel, BookOpen, Settings, BarChart3, UserCog, Megaphone, Award,
-  Menu, X, Home, LogOut, Bell, Search, Lightbulb, FlaskConical, TrendingUp
+  Menu, X, Home, LogOut, Bell, Search, Lightbulb, FlaskConical, TrendingUp, Shield
 } from 'lucide-react';
 
 // Import all admin components
@@ -35,11 +35,13 @@ import AdminBuyRequestsManagement from './AdminBuyRequestsManagement';
 import AdminSuggestionsManagement from './AdminSuggestionsManagement';
 import AdminPDPAnalytics from './AdminPDPAnalytics';
 import AdminABTesting from './AdminABTesting';
+import AdminModerationDashboard from './AdminModerationDashboard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const menuItems = [
   { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard, component: AdminDashboard },
+  { id: 'moderation', label: 'Moderation Center', icon: Shield, component: AdminModerationDashboard },
   { id: 'users', label: 'User Management', icon: Users, component: AdminUsersQueue },
   { id: 'listings', label: 'Livestock Listings', icon: Package, component: AdminListingsQueue },
   { id: 'buy-requests', label: 'Buy Requests', icon: MessageSquare, component: AdminBuyRequestsManagement },
@@ -115,32 +117,47 @@ export default function AdminLayoutWithSidebar({ user }) {
     );
   }
 
+  // Ensure admin token is stored for API calls
+  useEffect(() => {
+    if (user && user.email && user.roles && user.roles.includes('admin')) {
+      // Store admin email as Bearer token for admin API calls
+      localStorage.setItem('token', user.email);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchAdminStats();
     fetchNotifications();
     
     // Set up SSE for real-time updates
-    const eventSource = new EventSource(`${API}/admin/events/stream`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    });
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (token) {
+      const eventSource = new EventSource(`${API}/admin/events/stream`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.event !== 'HEARTBEAT') {
-        // Update stats on real events
-        fetchAdminStats();
-      }
-    };
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.event !== 'HEARTBEAT') {
+          // Update stats on real events
+          fetchAdminStats();
+        }
+      };
 
-    return () => {
-      eventSource.close();
-    };
+      return () => {
+        eventSource.close();
+      };
+    }
   }, []);
 
   const fetchAdminStats = async () => {
     try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const response = await fetch(`${API}/admin/stats`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       if (response.ok) {
         const data = await response.json();
@@ -153,8 +170,12 @@ export default function AdminLayoutWithSidebar({ user }) {
 
   const fetchNotifications = async () => {
     try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const response = await fetch(`${API}/admin/notifications`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       if (response.ok) {
         const data = await response.json();

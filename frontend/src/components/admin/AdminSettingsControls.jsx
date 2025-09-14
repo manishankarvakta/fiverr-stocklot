@@ -12,8 +12,7 @@ import {
   Smartphone, Share2, Mail, Phone, MapPin, Facebook, Twitter, Instagram, 
   Youtube, Linkedin, DollarSign, Percent
 } from 'lucide-react';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import api from '../../api/client';
 
 export default function AdminSettingsControls() {
   // Original functionality state
@@ -86,64 +85,41 @@ export default function AdminSettingsControls() {
 
   // Original functionality methods
   const fetchConfig = async () => {
-    setLoading(true);
     try {
-      const response = await fetch(`${API}/public/config`);
-      if (response.ok) {
-        const data = await response.json();
-        setFlags(data.flags || {});
-        setSettings(data.settings || {});
-      }
+      setLoading(true);
+      const response = await api.get('/public/config');
+      setFlags(response.data.flags || {});
+      setSettings(response.data.settings || {});
     } catch (error) {
       console.error('Error fetching config:', error);
+      setFlags({});
+      setSettings({});
     } finally {
       setLoading(false);
     }
   };
 
   const updateFlag = async (flagKey, value) => {
-    setSaving(true);
     try {
-      const response = await fetch(`${API}/admin/flags/${flagKey}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ value })
-      });
-      
-      if (response.ok) {
+      const response = await api.patch(`/admin/flags/${flagKey}`, { value });
+      if (response.data.success) {
         setFlags(prev => ({ ...prev, [flagKey]: value }));
         setChanges(prev => ({ ...prev, [flagKey]: value }));
       }
     } catch (error) {
       console.error('Error updating flag:', error);
-    } finally {
-      setSaving(false);
     }
   };
 
   const updateSetting = async (settingKey, value, isPublic = false) => {
-    setSaving(true);
     try {
-      const response = await fetch(`${API}/admin/settings/${settingKey}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ value, public: isPublic })
-      });
-      
-      if (response.ok) {
+      const response = await api.patch(`/admin/settings/${settingKey}`, { value });
+      if (response.data.success) {
         setSettings(prev => ({ ...prev, [settingKey]: value }));
         setChanges(prev => ({ ...prev, [settingKey]: value }));
       }
     } catch (error) {
       console.error('Error updating setting:', error);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -151,16 +127,26 @@ export default function AdminSettingsControls() {
   const fetchPlatformSettings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API}/admin/settings`, {
+      if (!token) {
+        console.warn('No authentication token found');
+        return;
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/settings`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        setPlatformSettings(prev => ({...prev, ...data}));
+        setPlatformSettings(prev => ({
+          ...prev,
+          ...data
+        }));
+      } else {
+        console.error('Failed to fetch platform settings:', response.status);
       }
     } catch (error) {
       console.error('Error fetching platform settings:', error);
@@ -168,29 +154,42 @@ export default function AdminSettingsControls() {
   };
 
   const savePlatformSettings = async () => {
-    setSaving(true);
     try {
+      setSaving(true);
+      
+      // Get the token from localStorage
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API}/admin/settings`, {
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/settings`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(platformSettings)
       });
-      
+
       if (response.ok) {
-        setLastSaved(new Date());
-        alert('Platform settings saved successfully!');
+        const result = await response.json();
+        if (result.success) {
+          alert('Platform settings saved successfully!');
+        } else {
+          alert('Failed to save settings: ' + (result.message || 'Unknown error'));
+        }
       } else {
-        alert('Failed to save settings. Please try again.');
+        const error = await response.json();
+        alert('Failed to save platform settings: ' + (error.detail || 'Server error'));
       }
     } catch (error) {
       console.error('Error saving platform settings:', error);
-      alert('Error saving settings. Please try again.');
+      alert('Failed to save platform settings: ' + error.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const updatePlatformSetting = (key, value) => {

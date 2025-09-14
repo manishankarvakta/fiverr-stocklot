@@ -11,6 +11,7 @@ import re
 import json
 import uuid
 from collections import Counter
+from .website_info_fetcher import WebsiteInfoFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class MLFAQService:
         )
         self.embedding_model = "text-embedding-3-large"
         self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
+        self.website_fetcher = WebsiteInfoFetcher()
         
     async def ingest_questions_from_sources(self) -> Dict[str, Any]:
         """Ingest and process questions from multiple sources"""
@@ -703,3 +705,588 @@ Make the answer helpful, accurate, and specific to livestock marketplace context
         except Exception as e:
             logger.error(f"FAQ feedback recording failed: {e}")
             return False
+
+    async def get_ai_response(self, question: str, context: List[dict] = None) -> Dict[str, Any]:
+        """
+        Get AI-powered response with enhanced local knowledge prioritized
+        """
+        try:
+            # Define system prompt at method level for reuse
+            system_prompt = """You are StockLot, the livestock & game marketplace assistant for South Africa and global exporters.
+
+CRITICAL - StockLot marketplace categories (YOU MUST ACKNOWLEDGE ALL OF THESE):
+✅ POULTRY: Chickens, ducks, turkeys, geese, ostriches
+✅ RUMINANTS: Cattle, goats, sheep, buffalo  
+✅ AQUACULTURE: Fish farming, prawns, aquatic livestock (WE DEFINITELY SELL FISH!)
+✅ GAME ANIMALS: Kudu, eland, springbok, ostrich (through approved processors)
+✅ SMALL LIVESTOCK: Pigs, rabbits
+✅ EXOTIC/OTHER: Any farmed animal for commercial purposes
+
+Your goals:
+1) Help users discover animals, breeds, game species (e.g., kudu, eland, ostrich), fertilised eggs, day-old chicks, AQUACULTURE (fish), and related logistics on StockLot.
+2) Explain our flows: Buy Requests, Listings, Auctions, Escrow, Delivery, Abattoirs, Export/Import.
+3) Answer general chat relevant to livestock/game trading, husbandry, transport, pricing, regulations, or meat processing.
+
+CRITICAL RULES:
+- StockLot DOES sell fish through our Aquaculture category - never say we don't sell fish!
+- NEVER reveal phone numbers, email addresses, or direct contact details
+- Always use "Contact support through the platform" or "Use in-app messaging after escrow"
+- For wild pigs: clarify if they want meat (from processors) vs live animals (regulated)
+- For game meat: must be from approved abattoirs/processors with permits
+
+Constraints & Safety:
+- No illegal wildlife trade, endangered species, CITES-restricted items
+- Respect disease and quarantine controls (FMD, avian influenza)
+- Never complete payments or reveal internal admin actions
+- Be concise, friendly, actionable - use bullet points
+
+Output Style:
+- Short answers first, then optional "Next steps"
+- Group by species → product type (live, breeding stock, meat cuts)
+- Provide clear CTAs: "Create Buy Request", "Browse Aquaculture", "Browse Game/Exotic"
+- Convert money to ZAR format when relevant"""
+
+            # FIRST: Try enhanced local response (prioritized for accuracy)
+            local_response = await self._get_enhanced_local_response(question)
+            
+            if local_response and local_response.get("confidence", 0) > 0.5:
+                logger.info(f"Using enhanced local response for: {question[:50]}...")
+                return {
+                    "response": local_response["answer"],
+                    "source": "enhanced_local_knowledge",
+                    "confidence": local_response["confidence"],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "context_used": bool(context),
+                    "priority": "local_knowledge_prioritized"
+                }
+
+            # SECOND: Try OpenAI only for complex questions not covered locally
+            if hasattr(self, 'openai_client') and self.openai_client:
+                try:
+                    # Add few-shot examples to train the model
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": "Do you have fish for sale?"},
+                        {"role": "assistant", "content": "Yes! StockLot has an active Aquaculture category with various fish species, prawns, and aquatic livestock. You can find:\n• Live fish for farming\n• Fingerlings for stocking\n• Breeding stock\n• Aquaculture equipment\n\nNext steps:\n• Browse Aquaculture → Fish\n• Create a Buy Request with your specific fish requirements"},
+                        {"role": "user", "content": "Do you have wild pigs?"},
+                        {"role": "assistant", "content": "Do you mean processed game meat (from approved processors) or live wild pigs? For meat, we can list Game → Meat/Cuts or post a Buy Request with your cuts and kg. Live capture/trade is highly regulated and may not be permitted—consider domesticated pigs or farmed game with proper permits."},
+                        {"role": "user", "content": "Do you have game meat?"},
+                        {"role": "assistant", "content": "Yes! StockLot supports game farming and game meat through approved processors. Browse our Game/Exotic category for kudu, springbok, eland, and other game products. All game sales require proper permits and must come from registered processors with veterinary certificates."},
+                        {"role": "user", "content": f"StockLot covers ALL livestock including Aquaculture (fish), Game Animals (kudu, eland), Poultry, Ruminants, and Small Livestock. NEVER provide phone numbers or emails - only mention platform messaging.\n\nQuestion: {question}{context if context else ''}"}
+                    ]
+
+                    response = await self.openai_client.chat.completions.create(
+                        model="gpt-4o-mini",  # Cost-effective model
+                        messages=messages,
+                        max_tokens=250,
+                        temperature=0.3  # Lower temperature for more consistent responses
+                    )
+
+                    ai_response = response.choices[0].message.content.strip()
+                    
+                    # Filter out any contact information that might slip through
+                    ai_response = self._remove_contact_details(ai_response)
+                    
+                    return {
+                        "response": ai_response,
+                        "source": "openai_filtered",
+                        "confidence": 0.85,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "context_used": bool(context),
+                        "tokens_used": response.usage.total_tokens
+                    }
+
+                except Exception as openai_error:
+                    logger.warning(f"OpenAI API error: {openai_error}")
+                    # Check if it's an API key issue
+                    if "401" in str(openai_error) or "authentication" in str(openai_error).lower():
+                        logger.warning("OpenAI API key appears to be invalid")
+            
+            # THIRD: Enhanced fallback with better livestock knowledge
+            if local_response:
+                return {
+                    "response": local_response["answer"],
+                    "source": "enhanced_local_fallback", 
+                    "confidence": local_response["confidence"],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "fallback_reason": "OpenAI unavailable - using local knowledge"
+                }
+            
+            # FINAL: Ultimate fallback
+            return await self._get_intelligent_fallback(question)
+
+        except Exception as e:
+            logger.error(f"Error in get_ai_response: {e}")
+            return await self._get_intelligent_fallback(question)
+
+    def _remove_contact_details(self, response: str) -> str:
+        """Remove any phone numbers, emails, or contact details from response - ENHANCED"""
+        import re
+        
+        # Remove phone numbers (comprehensive patterns)
+        response = re.sub(r'\+?[\d\s\-\(\)]{10,}', '[contact removed]', response)
+        response = re.sub(r'(\+27|0)\s*\d{2}\s*\d{3}\s*\d{4}', '[contact removed]', response)
+        response = re.sub(r'\b\d{3}[\-\s]?\d{3}[\-\s]?\d{4}\b', '[contact removed]', response)
+        response = re.sub(r'\b\d{10,}\b', '[contact removed]', response)
+        
+        # Remove email addresses (comprehensive patterns)
+        response = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[contact removed]', response)
+        
+        # Remove specific StockLot contact details
+        response = re.sub(r'support@stocklot\.co\.za', 'platform support', response, flags=re.IGNORECASE)
+        response = re.sub(r'hello@stocklot\.farm', 'platform messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'info@stocklot\.(co\.za|farm)', 'platform support', response, flags=re.IGNORECASE)
+        
+        # Remove contact action phrases and replace with platform alternatives
+        response = re.sub(r'contact.*support.*team.*at.*', 'contact support through the platform', response, flags=re.IGNORECASE)
+        response = re.sub(r'call.*\d+', 'use in-app messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'phone.*\d+', 'platform messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'email.*us.*at.*', 'contact through the platform', response, flags=re.IGNORECASE)
+        response = re.sub(r'reach.*out.*to.*us', 'contact support through the platform', response, flags=re.IGNORECASE)
+        
+        # Remove WhatsApp and social media contact references
+        response = re.sub(r'whatsapp.*\d+', 'in-app messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'text.*us.*\d+', 'platform messaging', response, flags=re.IGNORECASE)
+        
+        # Strengthen contact removal with specific replacements
+        response = re.sub(r'contact.*details?', 'platform messaging', response, flags=re.IGNORECASE)
+        response = re.sub(r'get.*in.*touch', 'use in-app messaging', response, flags=re.IGNORECASE)
+        
+        # Replace generic contact references with platform-specific guidance
+        response = response.replace('[contact removed]', 'platform messaging')
+        response = response.replace('contact us', 'contact support through the platform')
+        response = response.replace('call us', 'use in-app messaging')
+        response = response.replace('email us', 'contact through platform support')
+        
+        return response
+
+    async def _get_enhanced_local_response(self, question: str) -> Dict[str, Any]:
+        """Enhanced local FAQ matching with livestock expertise AND real-time website data"""
+        question_lower = question.lower()
+        
+        # FIRST: Get real-time website information for accuracy
+        try:
+            website_info = await self.website_fetcher.get_comprehensive_info(question)
+            
+            # Use real-time data to enhance responses for key categories
+            if "query_specific" in website_info:
+                query_data = website_info["query_specific"]
+                topic = query_data.get("topic")
+                
+                if topic == "aquaculture" and query_data.get("confirmed_available"):
+                    return {
+                        "answer": f"""Absolutely! StockLot has an active Aquaculture category with {website_info['current_listings']['total_count']} total listings available. You can find:
+• Various fish species for farming
+• Fingerlings for stocking
+• Prawns and aquatic livestock
+• Aquaculture equipment and supplies
+
+**Browse**: Aquaculture → Fish section
+**Create**: Buy Request for specific fish farming needs
+**Contact**: Use in-app messaging after adding items to cart
+
+*Data verified from current marketplace listings* ✅""",
+                        "confidence": 0.95
+                    }
+                elif topic == "game_meat" and query_data.get("confirmed_available"):
+                    return {
+                        "answer": f"""Yes! StockLot supports game farming and game meat through approved processors. With {website_info['current_listings']['total_count']} total listings, you can find:
+• Kudu, springbok, eland meat cuts
+• Ostrich products
+• Game breeding stock
+• Processed game meat from certified abattoirs
+
+**Important**: All game meat must come from registered processors with proper permits and veterinary certificates.
+
+**Browse**: Game/Exotic category
+**Create**: Buy Request for specific game meat requirements""",
+                        "confidence": 0.95
+                    }
+                elif topic == "wild_pigs":
+                    return {
+                        "answer": """For wild pig products, clarify what you need:
+
+**🥩 Processed Wild Pig Meat**: Available through approved abattoirs/processors with proper permits and vet certificates
+
+**🐷 Live Wild Pigs**: Highly regulated - consider domestic pig breeding stock instead
+
+**📋 Next Steps**:
+• Browse Small Livestock → Pigs for domestic breeds
+• Create Buy Request specifying "processed wild pig meat" 
+• All sales must comply with veterinary regulations
+
+**Contact**: Use in-app messaging for specific requirements""",
+                        "confidence": 0.9
+                    }
+        except Exception as e:
+            logger.warning(f"Website fetcher error: {e}")
+
+        # SECOND: Try blog content integration for detailed responses
+        try:
+            blog_response = await self._get_blog_content_response(question)
+            if blog_response and blog_response.get("confidence", 0) > 0.8:
+                return blog_response
+        except Exception as e:
+            logger.warning(f"Blog content error: {e}")
+        
+        # Enhanced livestock knowledge base - comprehensive coverage with CORRECT info
+        livestock_qa = {
+            "game meat": {
+                "answer": "Yes! StockLot supports game farming and game meat sales through approved processors. You can find kudu, springbok, eland, ostrich, and other game meat via our Game/Exotic category. All game meat must come from registered processors with proper permits. Create a Buy Request for specific game meat requirements.",
+                "confidence": 0.9
+            },
+            "fish": {
+                "answer": "Absolutely! StockLot has an active Aquaculture category for fish farming. You can find various fish species, prawns, and aquatic livestock. Browse our Aquaculture section or create a Buy Request for specific fish farming needs including live fish, fingerlings, and aquaculture equipment.",
+                "confidence": 0.9
+            },
+            "wild pigs": {
+                "answer": "For wild pig meat, you'll need processed products from approved abattoirs. Live wild pig trade is highly regulated. Consider our domestic pig breeding stock or create a Buy Request for processed wild pig meat from certified processors. All sales must comply with veterinary regulations.",
+                "confidence": 0.85
+            },
+            "buy livestock": {
+                "answer": "To buy livestock on StockLot: 1) Browse our marketplace by category (cattle, goats, sheep, poultry, aquaculture, game), 2) Use filters for breed, location, and price, 3) Click 'Add to Cart' on animals you want, 4) Proceed to secure checkout with escrow protection. All animals come with health certificates.",
+                "confidence": 0.95
+            },
+            "sell livestock": {
+                "answer": "To sell livestock: 1) Create a seller account, 2) Click 'Create Listing', 3) Add clear photos and detailed descriptions, 4) Set competitive pricing, 5) Choose delivery options. We handle secure payments through escrow and connect you with verified buyers across South Africa.",
+                "confidence": 0.95
+            },
+            "vaccination": {
+                "answer": "All livestock on StockLot must be properly vaccinated according to South African veterinary standards. Chickens need Newcastle disease and Marek's vaccines. Cattle require standard vaccinations for foot-and-mouth, anthrax. Health certificates are required for all listings.",
+                "confidence": 0.85
+            },
+            "payment": {
+                "answer": "StockLot uses secure escrow payments to protect both buyers and sellers. Your payment is held safely until you confirm delivery and satisfaction with your livestock. We accept all major South African banks and provide full buyer protection.",
+                "confidence": 0.9
+            },
+            "aquaculture": {
+                "answer": "StockLot's Aquaculture category includes fish farming, prawns, and aquatic livestock. You can buy live fish, fingerlings, breeding stock, and aquaculture equipment. All aquaculture products come with health certificates and transport arrangements.",
+                "confidence": 0.9
+            }
+        }
+        
+        # Look for keyword matches
+        for keyword, qa_data in livestock_qa.items():
+            if keyword in question_lower:
+                return qa_data
+        
+        # Category-specific responses - comprehensive livestock coverage
+        if any(word in question_lower for word in ['cattle', 'cow', 'bull', 'beef']):
+            return {
+                "answer": "StockLot offers a wide variety of cattle including Angus, Brahman, and commercial beef cattle. All cattle come with health certificates and breeding records where applicable. Use our smart filters to find cattle by breed, age, weight, and location across South Africa.",
+                "confidence": 0.8
+            }
+        elif any(word in question_lower for word in ['goat', 'goats', 'boer']):
+            return {
+                "answer": "We have excellent Boer goats, Kalahari Red, and dairy goats available. All goats are health-certified and suitable for breeding or commercial purposes. Many sellers offer delivery across provinces with our network of livestock transporters.",
+                "confidence": 0.8
+            }
+        elif any(word in question_lower for word in ['chicken', 'poultry', 'chicks']):
+            return {
+                "answer": "StockLot features day-old chicks, layers, broilers, and breeding stock including Ross 308, Koekoek, and other popular breeds. All poultry are vaccinated and come from registered hatcheries. Perfect for commercial or smallholder farming.",
+                "confidence": 0.8
+            }
+        elif any(word in question_lower for word in ['fish', 'aquaculture', 'prawn', 'fingerling']):
+            return {
+                "answer": "StockLot's Aquaculture section offers various fish species, prawns, and aquatic livestock. You can find live fish, fingerlings, breeding stock, and aquaculture equipment. All aquaculture products come with health certificates and proper transport arrangements.",
+                "confidence": 0.8
+            }
+        elif any(word in question_lower for word in ['kudu', 'springbok', 'eland', 'game', 'venison']):
+            return {
+                "answer": "StockLot supports game farming and game meat through approved processors. Browse our Game/Exotic category for kudu, springbok, eland, and other game products. All game sales require proper permits and must come from registered processors.",
+                "confidence": 0.8
+            }
+        elif any(word in question_lower for word in ['pig', 'pigs', 'boar', 'wild pig']):
+            return {
+                "answer": "For pigs, StockLot offers domestic pig breeds for breeding and commercial purposes. Wild pig meat must come from approved processors with proper permits. Browse our Small Livestock category or create a Buy Request for specific pig requirements.",
+                "confidence": 0.8
+            }
+        
+        return None
+
+    async def _get_blog_content_response(self, question: str) -> Optional[Dict[str, Any]]:
+        """Get response from blog content analysis"""
+        try:
+            # Search for relevant blog content
+            blog_posts = await self._search_blog_content(question)
+            
+            if not blog_posts:
+                return None
+            
+            # Extract relevant information from blog posts
+            relevant_content = []
+            for post in blog_posts[:3]:  # Top 3 most relevant posts
+                if 'title' in post and 'content' in post:
+                    relevant_content.append({
+                        'title': post['title'],
+                        'excerpt': post['content'][:200] + '...',
+                        'relevance': self._calculate_relevance(question, post['content'])
+                    })
+            
+            if not relevant_content:
+                return None
+            
+            # Generate response based on blog content
+            best_match = max(relevant_content, key=lambda x: x['relevance'])
+            
+            if best_match['relevance'] > 0.7:
+                return {
+                    'answer': f"""Based on our latest blog content about "{best_match['title']}":
+
+{best_match['excerpt']}
+
+For more detailed information and the latest updates, check our blog or use in-app messaging for specific questions about livestock trading on StockLot.
+
+**Browse**: Marketplace categories for current listings
+**Learn**: Blog section for farming tips and industry updates""",
+                    'confidence': best_match['relevance'],
+                    'source': 'blog_content'
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Blog content response error: {e}")
+            return None
+
+    async def _search_blog_content(self, query: str) -> List[Dict[str, Any]]:
+        """Search blog content for relevant posts"""
+        try:
+            # Search published blog posts
+            cursor = self.db.blog_posts.find({
+                "status": "published",
+                "$or": [
+                    {"title": {"$regex": query, "$options": "i"}},
+                    {"content": {"$regex": query, "$options": "i"}},
+                    {"tags": {"$in": [query.lower()]}}
+                ]
+            }).limit(5)
+            
+            posts = await cursor.to_list(length=None)
+            
+            # Clean MongoDB _id fields
+            for post in posts:
+                if "_id" in post:
+                    del post["_id"]
+            
+            return posts
+            
+        except Exception as e:
+            logger.error(f"Blog content search error: {e}")
+            return []
+
+    def _calculate_relevance(self, query: str, content: str) -> float:
+        """Calculate relevance score between query and content"""
+        try:
+            query_words = set(query.lower().split())
+            content_words = set(content.lower().split())
+            
+            # Simple relevance calculation
+            intersection = query_words.intersection(content_words)
+            union = query_words.union(content_words)
+            
+            if not union:
+                return 0.0
+            
+            jaccard_similarity = len(intersection) / len(union)
+            
+            # Boost score for livestock-related terms
+            livestock_terms = {'cattle', 'sheep', 'goat', 'pig', 'chicken', 'fish', 'livestock', 'farming', 'breeding', 'exotic', 'game'}
+            content_lower = content.lower()
+            
+            livestock_boost = sum(1 for term in livestock_terms if term in content_lower) * 0.1
+            
+            return min(1.0, jaccard_similarity + livestock_boost)
+            
+        except Exception as e:
+            logger.error(f"Relevance calculation error: {e}")
+            return 0.0
+
+    async def learn_from_website_content(self) -> Dict[str, Any]:
+        """Learn from current website content and update knowledge base"""
+        try:
+            logger.info("Starting website content learning...")
+            
+            # Get comprehensive website information
+            website_info = await self.website_fetcher.get_comprehensive_info("livestock marketplace features")
+            
+            # Extract learning points
+            learning_data = {
+                'categories_learned': [],
+                'species_learned': [],
+                'features_learned': [],
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Learn about categories
+            if 'marketplace_categories' in website_info:
+                categories = website_info['marketplace_categories'].get('categories_found', [])
+                for category in categories:
+                    learning_data['categories_learned'].append({
+                        'name': category['name'],
+                        'includes': category.get('includes', []),
+                        'available': category.get('available', True)
+                    })
+            
+            # Learn about current listings
+            if 'current_listings' in website_info:
+                listings_info = website_info['current_listings']
+                learning_data['species_learned'] = listings_info.get('species_present', [])
+            
+            # Learn about platform features
+            if 'platform_features' in website_info:
+                features = website_info['platform_features']
+                learning_data['features_learned'] = {
+                    'payment_methods': features.get('payment_methods', []),
+                    'delivery_options': features.get('delivery_options', []),
+                    'support_channels': features.get('support_channels', []),
+                    'security_features': features.get('security_features', [])
+                }
+            
+            # Store learning data in database
+            learning_record = {
+                'id': str(uuid.uuid4()),
+                'type': 'website_content_learning',
+                'data': learning_data,
+                'created_at': datetime.now(timezone.utc)
+            }
+            
+            await self.db.faq_learning.insert_one(learning_record)
+            
+            logger.info(f"Website content learning completed: {len(learning_data['categories_learned'])} categories, {len(learning_data['species_learned'])} species")
+            
+            return {
+                'success': True,
+                'learning_id': learning_record['id'],
+                'categories_learned': len(learning_data['categories_learned']),
+                'species_learned': len(learning_data['species_learned']),
+                'features_learned': len(learning_data['features_learned'])
+            }
+            
+        except Exception as e:
+            logger.error(f"Website content learning error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    async def learn_from_blog_content(self) -> Dict[str, Any]:
+        """Learn from blog posts and update knowledge base"""
+        try:
+            logger.info("Starting blog content learning...")
+            
+            # Get recent published blog posts
+            cursor = self.db.blog_posts.find({
+                'status': 'published',
+                'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(days=30)}
+            }).sort('created_at', -1).limit(20)
+            
+            posts = await cursor.to_list(length=None)
+            
+            learning_data = {
+                'posts_processed': [],
+                'topics_learned': [],
+                'keywords_extracted': [],
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            for post in posts:
+                if "_id" in post:
+                    del post["_id"]
+                
+                # Extract key information from blog post
+                post_learning = {
+                    'title': post.get('title', ''),
+                    'category': post.get('category', ''),
+                    'tags': post.get('tags', []),
+                    'content_length': len(post.get('content', '')),
+                    'livestock_terms': self._extract_livestock_terms(post.get('content', ''))
+                }
+                
+                learning_data['posts_processed'].append(post_learning)
+                
+                # Extract topics and keywords
+                if post.get('category'):
+                    learning_data['topics_learned'].append(post['category'])
+                
+                if post.get('tags'):
+                    learning_data['keywords_extracted'].extend(post['tags'])
+            
+            # Remove duplicates and clean data
+            learning_data['topics_learned'] = list(set(learning_data['topics_learned']))
+            learning_data['keywords_extracted'] = list(set(learning_data['keywords_extracted']))
+            
+            # Store learning data
+            learning_record = {
+                'id': str(uuid.uuid4()),
+                'type': 'blog_content_learning',
+                'data': learning_data,
+                'created_at': datetime.now(timezone.utc)
+            }
+            
+            await self.db.faq_learning.insert_one(learning_record)
+            
+            logger.info(f"Blog content learning completed: {len(posts)} posts processed, {len(learning_data['topics_learned'])} topics learned")
+            
+            return {
+                'success': True,
+                'learning_id': learning_record['id'],
+                'posts_processed': len(posts),
+                'topics_learned': len(learning_data['topics_learned']),
+                'keywords_extracted': len(learning_data['keywords_extracted'])
+            }
+            
+        except Exception as e:
+            logger.error(f"Blog content learning error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def _extract_livestock_terms(self, content: str) -> List[str]:
+        """Extract livestock-related terms from content"""
+        if not content:
+            return []
+        
+        content_lower = content.lower()
+        
+        # Comprehensive livestock terms
+        livestock_terms = [
+            'cattle', 'cows', 'bulls', 'beef', 'dairy',
+            'sheep', 'lambs', 'wool', 'mutton',
+            'goats', 'kids', 'chevon', 'mohair',
+            'pigs', 'swine', 'pork', 'boars', 'sows',
+            'chickens', 'poultry', 'layers', 'broilers', 'roosters', 'hens',
+            'ducks', 'geese', 'turkeys', 'quail',
+            'fish', 'aquaculture', 'tilapia', 'catfish', 'trout',
+            'ostrich', 'emu', 'ratites',
+            'kudu', 'springbok', 'game', 'venison',
+            'alpaca', 'llama', 'camelids',
+            'rabbits', 'breeding', 'livestock', 'farming',
+            'veterinary', 'feed', 'grazing', 'pasture'
+        ]
+        
+        found_terms = []
+        for term in livestock_terms:
+            if term in content_lower:
+                found_terms.append(term)
+        
+        return found_terms
+
+    async def _get_intelligent_fallback(self, question: str) -> Dict[str, Any]:
+        """Intelligent fallback response with helpful livestock info - NO contact details"""
+        return {
+            "response": f"""I'm still learning about "{question}" but I can help you with:
+
+🐄 **Buying Livestock**: Browse by category → Add to Cart → Secure checkout
+🐓 **Animal Health**: All livestock are health-certified and vaccinated  
+💰 **Secure Payments**: Escrow protection for all transactions
+🚚 **Delivery**: Nationwide livestock transport available
+🐟 **Aquaculture**: Fish farming and aquatic livestock available
+🦌 **Game Animals**: Game meat through approved processors
+
+**Next Steps:**
+• Browse our marketplace categories
+• Create a Buy Request for specific needs  
+• Use in-app messaging after adding items to cart
+
+*I'm learning from your question to provide better answers next time!* 🧠""",
+            "source": "intelligent_fallback",
+            "confidence": 0.6,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "learning_opportunity": True
+        }

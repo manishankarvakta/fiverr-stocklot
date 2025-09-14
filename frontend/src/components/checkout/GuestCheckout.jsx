@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -16,9 +16,18 @@ import {
 } from 'lucide-react';
 import LocationPicker from '../location/LocationPicker';
 import { assessRisk, RISK_CATEGORIES, getRiskCategory } from '../../lib/risk/riskRules';
+import { CheckoutService, handleAPIError } from '../../services/api';
+import { useToast } from '../../hooks/use-toast';
+import PaymentRedirectService from '../../services/PaymentRedirectService';
 
 export default function GuestCheckout() {
+  console.log('GuestCheckout component rendering...');
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  
+  console.log('Current location:', location.pathname);
+  console.log('Location state:', location.state);
   const [items, setItems] = useState([]);
   const [shipTo, setShipTo] = useState(null);
   const [contact, setContact] = useState({
@@ -52,24 +61,17 @@ export default function GuestCheckout() {
     setError('');
     
     try {
-      const response = await fetch('/api/checkout/guest/quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, ship_to: shipTo })
+      const quoteData = await CheckoutService.getGuestQuote({ 
+        items, 
+        ship_to: shipTo 
       });
-
-      const data = await response.json();
       
-      if (response.ok) {
-        setQuote(data);
-        setRisk(data.risk);
-        setStep('quote');
-      } else {
-        setError(data.detail || 'Failed to get quote');
-      }
+      setQuote(quoteData);
+      setRisk(quoteData.risk);
+      setStep('quote');
     } catch (error) {
       console.error('Quote error:', error);
-      setError('Failed to get quote');
+      setError(handleAPIError(error, false));
     } finally {
       setLoading(false);
     }
@@ -82,28 +84,99 @@ export default function GuestCheckout() {
     setError('');
 
     try {
-      const response = await fetch('/api/checkout/guest/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contact,
-          ship_to: shipTo,
-          items,
-          quote
-        })
+      const orderData = await CheckoutService.createGuestOrder({
+        contact,
+        ship_to: shipTo,
+        items,
+        quote
       });
-
-      const data = await response.json();
       
-      if (response.ok) {
-        // Redirect to payment or return page
-        window.location.href = data.paystack.authorization_url;
+      console.log('Order creation response:', orderData); // Debug log
+      
+      // ENHANCED PAYMENT REDIRECT - Multiple URL extraction methods
+      console.log('🔧 Enhanced Payment Redirect System Activated');
+      console.log('Available response keys:', Object.keys(orderData));
+      
+      // Extract payment URL with comprehensive fallback logic
+      let redirectUrl = null;
+      const possibleUrlPaths = [
+        'paystack.authorization_url',    // Nested format
+        'authorization_url',             // Direct format
+        'redirect_url',                  // Alternative format
+        'payment_url',                   // Backup format
+        'data.authorization_url'         // API wrapper format
+      ];
+      
+      // Try each possible path
+      for (const path of possibleUrlPaths) {
+        const url = getNestedValue(orderData, path);
+        if (url && isValidPaymentUrl(url)) {
+          redirectUrl = url;
+          console.log(`✅ Found payment URL at path: ${path} -> ${url}`);
+          break;
+        }
+      }
+      
+      // Helper function to get nested values
+      function getNestedValue(obj, path) {
+        return path.split('.').reduce((current, key) => current?.[key], obj);
+      }
+      
+      // Helper function to validate payment URLs
+      function isValidPaymentUrl(url) {
+        return url && (
+          url.includes('paystack.com') || 
+          url.includes('checkout') ||
+          url.includes('payment') ||
+          url.startsWith('https://demo-checkout')
+        );
+      }
+      
+      if (redirectUrl) {
+        console.log('✅ PAYMENT URL FOUND:', redirectUrl);
+        
+        // Show immediate success message
+        toast({
+          title: "Order Created Successfully!",
+          description: `${orderData.order_count || 1} order(s) created. Redirecting to payment...`,
+          duration: 2000,
+        });
+        
+        // IMMEDIATE REDIRECT - No delays for better UX
+        console.log('🚀 IMMEDIATE REDIRECT to payment gateway');
+        window.location.href = redirectUrl;
+        
+        // Fallback redirect after 1 second (in case immediate fails)
+        setTimeout(() => {
+          console.log('🔄 Fallback redirect #1');
+          window.location.replace(redirectUrl);
+        }, 1000);
+        
+        // Final fallback after 2 seconds
+        setTimeout(() => {
+          console.log('🔄 Fallback redirect #2');
+          window.open(redirectUrl, '_self');
+        }, 2000);
+        
       } else {
-        setError(data.detail || 'Failed to create order');
+        console.log('❌ NO PAYMENT URL FOUND');
+        console.log('Full response data:', JSON.stringify(orderData, null, 2));
+        
+        // Show success message even without payment URL
+        toast({
+          title: "Order Created!",
+          description: `${orderData.order_count || 1} order(s) created successfully.`,
+          duration: 3000,
+        });
+        
+        // Alert user about missing payment URL
+        setTimeout(() => {
+          alert(`Order created successfully!\nOrder ID: ${orderData.order_group_id}\n\nNote: Payment gateway not configured. Please contact support to complete payment.`);
+        }, 1000);
       }
     } catch (error) {
       console.error('Order creation error:', error);
-      setError('Failed to create order');
+      setError(handleAPIError(error, false));
     } finally {
       setLoading(false);
     }
@@ -328,7 +401,7 @@ export default function GuestCheckout() {
                       ))}
                     </div>
 
-                    {/* Payment Summary */}
+                    {/* Payment Summary with Full Fee Breakdown */}
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -337,7 +410,15 @@ export default function GuestCheckout() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Delivery:</span>
-                          <span>R{Number(quote.summary.delivery_total).toFixed(2)}</span>
+                          <span>R{Number(quote.summary.delivery_total || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Processing Fee (1.5%):</span>
+                          <span>R{Number(quote.summary.buyer_processing_fee || (quote.summary.subtotal * 0.015)).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Escrow Service Fee:</span>
+                          <span>R{Number(quote.summary.escrow_service_fee || 25.00).toFixed(2)}</span>
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between text-lg font-semibold">

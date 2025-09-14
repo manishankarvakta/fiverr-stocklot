@@ -1,57 +1,94 @@
-// StockLot Service Worker for Push Notifications
+// StockLot Service Worker - Mobile Optimized (No HTML Caching)
 
-const CACHE_NAME = 'stocklot-cache-v1';
+const CACHE_NAME = 'stocklot-v6-assets';
 const urlsToCache = [
-  '/',
+  // Cache ONLY static assets, NEVER cache HTML/documents
   '/static/js/bundle.js',
-  '/static/css/main.css',
+  '/static/css/main.css', 
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png'
 ];
 
-// Install event - cache resources
+// Install event - cache assets only, force immediate takeover
 self.addEventListener('install', (event) => {
+  console.log('SW: Installing v6 with immediate takeover');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching files');
+        console.log('SW: Caching static assets only');
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        console.log('Service Worker: Installed');
-        return self.skipWaiting();
+        console.log('SW: Assets cached, skipping waiting');
+        return self.skipWaiting(); // Force immediate activation
       })
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - purge old caches and claim all clients immediately  
 self.addEventListener('activate', (event) => {
+  console.log('SW: Activating v6 and claiming clients');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    (async () => {
+      // Delete all old caches that don't match current version
+      const cacheNames = await caches.keys();
+      await Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache', cacheName);
+            console.log('SW: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => {
-      console.log('Service Worker: Activated');
-      return self.clients.claim();
-    })
+      
+      // Take control of all clients immediately
+      await self.clients.claim();
+      console.log('SW: All clients claimed');
+    })()
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NEVER cache HTML, cache assets only
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
+  const request = event.request;
+  
+  // NEVER cache HTML/documents - always fetch fresh from network
+  if (request.destination === 'document' || 
+      request.url.includes('/api/') ||
+      request.url.endsWith('.html') ||
+      request.headers.get('accept')?.includes('text/html')) {
+    
+    console.log('SW: Network-only for HTML/API:', request.url);
+    event.respondWith(fetch(request));
+    return;
+  }
+  
+  // Cache static assets only (js, css, images, fonts)
+  if (['script', 'style', 'font', 'image'].includes(request.destination)) {
+    event.respondWith(
+      caches.match(request).then((response) => {
+        if (response) {
+          console.log('SW: Serving from cache:', request.url);
+          return response;
+        }
+        
+        return fetch(request).then((response) => {
+          // Cache successful responses for static assets only
+          if (response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        });
       })
-  );
+    );
+    return;
+  }
+  
+  // For all other requests, just fetch from network
+  event.respondWith(fetch(request));
 });
 
 // Push event - handle incoming push notifications

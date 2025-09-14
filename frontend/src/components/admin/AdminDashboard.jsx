@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Card, CardContent, CardHeader, CardTitle,
-  Button, Badge, Alert, AlertDescription,
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-  Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@/components/ui';
+  Card, CardContent, CardHeader, CardTitle
+} from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from '../../components/ui/dialog';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { 
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '../../components/ui/select';
 import { 
   Users, DollarSign, ShoppingCart, TrendingUp, Eye, Edit, Trash2, Plus,
   Activity, Bell, Settings, RefreshCw, Download, Upload, Search, Filter
 } from 'lucide-react';
-
-const API = process.env.REACT_APP_BACKEND_URL || '/api';
+import api from '../../api/client';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -23,22 +31,43 @@ export default function AdminDashboard() {
   const [quickActionType, setQuickActionType] = useState('');
   const [quickActionData, setQuickActionData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchUsers();
   }, []);
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch(`${API}/admin/dashboard/stats`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
+      setLoading(true);
+      const response = await api.get('/admin/dashboard/stats');
+      setStats(response.data);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      // Set default stats if API fails
+      setStats({
+        totalUsers: 0,
+        totalListings: 0,
+        totalOrders: 0,
+        totalRevenue: 0
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setUsersLoading(true);
+      const response = await api.get('/admin/users');
+      setUsers(response.data.users || response.data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -49,8 +78,8 @@ export default function AdminDashboard() {
   };
 
   const executeQuickAction = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       let endpoint = '';
       let method = 'POST';
       let body = {};
@@ -65,30 +94,29 @@ export default function AdminDashboard() {
           body = quickActionData;
           break;
         case 'send_notification':
-          endpoint = '/admin/notifications/broadcast';
+          endpoint = '/admin/notifications';
           body = quickActionData;
           break;
         case 'generate_report':
           endpoint = '/admin/reports/generate';
           body = { type: quickActionData.reportType };
           break;
+        case 'manage_exotic_species':
+          // Redirect to exotic management
+          window.open('/api/exotic-livestock/statistics', '_blank');
+          setShowQuickAction(false);
+          return;
         default:
           throw new Error('Unknown action type');
       }
 
-      const response = await fetch(`${API}${endpoint}`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (response.ok) {
+      const response = await api.post(endpoint, body);
+      
+      if (response.data.success) {
         setShowQuickAction(false);
         setQuickActionData({});
         fetchDashboardStats(); // Refresh stats
+        fetchUsers(); // Refresh users
         alert('Action completed successfully!');
       } else {
         throw new Error('Action failed');
@@ -274,7 +302,99 @@ export default function AdminDashboard() {
               <Download className="h-6 w-6 mb-2" />
               Generate Report
             </Button>
+            <Button onClick={() => handleQuickAction('manage_exotic_species')} className="h-20 flex flex-col" variant="outline">
+              <Settings className="h-6 w-6 mb-2" />
+              Exotic Species
+            </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Exotic Livestock Management Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            🐾 Exotic Livestock Management
+            <Badge variant="secondary">26 Species</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="bg-amber-50 border border-amber-200 rounded p-4">
+              <h4 className="font-semibold text-amber-800 mb-2">Game Animals</h4>
+              <p className="text-sm text-amber-700">12 species including Kudu, Springbok, Eland</p>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded p-4">
+              <h4 className="font-semibold text-blue-800 mb-2">Large Flightless Birds</h4>
+              <p className="text-sm text-blue-700">3 species: Ostrich, Emu, Rhea</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded p-4">
+              <h4 className="font-semibold text-green-800 mb-2">Camelids & Others</h4>
+              <p className="text-sm text-green-700">11 specialty species available</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => handleQuickAction('manage_exotic_species')} variant="outline">
+              <Edit className="h-4 w-4 mr-2" />
+              Manage Species
+            </Button>
+            <Button onClick={() => handleQuickAction('manage_compliance_rules')} variant="outline">
+              <Settings className="h-4 w-4 mr-2" />
+              Compliance Rules
+            </Button>
+            <Button onClick={() => window.open('/api/exotic-livestock/statistics', '_blank')} variant="outline">
+              <Eye className="h-4 w-4 mr-2" />
+              View Statistics
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Platform Settings removed - use sidebar navigation to access comprehensive settings */}
+
+      {/* Registered Users */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Registered Users
+            <Badge variant="secondary">{users.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {usersLoading ? (
+            <div className="text-center py-4">Loading users...</div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">No users found</div>
+          ) : (
+            <div className="space-y-2">
+              {users.slice(0, 10).map((user, index) => (
+                <div key={user.id || index} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-medium">{user.full_name || user.name || 'Unknown'}</div>
+                    <div className="text-sm text-gray-500">{user.email}</div>
+                    <div className="text-xs text-gray-400">
+                      Roles: {(user.roles || ['buyer']).join(', ')} | 
+                      Joined: {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge variant={user.is_active ? 'default' : 'secondary'}>
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {user.roles && user.roles.includes('admin') && (
+                      <Badge variant="destructive">Admin</Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {users.length > 10 && (
+                <div className="text-center py-2 text-gray-500">
+                  Showing 10 of {users.length} users
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -287,6 +407,8 @@ export default function AdminDashboard() {
               {quickActionType === 'create_listing' && 'Create New Listing'}
               {quickActionType === 'send_notification' && 'Send Notification'}
               {quickActionType === 'generate_report' && 'Generate Report'}
+              {quickActionType === 'manage_exotic_species' && 'Manage Exotic Species'}
+              {quickActionType === 'manage_compliance_rules' && 'Manage Compliance Rules'}
             </DialogTitle>
             <DialogDescription>
               Complete the form to execute this action

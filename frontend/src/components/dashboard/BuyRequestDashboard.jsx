@@ -352,7 +352,7 @@ const BuyRequestDashboard = ({ userRole = 'BUYER' }) => {
                   <SelectValue placeholder="All species" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All species</SelectItem>
+                  <SelectItem value="all-species">All species</SelectItem>
                   <SelectItem value="cattle">Cattle</SelectItem>
                   <SelectItem value="poultry">Poultry</SelectItem>
                   <SelectItem value="sheep">Sheep</SelectItem>
@@ -365,7 +365,7 @@ const BuyRequestDashboard = ({ userRole = 'BUYER' }) => {
                   <SelectValue placeholder="All provinces" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All provinces</SelectItem>
+                  <SelectItem value="all-provinces">All provinces</SelectItem>
                   {ZA_PROVINCES.map(province => (
                     <SelectItem key={province} value={province}>
                       {province}

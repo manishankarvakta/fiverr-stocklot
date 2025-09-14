@@ -1,47 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, CardContent, CardHeader, CardTitle, Button, Input, Badge,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Alert, AlertDescription
-} from '../ui';
-import { Users, Search, Filter, Download, Plus, Eye, Ban, CheckCircle, AlertTriangle, Mail, Phone, Calendar } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
+import { Users, Search, Eye, UserCheck, UserX, Shield, AlertTriangle, CheckCircle, XCircle, Clock, Filter } from 'lucide-react';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-export default function AdminUsersQueue() {
+const AdminUsersQueue = () => {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    status: '',
+    role: '',
+    search: ''
+  });
   const [selectedUser, setSelectedUser] = useState(null);
-  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    loadUsers();
+  }, [filters]);
 
-  const fetchUsers = async () => {
+  const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API}/users`, {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.role) params.append('role', filters.role);
+      if (filters.search) params.append('q', filters.search);
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/users?${params}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setUsers(Array.isArray(data) ? data : []);
       } else {
-        console.error('Failed to fetch users');
-        setUsers([]);
+        console.error('Failed to load users:', response.status);
+        alert('Failed to load users. Please check your permissions.');
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      setUsers([]);
+      console.error('Error loading users:', error);
+      alert('Error loading users: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -50,396 +57,197 @@ export default function AdminUsersQueue() {
   const handleUserAction = async (userId, action) => {
     setActionLoading(true);
     try {
-      const response = await fetch(`${API}/admin/users/${userId}/${action}`, {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/users/${userId}/${action}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ reason: action === 'suspend' ? 'Admin action' : undefined })
       });
-      
+
       if (response.ok) {
-        // Update user status in local state
-        setUsers(prev => prev.map(user => 
-          user.id === userId 
-            ? { ...user, status: action === 'suspend' ? 'suspended' : 'active' }
-            : user
-        ));
-        setShowUserDialog(false);
+        const result = await response.json();
+        if (result.success) {
+          alert(`User ${action} successful!`);
+          loadUsers(); // Refresh list
+        } else {
+          alert(`Failed to ${action} user: ` + (result.message || 'Unknown error'));
+        }
       } else {
-        console.error(`Failed to ${action} user`);
+        const error = await response.json();
+        alert(`Failed to ${action} user: ` + (error.detail || 'Server error'));
       }
     } catch (error) {
-      console.error(`Error ${action}ing user:`, error);
+      console.error(`Error ${action} user:`, error);
+      alert(`Error ${action} user: ` + error.message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    if (!user) return false;
-    
-    const matchesSearch = !searchTerm || 
-      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.id?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-    const matchesRole = filterRole === 'all' || user.roles?.includes(filterRole);
-    
-    return matchesSearch && matchesRole;
-  });
-
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case 'suspended':
-        return <Badge variant="destructive">Suspended</Badge>;
-      case 'pending':
-        return <Badge variant="outline" className="text-amber-600 border-amber-600">Pending</Badge>;
-      default:
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+    switch (status?.toLowerCase()) {
+      case 'active': return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
+      case 'suspended': return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Suspended</Badge>;
+      case 'pending': return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      default: return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
     }
   };
-
-  const getRoleBadge = (roles) => {
-    if (!roles || roles.length === 0) return <Badge variant="secondary">User</Badge>;
-    
-    const primaryRole = roles[0];
-    const colors = {
-      admin: 'bg-purple-100 text-purple-800',
-      seller: 'bg-blue-100 text-blue-800',
-      buyer: 'bg-emerald-100 text-emerald-800'
-    };
-    
-    return (
-      <Badge className={colors[primaryRole] || 'bg-gray-100 text-gray-800'}>
-        {primaryRole}
-      </Badge>
-    );
-  };
-
-  const getUserStats = () => {
-    return {
-      total: users.length,
-      active: users.filter(u => !u.status || u.status === 'active').length,
-      suspended: users.filter(u => u.status === 'suspended').length,
-      admins: users.filter(u => u.roles?.includes('admin')).length,
-      sellers: users.filter(u => u.roles?.includes('seller')).length,
-      buyers: users.filter(u => !u.roles?.includes('seller') && !u.roles?.includes('admin')).length
-    };
-  };
-
-  const stats = getUserStats();
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">User Management</h2>
-          <p className="text-gray-600">{stats.total} total users • {stats.active} active</p>
+          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+          <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={fetchUsers}>
-            <Filter className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
-          </Button>
-        </div>
-      </div>
-
-      {/* User Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-            <div className="text-sm text-gray-500">Total Users</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-            <div className="text-sm text-gray-500">Active</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-red-600">{stats.suspended}</div>
-            <div className="text-sm text-gray-500">Suspended</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-purple-600">{stats.admins}</div>
-            <div className="text-sm text-gray-500">Admins</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-blue-600">{stats.sellers}</div>
-            <div className="text-sm text-gray-500">Sellers</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-emerald-600">{stats.buyers}</div>
-            <div className="text-sm text-gray-500">Buyers</div>
-          </CardContent>
-        </Card>
+        <Button onClick={loadUsers} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+          <Users className="h-4 w-4 mr-2" />
+          {loading ? 'Loading...' : 'Refresh Users'}
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search users by name, email, or ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={filterRole} onValueChange={setFilterRole}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="buyer">Buyers</SelectItem>
-            <SelectItem value="seller">Sellers</SelectItem>
-            <SelectItem value="admin">Admins</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Users ({filteredUsers.length})
+          <CardTitle className="flex items-center">
+            <Filter className="h-5 w-5 mr-2" />
+            Filters
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
-              <p className="text-gray-500 mt-2">Loading users...</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Search Users</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by name or email..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
             </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No users found</h3>
-              <p className="text-gray-500">
-                {searchTerm || filterRole !== 'all' 
-                  ? 'Try adjusting your search or filter criteria'
-                  : 'No users have registered yet'
-                }
-              </p>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status</label>
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-default">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{user.full_name || 'Unnamed User'}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                        {user.phone && (
-                          <div className="text-xs text-gray-400">{user.phone}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getRoleBadge(user.roles)}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(user.status)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {user.created_at 
-                          ? new Date(user.created_at).toLocaleDateString()
-                          : 'Unknown'
-                        }
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-gray-500">
-                        {user.last_login_at 
-                          ? new Date(user.last_login_at).toLocaleDateString()
-                          : 'Never'
-                        }
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setShowUserDialog(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={user.status === 'suspended' ? 'default' : 'outline'}
-                          onClick={() => handleUserAction(user.id, user.status === 'suspended' ? 'activate' : 'suspend')}
-                          disabled={actionLoading}
-                        >
-                          {user.status === 'suspended' ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <Ban className="h-4 w-4 text-red-600" />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Role</label>
+              <Select value={filters.role} onValueChange={(value) => setFilters(prev => ({ ...prev, role: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All roles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-default">All Roles</SelectItem>
+                  <SelectItem value="buyer">Buyer</SelectItem>
+                  <SelectItem value="seller">Seller</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* User Details Dialog */}
-      <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>User Details</DialogTitle>
-            <DialogDescription>
-              View and manage user information
-            </DialogDescription>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Full Name</label>
-                  <p className="text-sm text-gray-900">{selectedUser.full_name || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Email</label>
-                  <p className="text-sm text-gray-900 flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    {selectedUser.email}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Phone</label>
-                  <p className="text-sm text-gray-900 flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    {selectedUser.phone || 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Status</label>
-                  <div className="mt-1">
-                    {getStatusBadge(selectedUser.status)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Roles</label>
-                  <div className="flex gap-1 mt-1">
-                    {selectedUser.roles?.map(role => (
-                      <Badge key={role} variant="secondary">{role}</Badge>
-                    )) || <Badge variant="secondary">user</Badge>}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Joined</label>
-                  <p className="text-sm text-gray-900 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {selectedUser.created_at 
-                      ? new Date(selectedUser.created_at).toLocaleDateString()
-                      : 'Unknown'
-                    }
-                  </p>
-                </div>
-              </div>
-              
-              {selectedUser.address && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Address</label>
-                  <p className="text-sm text-gray-900 p-3 bg-gray-50 rounded">
-                    {selectedUser.address.street && `${selectedUser.address.street}, `}
-                    {selectedUser.address.city && `${selectedUser.address.city}, `}
-                    {selectedUser.address.province && `${selectedUser.address.province} `}
-                    {selectedUser.address.postal_code}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Account Statistics</label>
-                <div className="grid grid-cols-3 gap-4 mt-2">
-                  <div className="text-center p-3 bg-blue-50 rounded">
-                    <div className="text-lg font-bold text-blue-600">
-                      {selectedUser.listing_count || 0}
-                    </div>
-                    <div className="text-xs text-blue-600">Listings</div>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded">
-                    <div className="text-lg font-bold text-green-600">
-                      {selectedUser.order_count || 0}
-                    </div>
-                    <div className="text-xs text-green-600">Orders</div>
-                  </div>
-                  <div className="text-center p-3 bg-purple-50 rounded">
-                    <div className="text-lg font-bold text-purple-600">
-                      {selectedUser.reputation_score || 0}
-                    </div>
-                    <div className="text-xs text-purple-600">Reputation</div>
-                  </div>
-                </div>
+      {/* Users List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Users ({users.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+                <p>Loading users...</p>
               </div>
             </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No users found matching your criteria</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {users.map(user => (
+                <div key={user.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="font-semibold">{user.full_name || user.email}</h3>
+                          <p className="text-sm text-gray-600">{user.email}</p>
+                        </div>
+                        {getStatusBadge(user.status)}
+                        <Badge variant="outline">{user.roles?.join(', ') || 'No roles'}</Badge>
+                      </div>
+                      <div className="mt-2 text-sm text-gray-600">
+                        <p>Joined: {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}</p>
+                        <p>Last active: {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setShowDetail(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {user.status !== 'suspended' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleUserAction(user.id, 'suspend')}
+                          disabled={actionLoading}
+                        >
+                          <UserX className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {user.status === 'suspended' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-600 hover:text-green-700"
+                          onClick={() => handleUserAction(user.id, 'activate')}
+                          disabled={actionLoading}
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUserDialog(false)}>
-              Close
-            </Button>
-            {selectedUser && (
-              <Button
-                variant={selectedUser.status === 'suspended' ? 'default' : 'destructive'}
-                onClick={() => handleUserAction(selectedUser.id, selectedUser.status === 'suspended' ? 'activate' : 'suspend')}
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                ) : selectedUser.status === 'suspended' ? (
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                ) : (
-                  <Ban className="h-4 w-4 mr-2" />
-                )}
-                {selectedUser.status === 'suspended' ? 'Activate User' : 'Suspend User'}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default AdminUsersQueue;

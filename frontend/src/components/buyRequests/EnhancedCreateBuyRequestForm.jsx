@@ -37,6 +37,9 @@ const EnhancedCreateBuyRequestForm = ({
   const [inspectionAllowed, setInspectionAllowed] = useState(true);
   const [additionalRequirements, setAdditionalRequirements] = useState('');
 
+  // Exotic livestock support
+  const [showExoticSpecies, setShowExoticSpecies] = useState(false);
+
   // UI states
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -67,28 +70,57 @@ const EnhancedCreateBuyRequestForm = ({
     setExpiresAt(defaultDate.toISOString().split('T')[0]);
   }, []);
 
-  // Fetch species on mount
+  // Fetch species on mount and when exotic toggle changes
   useEffect(() => {
     const fetchSpecies = async () => {
       try {
-        const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/species`);
+        // Use the correct include_exotics parameter
+        const params = new URLSearchParams();
+        params.append('include_exotics', showExoticSpecies.toString());
+        
+        const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/species?${params.toString()}`);
         const data = await res.json();
-        const opts = (data?.species || data || []).map(s => ({ 
-          value: s.code || s.id || s.name, 
-          label: s.name 
+        
+        // Handle the response - data is directly the array of species
+        const opts = (Array.isArray(data) ? data : []).map(s => ({ 
+          value: s.name,  // Always use species name as value for consistency with API
+          label: s.name,
+          speciesData: s  // Store full species data for reference
         }));
+        
         setSpeciesOpts(opts);
+        
+        // Reset species selection if it's no longer available
+        if (species && !opts.find(opt => opt.value === species)) {
+          setSpecies('');
+          setProductType('');
+          setBreed('');
+        }
       } catch (error) {
         console.error('Error fetching species:', error);
+        setSpeciesOpts([]);
       }
     };
     
     fetchSpecies();
-  }, []);
+  }, [showExoticSpecies, species]);  // Re-fetch when exotic toggle changes
+
+  // Simple debug useEffect to track state changes
+  useEffect(() => {
+    console.log('=== STATE DEBUG ===');
+    console.log('species:', species);
+    console.log('ptypeOpts length:', ptypeOpts.length);
+    console.log('ptypeOpts:', ptypeOpts);
+    console.log('productType:', productType);
+    console.log('===================');
+  }, [species, ptypeOpts, productType]);
 
   // Fetch product types when species changes
   useEffect(() => {
+    console.log('Product type useEffect - species:', species);
+    
     if (!species) { 
+      console.log('No species, clearing product types');
       setPtypeOpts([]); 
       setProductType(''); 
       return; 
@@ -96,24 +128,49 @@ const EnhancedCreateBuyRequestForm = ({
     
     const fetchProductTypes = async () => {
       try {
-        const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/product-types?species=${encodeURIComponent(species)}`);
+        console.log('Starting fetch for species:', species);
+        
+        // Try a direct API call first
+        const url = `/api/product-types?species=${encodeURIComponent(species)}`;
+        console.log('Fetching from URL:', url);
+        
+        const res = await fetch(url);
+        console.log('Response status:', res.status, res.statusText);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
         const data = await res.json();
-        const opts = (data?.product_types || data || []).map(p => ({ 
-          value: p.code || p.id || p.name, 
-          label: p.name 
-        }));
+        console.log('Raw API response:', data);
+        
+        if (!Array.isArray(data)) {
+          console.error('Expected array, got:', typeof data, data);
+          setPtypeOpts([]);
+          return;
+        }
+        
+        const opts = data.map((p, index) => {
+          console.log(`Processing product type ${index}:`, p);
+          return {
+            value: p.code || p.id, 
+            label: p.label || p.name || p.code
+          };
+        });
+        
+        console.log('Final processed options:', opts);
         setPtypeOpts(opts);
         
-        // Update units based on product type
-        if (data?.units_for_product_type) {
-          setUnitOpts(data.units_for_product_type.map(u => ({ value: u.value, label: u.label })));
-        }
       } catch (error) {
-        console.error('Error fetching product types:', error);
+        console.error('Fetch error details:', error);
+        setPtypeOpts([]);
       }
     };
     
-    fetchProductTypes();
+    // Add a small delay to ensure state is settled
+    const timeoutId = setTimeout(fetchProductTypes, 100);
+    return () => clearTimeout(timeoutId);
+    
   }, [species]);
 
   // Fetch breeds when species changes
@@ -348,6 +405,47 @@ const EnhancedCreateBuyRequestForm = ({
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4">
+            {/* Exotic Livestock Toggle */}
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-emerald-900 mb-1">Livestock Selection</h3>
+                    <p className="text-sm text-emerald-700">Choose the type of livestock you're looking for</p>
+                  </div>
+                  
+                  <label className="inline-flex items-center gap-3 cursor-pointer">
+                    <span className="text-sm text-gray-700">Include Exotic & Specialty</span>
+                    <input
+                      type="checkbox"
+                      checked={showExoticSpecies}
+                      onChange={(e) => setShowExoticSpecies(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 bg-gray-100 border-gray-300 rounded focus:ring-amber-500 focus:ring-2"
+                    />
+                    <span className="text-xs text-gray-500">(Ostrich, Game Animals, etc.)</span>
+                  </label>
+                </div>
+                
+                {showExoticSpecies && (
+                  <div className="mt-3 p-3 bg-amber-100 border border-amber-300 rounded-lg">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-amber-800">Exotic Livestock Notice</h4>
+                        <p className="text-sm text-amber-700 mt-1">
+                          Now including exotic species. Some may require special permits and compliance documentation.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Species, Product Type, Breed */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
