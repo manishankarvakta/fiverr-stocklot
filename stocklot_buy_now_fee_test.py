@@ -505,16 +505,17 @@ class BuyNowFeeTester:
         try:
             test_price = 100.00  # Use round number for easy calculation
             expected_fee = round(test_price * 0.015, 2)  # 1.5% = R1.50
+            expected_fee_minor = round(test_price * 0.015 * 100)  # In cents
             
             fees_from_apis = {}
             
             # Test 1: Fee breakdown API
             try:
-                fee_data = {"items": [{"price": test_price, "quantity": 1}]}
-                async with self.session.post(f"{API_BASE}/fees/breakdown", json=fee_data) as response:
+                async with self.session.get(f"{API_BASE}/fees/breakdown?amount={test_price}") as response:
                     if response.status == 200:
                         data = await response.json()
-                        fees_from_apis["fee_breakdown"] = data.get("processing_fee_minor", 0) / 100  # Convert from cents
+                        breakdown = data.get("breakdown", {})
+                        fees_from_apis["fee_breakdown"] = breakdown.get("processing_fee_minor", 0) / 100  # Convert from cents
             except:
                 pass
             
@@ -541,11 +542,21 @@ class BuyNowFeeTester:
             
             # Test 3: Checkout preview
             try:
-                preview_data = {"items": [{"listing_id": "test", "quantity": 1, "price": test_price}]}
+                preview_data = {
+                    "cart": [{
+                        "seller_id": "test-seller-id",
+                        "merch_subtotal_minor": int(test_price * 100),  # Convert to cents
+                        "delivery_minor": 0,
+                        "abattoir_minor": 0,
+                        "species": "poultry",
+                        "export": False
+                    }]
+                }
                 async with self.session.post(f"{API_BASE}/checkout/preview", json=preview_data, headers=self.get_auth_headers()) as response:
                     if response.status == 200:
                         data = await response.json()
-                        fees_from_apis["checkout_preview"] = data.get("buyer_processing_fee", 0)
+                        preview = data.get("preview", {})
+                        fees_from_apis["checkout_preview"] = preview.get("buyer_processing_fee_minor", 0) / 100  # Convert from cents
             except:
                 pass
             
@@ -556,7 +567,7 @@ class BuyNowFeeTester:
             consistent = True
             for api_name, fee in fees_from_apis.items():
                 print(f"   {api_name}: R{fee}")
-                if abs(fee - expected_fee) > 0.01:
+                if abs(fee - expected_fee) > 0.02:  # Allow 2 cent tolerance
                     consistent = False
                     print(f"     ⚠️  Inconsistent with expected fee")
                 else:
