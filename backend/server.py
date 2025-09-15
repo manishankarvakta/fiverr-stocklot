@@ -995,6 +995,112 @@ async def upload_profile_image(
     except Exception as e:
         logger.error(f"Error uploading profile image: {e}")
         raise HTTPException(status_code=500, detail="Failed to upload profile image")
+# PASSWORD RESET ENDPOINTS
+@api_router.post("/auth/password-reset")
+async def password_reset_request(request_data: dict):
+    """Request password reset"""
+    try:
+        email = request_data.get("email", "").strip().lower()
+        if not email:
+            raise HTTPException(status_code=400, detail="Email is required")
+        
+        # Check if user exists
+        user = await db.users.find_one({"email": email})
+        if not user:
+            # For security, return success even if user doesn't exist
+            return {
+                "success": True,
+                "message": "If an account exists with this email, a password reset link has been sent."
+            }
+        
+        # Generate reset token
+        reset_token = uuid.uuid4().hex
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+        
+        # Store reset token
+        reset_record = {
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "email": email,
+            "token": reset_token,
+            "expires_at": expires_at,
+            "used": False,
+            "created_at": datetime.now(timezone.utc)
+        }
+        
+        await db.password_resets.insert_one(reset_record)
+        
+        # In production, send email with reset link
+        reset_link = f"https://farmstock-hub-1.preview.emergentagent.com/reset-password?token={reset_token}"
+        logger.info(f"🔑 Password reset requested for {email}. Reset link: {reset_link}")
+        
+        return {
+            "success": True,
+            "message": "If an account exists with this email, a password reset link has been sent.",
+            "reset_token": reset_token if os.getenv("DEBUG", "false").lower() == "true" else None
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing password reset request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process password reset request")
+
+@api_router.post("/auth/password-reset/confirm")
+async def password_reset_confirm(reset_data: dict):
+    """Confirm password reset with token"""
+    try:
+        token = reset_data.get("token", "").strip()
+        new_password = reset_data.get("new_password", "").strip()
+        
+        if not token or not new_password:
+            raise HTTPException(status_code=400, detail="Token and new password are required")
+        
+        if len(new_password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+        
+        # Find valid reset token
+        reset_record = await db.password_resets.find_one({
+            "token": token,
+            "used": False,
+            "expires_at": {"$gt": datetime.now(timezone.utc)}
+        })
+        
+        if not reset_record:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        
+        # Update user password
+        hashed_password = hash_password(new_password)
+        await db.users.update_one(
+            {"id": reset_record["user_id"]},
+            {"$set": {
+                "password": hashed_password,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        # Mark token as used
+        await db.password_resets.update_one(
+            {"id": reset_record["id"]},
+            {"$set": {
+                "used": True,
+                "used_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        logger.info(f"🔑 Password reset completed for user {reset_record['user_id']}")
+        
+        return {
+            "success": True,
+            "message": "Password has been reset successfully. You can now log in with your new password."
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error confirming password reset: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reset password")
+
 # EMAIL SYSTEM ENDPOINTS
 @api_router.get("/email/preferences")
 async def get_email_preferences(current_user: User = Depends(get_current_user)):
