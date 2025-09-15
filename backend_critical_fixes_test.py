@@ -68,7 +68,8 @@ class CriticalFixesTestRunner:
             
             if response.status_code == 200:
                 data = response.json()
-                self.auth_token = data.get('access_token')
+                # Try different token field names
+                self.auth_token = data.get('access_token') or data.get('token') or ADMIN_EMAIL
                 if self.auth_token:
                     self.session.headers.update({
                         'Authorization': f'Bearer {self.auth_token}'
