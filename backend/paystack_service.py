@@ -33,13 +33,14 @@ class PaystackService:
         try:
             # Demo mode - simulate successful transaction initialization
             if self.demo_mode:
+                demo_url = f"https://demo-checkout.paystack.com/{order_id}"
                 return {
                     "success": True,
-                    "data": {
-                        "authorization_url": f"https://demo-checkout.paystack.com/{order_id}",
-                        "access_code": f"demo_access_{order_id[:8]}",
-                        "reference": f"demo_ref_{order_id[:8]}_{int(time.time())}"
-                    },
+                    "authorization_url": demo_url,
+                    "payment_url": demo_url,
+                    "redirect_url": demo_url,
+                    "access_code": f"demo_access_{order_id[:8]}",
+                    "reference": f"demo_ref_{order_id[:8]}_{int(time.time())}",
                     "message": "Demo transaction initialized"
                 }
             
@@ -96,11 +97,17 @@ class PaystackService:
                         }
                         await self.db.payment_transactions.insert_one(transaction_doc)
                         
+                        auth_url = result["data"]["authorization_url"]
+                        
+                        # Return in format expected by all endpoints
                         return {
-                            "ok": True,
+                            "success": True,
+                            "authorization_url": auth_url,
+                            "payment_url": auth_url,
+                            "redirect_url": auth_url,
+                            "access_code": result["data"]["access_code"],
                             "reference": payload["reference"],
-                            "authorization_url": result["data"]["authorization_url"],
-                            "access_code": result["data"]["access_code"]
+                            "ok": True  # Legacy format support
                         }
                     else:
                         logger.error(f"Paystack initialization failed: {result}")
