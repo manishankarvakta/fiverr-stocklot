@@ -141,11 +141,14 @@ class CriticalFixesTestRunner:
         
         # Test 1: Listing image upload endpoint
         try:
+            # Remove Content-Type header for multipart uploads
+            headers = {k: v for k, v in self.session.headers.items() if k.lower() != 'content-type'}
+            
             files = {'file': ('test_image.jpg', test_image_content, 'image/jpeg')}
             data = {'listing_id': 'test_listing_123'}
             
-            response = self.session.post(f"{API_BASE}/upload/listing-image", 
-                                       files=files, data=data)
+            response = requests.post(f"{API_BASE}/upload/listing-image", 
+                                   files=files, data=data, headers=headers)
             
             if response.status_code == 200:
                 result = response.json()
@@ -161,9 +164,13 @@ class CriticalFixesTestRunner:
         
         # Test 2: Profile image upload endpoint
         try:
+            # Remove Content-Type header for multipart uploads
+            headers = {k: v for k, v in self.session.headers.items() if k.lower() != 'content-type'}
+            
             files = {'file': ('test_profile.jpg', test_image_content, 'image/jpeg')}
             
-            response = self.session.post(f"{API_BASE}/upload/profile-image", files=files)
+            response = requests.post(f"{API_BASE}/upload/profile-image", 
+                                   files=files, headers=headers)
             
             if response.status_code == 200:
                 result = response.json()
