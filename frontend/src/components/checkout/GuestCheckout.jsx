@@ -14,7 +14,7 @@ import {
   Shield, AlertTriangle, CheckCircle, Loader2,
   Package, CreditCard
 } from 'lucide-react';
-import LocationPicker from '../location/LocationPicker';
+import LocationPicker from '../location/CheckoutLocationPicker';
 import { assessRisk, RISK_CATEGORIES, getRiskCategory } from '../../lib/risk/riskRules';
 import { CheckoutService, handleAPIError } from '../../services/api';
 import { useToast } from '../../hooks/use-toast';
