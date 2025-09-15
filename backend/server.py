@@ -883,7 +883,118 @@ async def get_learning_status():
         raise HTTPException(status_code=500, detail="Failed to get learning status")
 
 # PROFESSIONAL IMAGE UPLOAD
-@api_router.post("/upload/livestock-image")
+@api_router.post("/upload/listing-image")
+async def upload_listing_image(
+    file: UploadFile,
+    listing_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Upload listing image with proper validation"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Validate file size (max 10MB)
+        content = await file.read()
+        file_size = len(content)
+        
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            raise HTTPException(status_code=400, detail="File size must be less than 10MB")
+        
+        # Create uploads directory if it doesn't exist
+        upload_dir = Path("/app/uploads/listings")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        unique_filename = f"{listing_id or 'temp'}_{uuid.uuid4().hex[:8]}.{file_extension}"
+        file_path = upload_dir / unique_filename
+        
+        # Save file
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        # Generate relative URL for frontend
+        image_url = f"/uploads/listings/{unique_filename}"
+        
+        logger.info(f"✅ Listing image uploaded: {image_url}")
+        
+        return {
+            "success": True,
+            "image_url": image_url,
+            "filename": unique_filename,
+            "size_bytes": file_size,
+            "message": "Image uploaded successfully"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading listing image: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image")
+
+@api_router.post("/upload/profile-image")
+async def upload_profile_image(
+    file: UploadFile,
+    current_user: User = Depends(get_current_user)
+):
+    """Upload profile image"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Validate file size (max 5MB for profiles)
+        content = await file.read()
+        file_size = len(content)
+        
+        if file_size > 5 * 1024 * 1024:  # 5MB
+            raise HTTPException(status_code=400, detail="File size must be less than 5MB")
+        
+        # Create uploads directory if it doesn't exist
+        upload_dir = Path("/app/uploads/profiles")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        unique_filename = f"profile_{current_user.id}_{uuid.uuid4().hex[:8]}.{file_extension}"
+        file_path = upload_dir / unique_filename
+        
+        # Save file
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        # Generate relative URL for frontend
+        image_url = f"/uploads/profiles/{unique_filename}"
+        
+        # Update user profile with new image URL
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"profile_photo": image_url, "updated_at": datetime.now(timezone.utc)}}
+        )
+        
+        logger.info(f"✅ Profile image uploaded for user {current_user.id}: {image_url}")
+        
+        return {
+            "success": True,
+            "image_url": image_url,
+            "filename": unique_filename,
+            "size_bytes": file_size,
+            "message": "Profile image uploaded successfully"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading profile image: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload profile image")
 async def upload_livestock_image(
     file: UploadFile,
     listing_id: str,
