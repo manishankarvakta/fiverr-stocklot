@@ -249,8 +249,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add rate limiting middleware to the app
-app.middleware("http")(rate_limit_middleware)
+# Rate limiting middleware is applied per-endpoint, not globally
 
 # Create API router
 api_router = APIRouter(prefix="/api")
