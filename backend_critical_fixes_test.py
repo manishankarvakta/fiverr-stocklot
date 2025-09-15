@@ -408,7 +408,7 @@ class CriticalFixesTestRunner:
         print("🔄 Testing Fee Calculation System...")
         
         try:
-            response = self.session.get(f"{API_BASE}/fees/breakdown?items=[{{\"price\":100,\"quantity\":2}}]")
+            response = self.session.get(f"{API_BASE}/fees/breakdown?amount=200")
             
             if response.status_code == 200:
                 data = response.json()
