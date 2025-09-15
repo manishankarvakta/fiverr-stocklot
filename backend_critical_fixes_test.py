@@ -342,7 +342,7 @@ class CriticalFixesTestRunner:
         
         # Test 2: Categories endpoint
         try:
-            response = self.session.get(f"{API_BASE}/listings/categories")
+            response = self.session.get(f"{API_BASE}/taxonomy/categories")
             
             if response.status_code == 200:
                 data = response.json()
@@ -358,7 +358,7 @@ class CriticalFixesTestRunner:
         
         # Test 3: Species endpoint
         try:
-            response = self.session.get(f"{API_BASE}/listings/species")
+            response = self.session.get(f"{API_BASE}/species")
             
             if response.status_code == 200:
                 data = response.json()
