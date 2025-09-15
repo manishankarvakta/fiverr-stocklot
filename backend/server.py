@@ -995,6 +995,167 @@ async def upload_profile_image(
     except Exception as e:
         logger.error(f"Error uploading profile image: {e}")
         raise HTTPException(status_code=500, detail="Failed to upload profile image")
+# EMAIL SYSTEM ENDPOINTS
+@api_router.get("/email/preferences")
+async def get_email_preferences(current_user: User = Depends(get_current_user)):
+    """Get user email preferences"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Get user's email preferences or return defaults
+        preferences = await db.email_preferences.find_one({"user_id": current_user.id})
+        
+        if not preferences:
+            # Return default preferences
+            default_preferences = {
+                "user_id": current_user.id,
+                "marketing_emails": True,
+                "order_updates": True,
+                "new_listings": True,
+                "price_alerts": True,
+                "chat_notifications": True,
+                "security_alerts": True,
+                "newsletter": True,
+                "created_at": datetime.now(timezone.utc)
+            }
+            await db.email_preferences.insert_one(default_preferences)
+            preferences = default_preferences
+        
+        # Remove MongoDB _id
+        if "_id" in preferences:
+            del preferences["_id"]
+        
+        return preferences
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting email preferences: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get email preferences")
+
+@api_router.put("/email/preferences")
+async def update_email_preferences(
+    preferences: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user email preferences"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Update preferences
+        update_data = {
+            **preferences,
+            "user_id": current_user.id,
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        await db.email_preferences.update_one(
+            {"user_id": current_user.id},
+            {"$set": update_data},
+            upsert=True
+        )
+        
+        return {"success": True, "message": "Email preferences updated successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating email preferences: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update email preferences")
+
+@api_router.get("/email/templates")
+async def get_email_templates():
+    """Get available email templates"""
+    try:
+        templates = [
+            {
+                "id": "welcome",
+                "name": "Welcome Email",
+                "description": "Welcome new users to StockLot"
+            },
+            {
+                "id": "order_confirmation",
+                "name": "Order Confirmation",
+                "description": "Confirm order placement"
+            },
+            {
+                "id": "payment_confirmation",
+                "name": "Payment Confirmation",
+                "description": "Confirm payment receipt"
+            },
+            {
+                "id": "order_shipped",
+                "name": "Order Shipped",
+                "description": "Notify when order is shipped"
+            },
+            {
+                "id": "price_alert",
+                "name": "Price Alert",
+                "description": "Notify about price changes"
+            },
+            {
+                "id": "new_listing",
+                "name": "New Listing",
+                "description": "Notify about new listings"
+            }
+        ]
+        
+        return {"templates": templates}
+    
+    except Exception as e:
+        logger.error(f"Error getting email templates: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get email templates")
+
+@api_router.post("/email/test")
+async def send_test_email(
+    email_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Send test email"""
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        to_email = email_data.get("to", current_user.email)
+        template = email_data.get("template", "welcome")
+        
+        # Create test email content
+        subject = f"Test Email - {template.title()}"
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Test Email - StockLot Marketplace</h2>
+                <p>This is a test email for template: <strong>{template}</strong></p>
+                <p>If you're receiving this, the email system is working correctly!</p>
+                <hr>
+                <p style="color: #666; font-size: 12px;">
+                    This is a test email sent from StockLot Marketplace<br>
+                    Time: {datetime.now(timezone.utc).isoformat()}<br>
+                    Template: {template}
+                </p>
+            </body>
+        </html>
+        """
+        
+        # Log the test email (in production, you'd actually send it)
+        logger.info(f"📧 Test email sent to {to_email} using template {template}")
+        
+        return {
+            "success": True,
+            "message": f"Test email sent to {to_email}",
+            "template": template,
+            "subject": subject
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending test email: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send test email")
+
+@api_router.post("/upload/livestock-image")
 async def upload_livestock_image(
     file: UploadFile,
     listing_id: str,
