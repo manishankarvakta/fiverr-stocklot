@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockLot Debug Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .loading { background: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .info { background: #d1ecf1; border-color: #bee5eb; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 StockLot Debug & Diagnostics</h1>
+        
+        <div class="info">
+            <strong>Instructions:</strong> This page will test if your StockLot backend APIs are working. 
+            Access this page at: <code>https://stocklot.farm/debug.html</code>
+        </div>
+
+        <div class="test">
+            <h3>📍 Current Environment</h3>
+            <p><strong>Current URL:</strong> <span id="currentUrl"></span></p>
+            <p><strong>Expected Backend:</strong> <span id="backendUrl">https://stocklot.farm</span></p>
+            <p><strong>User Agent:</strong> <span id="userAgent"></span></p>
+        </div>
+
+        <div class="test" id="healthTest">
+            <h3>🏥 Backend Health Check</h3>
+            <button onclick="testHealth()">Test API Health</button>
+            <div id="healthResult"></div>
+        </div>
+
+        <div class="test" id="listingsTest">
+            <h3>📋 Listings API Test</h3>
+            <button onclick="testListings()">Test Listings API</button>
+            <div id="listingsResult"></div>
+        </div>
+
+        <div class="test" id="configTest">
+            <h3>⚙️ Platform Config Test</h3>
+            <button onclick="testConfig()">Test Platform Config</button>
+            <div id="configResult"></div>
+        </div>
+
+        <div class="test" id="corsTest">
+            <h3>🌐 CORS Test</h3>
+            <button onclick="testCors()">Test CORS Headers</button>
+            <div id="corsResult"></div>
+        </div>
+
+        <div class="test">
+            <h3>🔗 Quick Links</h3>
+            <button onclick="window.open('https://stocklot.farm/api/health', '_blank')">Open Health API</button>
+            <button onclick="window.open('https://stocklot.farm/api/listings', '_blank')">Open Listings API</button>
+            <button onclick="window.open('https://stocklot.farm/', '_blank')">Open Main Site</button>
+        </div>
+
+        <div class="test">
+            <h3>📊 Test Results Summary</h3>
+            <div id="summary">Click test buttons above to see results</div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize page info
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+
+        const baseUrl = 'https://stocklot.farm';
+        let testResults = {};
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.innerHTML = '<p class="loading">Testing health endpoint...</p>';
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Health Check PASSED</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    testResults.health = 'PASS';
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Health Check FAILED (${response.status})</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    testResults.health = 'FAIL';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Health Check ERROR</p>
+                    <pre>Error: ${error.message}</pre>
+                `;
+                testResults.health = 'ERROR';
+            }
+            updateSummary();
+        }
+
+        async function testListings() {
+            const resultDiv = document.getElementById('listingsResult');
+            resultDiv.innerHTML = '<p class="loading">Testing listings endpoint...</p>';
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/listings`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Listings API PASSED (${data.length} listings found)</p>
+                        <pre>${JSON.stringify(data.slice(0, 2), null, 2)}...</pre>
+                    `;
+                    testResults.listings = 'PASS';
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Listings API FAILED (${response.status})</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    testResults.listings = 'FAIL';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Listings API ERROR</p>
+                    <pre>Error: ${error.message}</pre>
+                `;
+                testResults.listings = 'ERROR';
+            }
+            updateSummary();
+        }
+
+        async function testConfig() {
+            const resultDiv = document.getElementById('configResult');
+            resultDiv.innerHTML = '<p class="loading">Testing platform config endpoint...</p>';
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/platform/config`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Platform Config PASSED</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    testResults.config = 'PASS';
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Platform Config FAILED (${response.status})</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    testResults.config = 'FAIL';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Platform Config ERROR</p>
+                    <pre>Error: ${error.message}</pre>
+                `;
+                testResults.config = 'ERROR';
+            }
+            updateSummary();
+        }
+
+        async function testCors() {
+            const resultDiv = document.getElementById('corsResult');
+            resultDiv.innerHTML = '<p class="loading">Testing CORS headers...</p>';
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/health`, {
+                    method: 'OPTIONS'
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+                
+                resultDiv.innerHTML = `
+                    <p class="success">✅ CORS Headers Retrieved</p>
+                    <pre>${JSON.stringify(corsHeaders, null, 2)}</pre>
+                `;
+                testResults.cors = 'PASS';
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ CORS Test ERROR</p>
+                    <pre>Error: ${error.message}</pre>
+                `;
+                testResults.cors = 'ERROR';
+            }
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const summary = document.getElementById('summary');
+            const totalTests = Object.keys(testResults).length;
+            const passedTests = Object.values(testResults).filter(result => result === 'PASS').length;
+            const failedTests = Object.values(testResults).filter(result => result === 'FAIL').length;
+            const errorTests = Object.values(testResults).filter(result => result === 'ERROR').length;
+            
+            let summaryHtml = `
+                <p><strong>Tests Run:</strong> ${totalTests}</p>
+                <p><strong>Passed:</strong> <span style="color: green;">${passedTests}</span></p>
+                <p><strong>Failed:</strong> <span style="color: red;">${failedTests}</span></p>
+                <p><strong>Errors:</strong> <span style="color: orange;">${errorTests}</span></p>
+            `;
+            
+            if (totalTests > 0) {
+                summaryHtml += '<h4>Recommendations:</h4><ul>';
+                
+                if (testResults.health === 'ERROR' || testResults.health === 'FAIL') {
+                    summaryHtml += '<li>❌ Backend server is not running or not accessible at https://stocklot.farm</li>';
+                }
+                
+                if (testResults.listings === 'ERROR' || testResults.listings === 'FAIL') {
+                    summaryHtml += '<li>❌ API routes not configured correctly - check server routing</li>';
+                }
+                
+                if (testResults.cors === 'ERROR') {
+                    summaryHtml += '<li>❌ CORS issues - check server CORS configuration</li>';
+                }
+                
+                if (passedTests === totalTests) {
+                    summaryHtml += '<li>✅ All tests passed! Your backend is working correctly.</li>';
+                    summaryHtml += '<li>🔍 If main site is still blank, check browser console for JavaScript errors</li>';
+                }
+                
+                summaryHtml += '</ul>';
+            }
+            
+            summary.innerHTML = summaryHtml;
+        }
+    </script>
+</body>
+</html>
