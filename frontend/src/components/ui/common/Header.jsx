@@ -18,7 +18,6 @@ function Header() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCart, setShowCart] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
-
   const user = auth.status === 'authenticated' ? auth.user : null;
 
 

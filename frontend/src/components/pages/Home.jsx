@@ -67,12 +67,12 @@ function Homepage() {
   };
 
   const handleCategoryClick = (category) => {
-    navigate('/marketplace');
+    navigate('/components/pages/marketplace');
   };
 
   const handleSearch = (searchTerm) => {
     if (searchTerm.trim()) {
-      navigate(`/marketplace?search=${encodeURIComponent(searchTerm)}`);
+      navigate(`/components/pages/marketplace?search=${encodeURIComponent(searchTerm)}`);
     }
   };
 
