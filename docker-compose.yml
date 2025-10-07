@@ -1,79 +1,55 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    expose:
-      - "3000"
-    depends_on:
-      - backend
-    networks:
-      - dokploy-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_DOMAIN}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certResolver=letsencrypt"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    expose:
-      - "8000"
+    container_name: backend
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DB_NAME=your_database_name
     depends_on:
-      - mongo
-      - minio
+      - redis
     networks:
       - dokploy-network
-    environment:
-      - MONGO_URL=mongodb://mongo:27017/${MONGO_DBNAME}
-      - MONGO_USER=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_PASS=${MONGO_INITDB_ROOT_PASSWORD}
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - MINIO_SECURE=false
-      - HOST=0.0.0.0
-      - PORT=8000
-      - CORS_ORIGINS=${CORS_ORIGINS}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.backend.rule=Host(`${BACKEND_DOMAIN}`)"
+      - "traefik.http.routers.backend.rule=Host(`apilifestock.aamardokan.online`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certResolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
-  mongo:
-    image: mongo:6.0
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
     networks:
       - dokploy-network
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - MONGO_INITDB_DATABASE=${MONGO_DBNAME}
-    volumes:
-      - mongo_data:/data/db
 
-  minio:
-    image: minio/minio
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=your_email@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./acme.json:/acme.json"
     networks:
       - dokploy-network
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    # Note: not exposing 9000 to host to avoid conflicts
-
-volumes:
-  mongo_data:
-  minio_data:
 
 networks:
   dokploy-network:
