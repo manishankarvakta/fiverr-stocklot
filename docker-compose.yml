@@ -5,7 +5,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    # don’t expose publicly, only via Traefik
+    # do not expose to host; only via Traefik / internal network
     expose:
       - "3000"
     depends_on:
@@ -43,7 +43,7 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${BACKEND_SUBDOMAIN}`)"
+      - "traefik.http.routers.backend.rule=Host(`${BACKEND_DOMAIN}`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certResolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
@@ -53,7 +53,6 @@ services:
     networks:
       - dokploy-network
     environment:
-      # only needed if you use auth
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
       - MONGO_INITDB_DATABASE=${MONGO_DBNAME}
@@ -68,10 +67,10 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
-    # If you don’t want to expose MinIO externally, you can remove “ports”
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    # Do not map 9000 to host unless needed externally, to avoid conflicts
+    # ports:
+    #   - "9000:9000"
+    #   - "9001:9001"
     volumes:
       - minio_data:/data
 
