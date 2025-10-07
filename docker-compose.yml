@@ -5,7 +5,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    # do not expose to host; only via Traefik / internal network
     expose:
       - "3000"
     depends_on:
@@ -67,12 +66,9 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
-    # Do not map 9000 to host unless needed externally, to avoid conflicts
-    # ports:
-    #   - "9000:9000"
-    #   - "9001:9001"
     volumes:
       - minio_data:/data
+    # Note: not exposing 9000 to host to avoid conflicts
 
 volumes:
   mongo_data:
