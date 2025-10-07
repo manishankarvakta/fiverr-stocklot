@@ -13,7 +13,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password123}
     restart: unless-stopped
     networks:
-      - dockploy-network
+      - ['dokploy-network']
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
@@ -34,7 +34,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - dockploy-network
+      - ['dokploy-network']
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -51,11 +51,11 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - dockploy-network
+      - ['dokploy-network']
 
 volumes:
   mongodb_data:
 
 networks:
-  dockploy-network:
+  ['dokploy-network']:
     driver: bridge
