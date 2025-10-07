@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">StockLot</string>
+    <string name="title_activity_main">StockLot</string>
+    <string name="package_name">com.stocklot.app</string>
+    <string name="custom_url_scheme">com.stocklot.app</string>
+</resources>

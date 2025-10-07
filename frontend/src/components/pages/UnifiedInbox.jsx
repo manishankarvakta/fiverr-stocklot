@@ -1,3 +1,4 @@
+const { useAuth } = require("@/auth/AuthProvider");
 const { default: InboxPage } = require("@/pages/InboxPage");
 
 function UnifiedInbox() {

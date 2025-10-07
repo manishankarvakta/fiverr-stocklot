@@ -1,4 +1,13 @@
 // Profile Settings Page
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/auth/AuthProvider';
+import {
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+  Button, Input, Label, Textarea,
+  Tabs, TabsContent, TabsList, TabsTrigger,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Avatar, AvatarFallback
+} from '@/components/ui';
 function ProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(user || {});

@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "../ui";
+import { Badge, MapPin, Plus } from "lucide-react";
+
 function AddressesPage() {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);

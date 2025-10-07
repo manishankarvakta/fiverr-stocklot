@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Listing Approved - Now Live!{% endblock %}
+
+{% block content %}
+<h2>🎉 Your listing is now LIVE!</h2>
+
+<p>Great news! Your livestock listing "<strong>{{listing_title}}</strong>" has been approved and is now visible to thousands of potential buyers across South Africa.</p>
+
+<div class="info-box success">
+    <p><strong>✅ APPROVED & ACTIVE</strong><br>
+    Your listing is now searchable and will appear in relevant buyer searches.</p>
+</div>
+
+<div class="livestock-card">
+    <h3>{{listing_title}}</h3>
+    <div class="spec-grid">
+        <div class="spec-item">
+            <span class="spec-label">Status:</span>
+            <span class="spec-value"><strong>LIVE & ACTIVE</strong></span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-label">Visibility:</span>
+            <span class="spec-value">Public</span>
+        </div>
+    </div>
+</div>
+
+<p><strong>What to expect:</strong></p>
+<ul>
+    <li>📱 Buyer inquiries and messages</li>
+    <li>🔍 Appearance in search results</li>
+    <li>💰 Direct purchase offers</li>
+    <li>📊 View analytics and visitor stats</li>
+</ul>
+
+<div class="info-box">
+    <p><strong>🚀 Maximize Your Success</strong><br>
+    • Respond to buyer messages quickly<br>
+    • Keep livestock specifications updated<br>
+    • Upload high-quality photos<br>
+    • Ensure health certificates are current</p>
+</div>
+
+<p style="text-align: center;">
+    <a href="{{listing_url}}" class="button">View Live Listing</a>
+    <a href="https://stocklot.farm/dashboard/listings" class="button button-secondary">Manage All Listings</a>
+</p>
+
+<p>Start connecting with serious buyers today!</p>
+
+<p>Best of luck,<br>
+<strong>The StockLot Team</strong></p>
+{% endblock %}
