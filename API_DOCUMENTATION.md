@@ -2,8 +2,6 @@
 
 ## Overview
 StockLot is a South African Livestock & Meat Marketplace with Escrow Payments. This document provides a comprehensive list of all API endpoints organized by functionality and user access levels.
-#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 as well as facebook and 
-#pcsk_5emnYA_AtFrs3Wb4Xc8hnzuYEGtKp3ER5YcsnqLSF4bUeT2CosQcAJG2CJXJ9kMKfnB4T9
 
 ## User Types & Roles
 
@@ -16,7 +14,6 @@ StockLot is a South African Livestock & Meat Marketplace with Escrow Payments. T
 1. **TRANSPORTER** - Users who provide transportation services
 2. **ABATTOIR** - Users who provide slaughterhouse services
 3. **EXPORTER** - Users who export products
-
 
 ### Admin Sub-Roles
 1. **SUPER_ADMIN** - Full platform control
