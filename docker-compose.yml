@@ -1,55 +1,53 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
+  mongodb:
+    image: mongo:7.0
+    container_name: stocklot-mongodb
     ports:
-      - "3001:80"
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+    restart: unless-stopped
     networks:
       - dokploy-network
-    depends_on:
-      - backend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`lifestock.aamardokan.online`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: backend
+    container_name: stocklot-backend
     ports:
-      - "8080:8000"
-    environment:
-      - MONGO_URI=mongodb://mongo:27017/mydatabase
-    networks:
-      - dokploy-network
-    depends_on:
-      - mongo
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`apilifestock.aamardokan.online`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=5000"
-
-  mongo:
-    image: mongo:6-jammy
-    container_name: mongo
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password
+      - "8000:8000"
     volumes:
-      - mongo_data:/data/db
+      - ./backend:/app
+      - /app/venv  # Prevent venv from being mounted
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017
+    depends_on:
+      - mongodb
+    restart: unless-stopped
     networks:
       - dokploy-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: stocklot-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+      - dokploy-network
+
+volumes:
+  mongodb_data:
 
 networks:
   dokploy-network:
     external: true
 
-volumes:
-  mongo_data:
-    driver: local
