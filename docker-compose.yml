@@ -1,56 +1,74 @@
 version: '3.8'
 
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "80:80"
+    networks:
+      - dokploy-network
+    depends_on:
+      - backend
+
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: backend
     ports:
       - "8000:8000"
     environment:
+      - MONGO_URL=mongodb://mongo:27017/mydatabase
       - REDIS_URL=redis://redis:6379
-      - DB_NAME=your_database_name
-    depends_on:
-      - redis
+      - MINIO_URL=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
     networks:
       - dokploy-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.backend.rule=Host(`apilifestock.aamardokan.online`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certResolver=letsencrypt"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    depends_on:
+      - mongo
+      - redis
+      - minio
+
+  mongo:
+    image: mongo:6-jammy
+    container_name: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - dokploy-network
 
   redis:
     image: redis:alpine
     container_name: redis
-    ports:
-      - "6379:6379"
     networks:
       - dokploy-network
 
-  traefik:
-    image: traefik:v2.10
-    container_name: traefik
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.email=your_email@example.com"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
     ports:
-      - "80:80"
-      - "443:443"
+      - "9000:9000"
+      - "9001:9001"
     volumes:
-      - "./acme.json:/acme.json"
+      - minio_data:/data
     networks:
       - dokploy-network
 
 networks:
   dokploy-network:
     external: true
+
+volumes:
+  mongo_data:
+  minio_data:
