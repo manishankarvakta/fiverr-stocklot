@@ -9,11 +9,16 @@ services:
     volumes:
       - mongodb_data:/data/db
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password123
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password123}
     restart: unless-stopped
     networks:
-      - stocklot-network
+      - dockploy-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -21,17 +26,20 @@ services:
     container_name: stocklot-backend
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - /app/venv  # Prevent venv from being mounted
     environment:
       - PYTHONUNBUFFERED=1
-      - MONGODB_URL=mongodb://admin:password123@mongodb:27017
+      - MONGODB_URL=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password123}@mongodb:27017
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
     networks:
-      - stocklot-network
+      - dockploy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:
@@ -43,11 +51,11 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - stocklot-network
+      - dockploy-network
 
 volumes:
   mongodb_data:
 
 networks:
-  stocklot-network:
+  dockploy-network:
     driver: bridge
