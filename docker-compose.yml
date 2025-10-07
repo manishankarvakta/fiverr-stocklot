@@ -42,6 +42,7 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS}
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
       - "traefik.http.routers.backend.rule=Host(`${BACKEND_DOMAIN}`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certResolver=letsencrypt"
