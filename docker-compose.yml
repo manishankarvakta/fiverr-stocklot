@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   frontend:
     build:
@@ -5,11 +7,15 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "80:80"
+      - "4000:80"
     networks:
       - dokploy-network
     depends_on:
       - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`lifestock.aamardokan.online`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
   backend:
     build:
@@ -17,19 +23,17 @@ services:
       dockerfile: Dockerfile
     container_name: backend
     ports:
-      - "8000:8000"
+      - "5000:5000"
     environment:
-      - MONGO_URL=mongodb://mongo:27017/mydatabase
-      - REDIS_URL=redis://redis:6379
-      - MINIO_URL=http://minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MONGO_URI=mongodb://mongo:27017/mydatabase
     networks:
       - dokploy-network
     depends_on:
       - mongo
-      - redis
-      - minio
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`apilifestock.aamardokan.online`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=5000"
 
   mongo:
     image: mongo:6-jammy
@@ -42,31 +46,10 @@ services:
     networks:
       - dokploy-network
 
-  redis:
-    image: redis:alpine
-    container_name: redis
-    networks:
-      - dokploy-network
-
-  minio:
-    image: quay.io/minio/minio
-    container_name: minio
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    command: server /data --console-address ":9001"
-    ports:
-      - "9001:9000"  # Change the host port to 9001
-      - "9002:9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - dokploy-network
-
 networks:
   dokploy-network:
     external: true
 
 volumes:
   mongo_data:
-  minio_data:
+    driver: local
