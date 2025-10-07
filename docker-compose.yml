@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: stocklot-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+    restart: unless-stopped
+    networks:
+      - stocklot-network
+
+  backend:
+    build:
+      context: ./backend
+    container_name: stocklot-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/venv  # Prevent venv from being mounted
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    networks:
+      - stocklot-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: stocklot-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - stocklot-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  stocklot-network:
+    driver: bridge
