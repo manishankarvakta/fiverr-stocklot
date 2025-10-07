@@ -5,15 +5,14 @@ services:
     image: mongo:7.0
     container_name: stocklot-mongodb
     ports:
-      - "27025:27017"  # Changed host port to 27025
+      - "27017:27017"  # Changed host port to 27025
     volumes:
       - mongodb_data:/data/db
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password123
-    restart: unless-stopped
-    networks:
-      - dokploy-network
+    restart: always
+    
 
   backend:
     build:
@@ -29,21 +28,19 @@ services:
       - MONGODB_URL=mongodb://admin:password123@mongodb:27025  # Updated port
     depends_on:
       - mongodb
-    restart: unless-stopped
-    networks:
-      - dokploy-network
+    restart: always
+    
 
   frontend:
     build:
       context: ./frontend
     container_name: stocklot-frontend
     ports:
-      - "3030:80"
+      - "3000:80"
     depends_on:
       - backend
-    restart: unless-stopped
-    networks:
-      - dokploy-network
+    restart: always
+    
 
 volumes:
   mongodb_data:
