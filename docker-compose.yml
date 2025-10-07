@@ -5,7 +5,7 @@ services:
     image: mongo:7.0
     container_name: stocklot-mongodb
     ports:
-      - "27018:27017"  # Changed host port to 27018
+      - "27025:27017"  # Changed host port to 27025
     volumes:
       - mongodb_data:/data/db
     environment:
@@ -26,7 +26,7 @@ services:
       - /app/venv  # Prevent venv from being mounted
     environment:
       - PYTHONUNBUFFERED=1
-      - MONGODB_URL=mongodb://admin:password123@mongodb:27018  # Updated port
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27025  # Updated port
     depends_on:
       - mongodb
     restart: unless-stopped
