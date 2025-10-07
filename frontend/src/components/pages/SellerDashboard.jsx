@@ -1,3 +1,5 @@
+import { useAuth } from "@/auth/AuthProvider";
+
 function SellerDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');

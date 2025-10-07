@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to StockLot - Verify Your Email{% endblock %}
+
+{% block content %}
+<h2>Welcome to StockLot, {{first_name}}! 🎉</h2>
+
+<p>We're excited to have you join South Africa's premier livestock marketplace! You're now part of a community connecting farmers, buyers, and exporters across the country.</p>
+
+<div class="info-box success">
+    <p><strong>🚀 What's Next?</strong><br>
+    Please verify your email address to activate your account and start exploring thousands of livestock listings.</p>
+</div>
+
+<p style="text-align: center;">
+    <a href="{{verify_url}}" class="button">Verify My Email Address</a>
+</p>
+
+<p><strong>What you can do with StockLot:</strong></p>
+<ul>
+    <li>🐄 Browse premium livestock from verified sellers</li>
+    <li>💰 Secure transactions with escrow protection</li>
+    <li>📱 Real-time messaging with buyers and sellers</li>
+    <li>🚚 Integrated logistics and delivery solutions</li>
+    <li>📊 Advanced search with livestock specifications</li>
+</ul>
+
+<div class="info-box">
+    <p><strong>Need Help?</strong><br>
+    If you have any questions, our support team is here to help at <a href="mailto:hello@stocklot.farm">hello@stocklot.farm</a></p>
+</div>
+
+<p>Welcome to the future of livestock trading!</p>
+
+<p>Best regards,<br>
+<strong>The StockLot Team</strong></p>
+{% endblock %}

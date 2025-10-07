@@ -1,3 +1,4 @@
+import { useAuth } from "@/auth/AuthProvider";
 import PaymentMethodsForm from "../PaymentMethodsForm";
 
 function PaymentMethodsPage() {

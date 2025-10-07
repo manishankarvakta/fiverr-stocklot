@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Listing Needs Attention - Action Required{% endblock %}
+
+{% block content %}
+<h2>Listing Review Update ⚠️</h2>
+
+<p>We've reviewed your listing "<strong>{{listing_title}}</strong>" and need you to make some adjustments before we can approve it.</p>
+
+<div class="info-box warning">
+    <p><strong>📋 Review Feedback</strong><br>
+    {{reason}}</p>
+</div>
+
+<div class="livestock-card">
+    <h3>{{listing_title}}</h3>
+    <div class="spec-grid">
+        <div class="spec-item">
+            <span class="spec-label">Status:</span>
+            <span class="spec-value">Needs Attention</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-label">Action Required:</span>
+            <span class="spec-value">Edit & Resubmit</span>
+        </div>
+    </div>
+</div>
+
+<p><strong>Common issues we help sellers fix:</strong></p>
+<ul>
+    <li>📸 Photo quality or missing images</li>
+    <li>📋 Incomplete livestock specifications</li>
+    <li>🏥 Health certificate requirements</li>
+    <li>💰 Pricing or quantity clarifications</li>
+    <li>📍 Location or delivery information</li>
+</ul>
+
+<div class="info-box">
+    <p><strong>💡 Quick Fix Tips</strong><br>
+    • Ensure all required fields are completed<br>
+    • Upload clear, high-resolution photos<br>
+    • Double-check health certificate dates<br>
+    • Verify contact information is accurate</p>
+</div>
+
+<p style="text-align: center;">
+    <a href="{{edit_url}}" class="button">Edit & Resubmit Listing</a>
+</p>
+
+<p>Once you've made the necessary changes, resubmit your listing for another review. We're here to help you succeed!</p>
+
+<p>Need help? Contact our support team at <a href="mailto:hello@stocklot.farm">hello@stocklot.farm</a></p>
+
+<p>Supporting your success,<br>
+<strong>The StockLot Team</strong></p>
+{% endblock %}

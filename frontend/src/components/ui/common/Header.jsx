@@ -1,12 +1,15 @@
 import { useAuth } from "@/auth/AuthProvider";
 // import { Link, Menu, x, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Button, Input } from "..";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Button, Input, Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Avatar, AvatarFallback } from "..";
 // import { Button, Input } from "../ui";
 import LocationPicker from "@/components/location/LocationPicker";
 import ShoppingCartModal from "@/components/cart/ShoppingCart";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, Search, X, ShoppingCart, MessageCircle, ChevronDown, CreditCard, DollarSign, MapPin, LayoutDashboard, Users, Shield, LogOut, User, Plus, Building, Package } from "lucide-react";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import ContextSwitcher from "@/components/seller/ContextSwitcher";
+import api from "@/api/client";
 // import { Menu } from "@radix-ui/react-menubar";
 
 // Header component
@@ -38,8 +41,8 @@ function Header() {
     }
   };
 
-  // const isAdmin = user && (user.roles || []).includes('admin');
   const isSeller = user && (user.roles || []).includes('seller');
+  const isAdmin = user && (user.roles || []).includes('admin');
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && searchTerm.trim()) {
@@ -162,19 +165,19 @@ function Header() {
                     <DropdownMenuSeparator />
                     
                     {/* Profile & Settings */}
-                    <DropdownMenuItem onClick={() => Navigate('/profile')}>
+                    <DropdownMenuItem onClick={() => navigate('/profile')}>
                       <User className="mr-2 h-4 w-4" />
                       Profile & Settings
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => Navigate('/payment-methods')}>
+                    <DropdownMenuItem onClick={() => navigate('/payment-methods')}>
                       <CreditCard className="mr-2 h-4 w-4" />
                       Payment Methods
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => Navigate('/account/credit-wallet')}>
+                    <DropdownMenuItem onClick={() => navigate('/account/credit-wallet')}>
                       <DollarSign className="mr-2 h-4 w-4" />
                       Credit Wallet
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => Navigate('/addresses')}>
+                    <DropdownMenuItem onClick={() => navigate('/addresses')}>
                       <MapPin className="mr-2 h-4 w-4" />
                       Addresses
                     </DropdownMenuItem>
@@ -182,11 +185,11 @@ function Header() {
                     <DropdownMenuSeparator />
                     
                     {/* Main Functions */}
-                    <DropdownMenuItem onClick={() => Navigate('/dashboard')}>
+                    <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                       <LayoutDashboard className="mr-2 h-4 w-4" />
                       Dashboard
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => Navigate('/inbox')}>
+                    <DropdownMenuItem onClick={() => navigate('/inbox')}>
                       <MessageCircle className="mr-2 h-4 w-4" />
                       Messages
                     </DropdownMenuItem>

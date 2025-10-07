@@ -1,0 +1,2 @@
+sk-proj-YOUR_ACTUAL_OPENAI_KEY_HERE==>sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+sk_test_YOUR_ACTUAL_STRIPE_KEY_HERE==>sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
