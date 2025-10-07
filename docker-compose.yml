@@ -5,42 +5,45 @@ services:
     image: mongo:7.0
     container_name: stocklot-mongodb
     ports:
-      - "27017:27017"  # Changed host port to 27025
+      - "27017"  # Let Docker assign a random host port
     volumes:
       - mongodb_data:/data/db
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password123
     restart: always
-    
+    networks:
+      - dokploy-network
 
   backend:
     build:
       context: ./backend
     container_name: stocklot-backend
     ports:
-      - "8000:8000"
+      - "8000"  # Let Docker assign a random host port
     volumes:
       - ./backend:/app
       - /app/venv  # Prevent venv from being mounted
     environment:
       - PYTHONUNBUFFERED=1
-      - MONGODB_URL=mongodb://admin:password123@mongodb:27025  # Updated port
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017
     depends_on:
       - mongodb
     restart: always
-    
+    networks:
+      - dokploy-network
 
   frontend:
     build:
       context: ./frontend
     container_name: stocklot-frontend
     ports:
-      - "3000:80"
+      - "80"  # Let Docker assign a random host port
     depends_on:
       - backend
     restart: always
-    
+    networks:
+      - dokploy-network
 
 volumes:
   mongodb_data:
