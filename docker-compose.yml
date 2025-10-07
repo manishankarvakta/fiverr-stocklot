@@ -11,7 +11,7 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password123
-    restart: unless-stopped
+    restart: always
     networks:
       - dokploy-network
 
@@ -29,7 +29,7 @@ services:
       - MONGODB_URL=mongodb://admin:password123@mongodb:27017
     depends_on:
       - mongodb
-    restart: unless-stopped
+    restart: always
     networks:
       - dokploy-network
 
@@ -41,7 +41,7 @@ services:
       - "3000:80"
     depends_on:
       - backend
-    restart: unless-stopped
+    restart: always
       - dokploy-network
 
 volumes:
