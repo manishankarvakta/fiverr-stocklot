@@ -3,6 +3,7 @@
 ## Overview
 StockLot is a South African Livestock & Meat Marketplace with Escrow Payments. This document provides a comprehensive list of all API endpoints organized by functionality and user access levels.
 
+
 ## User Types & Roles
 
 ### Primary User Roles
