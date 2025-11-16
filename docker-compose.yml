@@ -47,13 +47,16 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+      start_period: 10s
 
   # MinIO Client (for bucket initialization)
   minio-setup:
     image: minio/mc:latest
     container_name: stocklot-minio-setup
+    restart: "no"  # One-time setup, don't restart
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       sleep 10;
@@ -115,7 +118,8 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     volumes:
-      - ./backend:/app
+      # Only mount code in development - comment out for production
+      # - ./backend:/app
       - backend_uploads:/app/uploads
     depends_on:
       mongodb:
@@ -143,7 +147,8 @@ services:
     ports:
       - "3001:80"  # Changed to 3001 to avoid conflict with other services
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - stocklot-network
     healthcheck:
@@ -166,4 +171,6 @@ volumes:
 networks:
   stocklot-network:
     driver: bridge
+    # Internal network - services communicate via service names
+    internal: false  # Set to true if you want complete isolation (no internet access)
 

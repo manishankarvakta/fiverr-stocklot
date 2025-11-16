@@ -26,5 +26,7 @@ RUN mkdir -p /app/uploads/profiles /app/uploads/farms /app/uploads/kyc /app/uplo
 EXPOSE 8000
 
 # Run the application
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Use --reload only in development (set via environment variable)
+# For production, use workers for better performance
+CMD ["sh", "-c", "if [ \"$ENVIRONMENT\" = \"development\" ]; then uvicorn server:app --host 0.0.0.0 --port 8000 --reload; else uvicorn server:app --host 0.0.0.0 --port 8000 --workers 4; fi"]
 
