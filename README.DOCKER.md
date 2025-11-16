@@ -69,9 +69,9 @@ The Docker Compose setup includes the following services:
 - API docs at: http://localhost:8000/docs
 - Health check: http://localhost:8000/api/health
 
-### 4. Frontend (Port 3000)
+### 4. Frontend (Port 3001)
 - React application served by Nginx
-- Accessible at: http://localhost:3000
+- Accessible at: http://localhost:3001
 
 ## Environment Variables
 
