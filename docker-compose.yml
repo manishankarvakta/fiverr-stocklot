@@ -4,8 +4,10 @@ services:
     image: mongo:7.0
     container_name: stocklot-mongodb
     restart: unless-stopped
-    ports:
-      - "27025:27017"  # Changed to 27025 to avoid conflict with other MongoDB instances
+    # No external ports - only accessible internally via Docker network
+    # Services connect using: mongodb:27017
+    expose:
+      - "27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
@@ -27,9 +29,11 @@ services:
     image: minio/minio:latest
     container_name: stocklot-minio
     restart: unless-stopped
-    ports:
-      - "9000:9000"  # API port
-      - "9001:9001"  # Console port
+    # No external ports - only accessible internally via Docker network
+    # Services connect using: minio:9000
+    expose:
+      - "9000"  # API port (internal only)
+      - "9001"  # Console port (internal only)
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
