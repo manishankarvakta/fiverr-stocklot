@@ -47,7 +47,7 @@ This document explains how to run the StockLot application using Docker Compose.
 
 The Docker Compose setup includes the following services:
 
-### 1. MongoDB (Port 27017)
+### 1. MongoDB (Port 27018)
 - Database for the application
 - Default credentials: `admin` / `adminpassword` (change in `.env`)
 - Data persisted in `mongodb_data` volume
@@ -129,7 +129,7 @@ docker-compose exec minio mc alias set myminio http://localhost:9000 minioadmin 
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
 - **MinIO Console**: http://localhost:9001
-- **MongoDB**: localhost:27017
+- **MongoDB**: localhost:27018
 
 ## Troubleshooting
 
@@ -138,7 +138,7 @@ docker-compose exec minio mc alias set myminio http://localhost:9000 minioadmin 
    ```bash
    lsof -i :3000
    lsof -i :8000
-   lsof -i :27017
+   lsof -i :27018
    lsof -i :9000
    ```
 
