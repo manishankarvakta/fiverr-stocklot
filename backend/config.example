@@ -1,0 +1,27 @@
+# MongoDB Configuration
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=stocklot
+
+# OpenAI API Key (optional - for AI features)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Paystack Payment Configuration
+PAYSTACK_SECRET_KEY=your_paystack_secret_key_here
+PAYSTACK_PUBLIC_KEY=your_paystack_public_key_here
+PAYSTACK_WEBHOOK_SECRET=your_paystack_webhook_secret_here
+PAYSTACK_DEMO_MODE=true
+
+# Environment
+ENVIRONMENT=development
+DEBUG=true
+
+# Mailgun Configuration (optional - for email features)
+MAILGUN_API_KEY=your_mailgun_api_key_here
+MAILGUN_DOMAIN=your_mailgun_domain_here
+
+# JWT Secret
+JWT_SECRET_KEY=your_jwt_secret_key_here
+
+# Mapbox API Key (optional - for mapping features)
+MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
+

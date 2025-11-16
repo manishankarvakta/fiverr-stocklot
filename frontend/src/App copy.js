@@ -131,7 +131,6 @@ import ListingPDP from './components/pdp/ListingPDP';
 import SellerProfile from './components/seller/SellerProfile';
 
 import "./App.css";
-import { useGetAllUsersQuery } from "./store/api/admin.api";
 
 // Simple inline cart component for testing
 function InlineCartPage() {
@@ -151,9 +150,6 @@ const API = `${BACKEND_URL}/api`;
 // API helper with auth token (keeping for backward compatibility)
 const apiCall = async (method, url, data = null) => {
   const token = localStorage.getItem('token');
-
-
-
   
   try {
     const config = {
@@ -5221,8 +5217,6 @@ function HowItWorks() {
 }
 
 function AboutUs() {
-  const users = useGetAllUsersQuery();
-  console.log(users);
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
       <div className="container mx-auto px-4 py-16">

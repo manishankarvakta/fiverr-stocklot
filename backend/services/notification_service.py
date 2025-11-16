@@ -26,21 +26,27 @@ class NotificationService:
         self.counters: Collection = db.notif_counters
         self.admin_settings: Collection = db.admin_settings_notifications
         self.templates: Collection = db.notification_templates
-        
-        # Create indexes
-        asyncio.create_task(self.create_indexes())
+        self._indexes_created = False
     
     async def create_indexes(self):
         """Create necessary database indexes"""
+        if self._indexes_created:
+            return
         try:
             await self.outbox.create_index([("status", 1), ("scheduled_at", 1)])
             await self.outbox.create_index([("dedupe_key", 1)])
             await self.counters.create_index([("user_id", 1), ("yyyymmdd", 1)], unique=True)
             await self.notification_prefs.create_index([("user_id", 1)], unique=True)
             await self.templates.create_index([("key", 1)], unique=True)
+            self._indexes_created = True
             logger.info("Notification service indexes created")
         except Exception as e:
             logger.error(f"Error creating notification indexes: {e}")
+    
+    async def ensure_indexes(self):
+        """Ensure indexes are created before operations"""
+        if not self._indexes_created:
+            await self.create_indexes()
     
     async def get_admin_settings(self) -> AdminNotificationSettings:
         """Get admin notification settings"""

@@ -249,6 +249,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.on_event("startup")
+async def startup_event():
+    global notification_service, notification_worker
+    # Initialize comprehensive notification system
+    notification_service = NotificationService(db)
+    notification_worker = NotificationWorker(db, EmailService(), None)  # SSE service will be added later
+    initialize_notification_events(notification_service)
+    
+    # Set notification services for API routes
+    set_notification_services(notification_service, notification_worker)
+    set_notification_service(notification_service)
+
 # Rate limiting middleware is applied per-endpoint, not globally
 
 # Create API router
