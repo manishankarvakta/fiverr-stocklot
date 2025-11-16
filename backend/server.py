@@ -269,16 +269,26 @@ api_router = APIRouter(prefix="/api")
 # Security
 security = HTTPBearer(auto_error=False)
 
-# CORS middleware
+# CORS middleware - Allow origins from environment or default list
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
+# Add default origins if not in environment
+default_origins = [
+    "http://localhost:3000",
+    "https://stocklot.farm",
+    "https://www.stocklot.farm"
+]
+# Combine and filter empty strings
+cors_origins = [origin.strip() for origin in allowed_origins + default_origins if origin.strip()]
+
+# If ALLOWED_ORIGINS is set to "*", allow all origins
+if os.getenv("ALLOWED_ORIGINS") == "*":
+    cors_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://stocklot.farm",
-        "https://www.stocklot.farm"
-    ],
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_origins=cors_origins if cors_origins != ["*"] else ["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
 
