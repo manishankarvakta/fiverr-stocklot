@@ -5,7 +5,7 @@ services:
     container_name: stocklot-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "27018:27017"  # Changed to 27018 to avoid conflict with local MongoDB
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
