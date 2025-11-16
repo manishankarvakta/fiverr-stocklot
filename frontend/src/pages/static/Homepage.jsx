@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
-import { Button, Card, CardContent } from "../ui";
+import { Button, Card, CardContent } from "@/components/ui";
 import { Shield, CheckCircle, Search, MapPin, User, Star } from "lucide-react";
 
 // API helper with auth token (keeping for backward compatibility)

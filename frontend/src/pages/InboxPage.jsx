@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ThreadList } from '../components/inbox/ThreadList';
 import { MessagePane } from '../components/inbox/MessagePane';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Button } from '@/components/ui';
+import { Badge } from '@/components/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import useSWR from 'swr';
 import { useSearchParams } from 'react-router-dom';
 

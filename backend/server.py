@@ -16524,7 +16524,11 @@ from models_fees import (
 from services.fee_service import FeeService
 
 # Initialize services
-review_service = ReviewService(db)
+try:
+    review_service = ReviewService(db)
+except Exception as e:
+    logger.warning(f"Review service not available: {e}")
+    review_service = None
 fee_service = FeeService(db)
 
 @api_router.post("/reviews")

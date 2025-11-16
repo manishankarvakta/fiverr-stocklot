@@ -28,7 +28,7 @@ import Blog from './pages/static/Blog';
 import Contact from './pages/static/Contact';
 import Dashboard from './pages/dashboard/Dashboard';
 import SellerDashboard from './pages/dashboard/SellerDashboard';
-import AdminDashboard from './pages/dashboard/AdminDashboard';
+import AdminDashboardPage from './pages/dashboard/AdminDashboard';
 import Marketplace from './pages/marketplace/Marketplace';
 import CreateListing from './pages/marketplace/CreateListing';
 import ExoticsPage from './pages/marketplace/ExoticsPage';
@@ -40,7 +40,7 @@ import SellerOrders from './pages/orders/SellerOrders';
 import BuyRequestsPage from './pages/buy-requests/BuyRequestsPage';
 import CreateBuyRequestPage from './pages/buy-requests/CreateBuyRequestPage';
 import BuyerOffersInbox from './pages/buy-requests/BuyerOffersInbox';
-import UnifiedInbox from './pages/buy-requests/UnifiedInbox';
+import UnifiedInbox from './pages/UnifiedInbox';
 import InlineCartPage from './pages/utility/InlineCartPage';
 
 // Existing imported components
@@ -205,7 +205,7 @@ function App() {
                 
                 {/* Admin-only routes */}
                 <Route element={<ProtectedRoute roles={['admin']} />}>
-                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin" element={<AdminDashboardPage />} />
                   <Route path="/admin/blog/create" element={<BlogEditor />} />
                   <Route path="/admin/blog/edit/:id" element={<BlogEditor />} />
                   <Route path="/create-blog" element={<BlogEditor />} />

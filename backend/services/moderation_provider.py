@@ -233,9 +233,13 @@ class ModerationProviderFactory:
 # Singleton instance
 _moderation_provider: Optional[ModerationProvider] = None
 
-def get_moderation_provider() -> ModerationProvider:
+def get_moderation_provider() -> Optional[ModerationProvider]:
     """Get singleton moderation provider instance"""
     global _moderation_provider
     if _moderation_provider is None:
-        _moderation_provider = ModerationProviderFactory.create()
+        try:
+            _moderation_provider = ModerationProviderFactory.create()
+        except RuntimeError as e:
+            logger.warning(f"Moderation provider not available: {e}")
+            return None
     return _moderation_provider

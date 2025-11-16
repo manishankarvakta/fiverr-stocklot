@@ -2,9 +2,9 @@
 // Dedicated page for testing all review components
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { Badge } from '@/components/ui';
 
 // Import all review components
 import RatingBadge from '../components/reviews/RatingBadge';

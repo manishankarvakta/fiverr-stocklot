@@ -23,7 +23,11 @@ class ReviewService:
     
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
-        self.moderation_provider = get_moderation_provider()
+        try:
+            self.moderation_provider = get_moderation_provider()
+        except Exception as e:
+            logger.warning(f"Moderation provider not available, reviews will work without moderation: {e}")
+            self.moderation_provider = None
         
         # Configuration
         self.review_window_days = 90
@@ -299,7 +303,15 @@ class ReviewService:
             if not text_content.strip():
                 return ModerationResult(toxicity_score=0.0, flagged=False)
             
-            return await self.moderation_provider.moderate(text_content)
+            if self.moderation_provider:
+                return await self.moderation_provider.moderate(text_content)
+            else:
+                # No moderation provider available, return safe default
+                return ModerationResult(
+                    toxicity_score=0.0,
+                    flagged=False,
+                    categories={}
+                )
             
         except Exception as e:
             logger.error(f"Error moderating review content: {e}")
