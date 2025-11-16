@@ -2,6 +2,16 @@
 
 This guide explains how to deploy StockLot to Dokploy and fix Bad Gateway errors.
 
+## Quick Fix for Common Errors
+
+### Error: `version` attribute is obsolete
+✅ **Fixed**: Removed `version: '3.8'` from docker-compose.yml
+
+### Error: `docker.env` file not found
+✅ **Fixed**: Made `env_file` optional. Dokploy uses environment variables directly.
+
+**Solution**: Set all environment variables in Dokploy's dashboard instead of using a file.
+
 ## Common Issues
 
 ### Bad Gateway (502) Errors
