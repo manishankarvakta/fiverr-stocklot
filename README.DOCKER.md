@@ -125,7 +125,7 @@ docker-compose exec minio mc alias set myminio http://localhost:9000 minioadmin 
 
 ## Accessing Services
 
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost:3001
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
 - **MinIO Console**: http://localhost:9001
@@ -136,7 +136,7 @@ docker-compose exec minio mc alias set myminio http://localhost:9000 minioadmin 
 ### Services won't start
 1. Check if ports are already in use:
    ```bash
-   lsof -i :3000
+   lsof -i :3001
    lsof -i :8000
    lsof -i :27018
    lsof -i :9000
