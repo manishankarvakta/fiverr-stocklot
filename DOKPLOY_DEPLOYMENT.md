@@ -2,32 +2,12 @@
 
 This guide explains how to deploy StockLot to Dokploy and fix Bad Gateway errors.
 
-## Quick Fix for Common Errors
+## Quick Fix for Build Errors
 
-### Error: `version` attribute is obsolete
-✅ **Fixed**: Removed `version: '3.8'` from docker-compose.yml
-
-### Error: `docker.env` file not found
-✅ **Fixed**: Made `env_file` optional. Dokploy uses environment variables directly.
-
-**Solution**: Set all environment variables in Dokploy's dashboard instead of using a file.
-
-### Error: `tail: inotify cannot be used, reverting to polling: Too many open files`
-⚠️ **System-level issue**: This is a Linux system limit issue, not a code problem.
-
-**Solution** (if it causes problems):
-```bash
-# On the Dokploy server, increase file descriptor limit
-sudo sysctl -w fs.inotify.max_user_watches=524288
-sudo sysctl -w fs.inotify.max_user_instances=512
-
-# Or add to /etc/sysctl.conf for persistence
-echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
-echo "fs.inotify.max_user_instances=512" | sudo tee -a /etc/sysctl.conf
-sudo sysctl -p
-```
-
-**Note**: This warning usually doesn't affect functionality, it just means tail will use polling instead of inotify.
+If you see these errors:
+- `the attribute 'version' is obsolete` - ✅ Fixed (removed version field)
+- `docker.env not found` - ✅ Fixed (removed env_file, using environment variables directly)
+- `tail error: Too many open files` - ✅ Fixed (improved healthcheck commands)
 
 ## Common Issues
 
