@@ -12,6 +12,23 @@ This guide explains how to deploy StockLot to Dokploy and fix Bad Gateway errors
 
 **Solution**: Set all environment variables in Dokploy's dashboard instead of using a file.
 
+### Error: `tail: inotify cannot be used, reverting to polling: Too many open files`
+⚠️ **System-level issue**: This is a Linux system limit issue, not a code problem.
+
+**Solution** (if it causes problems):
+```bash
+# On the Dokploy server, increase file descriptor limit
+sudo sysctl -w fs.inotify.max_user_watches=524288
+sudo sysctl -w fs.inotify.max_user_instances=512
+
+# Or add to /etc/sysctl.conf for persistence
+echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
+echo "fs.inotify.max_user_instances=512" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+**Note**: This warning usually doesn't affect functionality, it just means tail will use polling instead of inotify.
+
 ## Common Issues
 
 ### Bad Gateway (502) Errors
