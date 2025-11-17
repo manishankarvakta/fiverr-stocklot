@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Search, Filter, MoreVertical, Ban, CheckCircle, AlertTriangle, User } from 'lucide-react';
-import adminApi from '../../api/adminClient';
+// import adminApi from '../../api/adminClient';
 
 const UserModeration = () => {
   const [users, setUsers] = useState([]);

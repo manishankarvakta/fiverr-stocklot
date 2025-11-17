@@ -1,24 +1,19 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../auth/AuthProvider';
-import api from '../../api/client';
+import { Menu, X, Search, ShoppingCart, User, LogOut, ChevronDown, MessageCircle, CreditCard, MapPin, LayoutDashboard, Plus, Building, Package, Users, Shield } from 'lucide-react';
+// import { AuthProvider, AuthGate, useAuth } from './auth/AuthProvider';
+// import api from './api/client';
 import { 
-  Button, Input, Badge, Avatar, AvatarFallback,
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
+  Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Input, Label, Textarea, Badge, Avatar, AvatarFallback,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+
 } from "../ui";
-import { 
-  Search, Menu, X, Users, Package, MapPin, Phone, Mail, Star, ShoppingCart, 
-  CheckCircle, XCircle, AlertTriangle, AlertCircle, Filter, SortAsc, Home, Building, User, Settings, 
-  LogOut, Edit, Trash2, Plus, RefreshCw, ArrowRight, ArrowLeft, Upload, Download, 
-  FileText, Image, Video, Play, Pause, BarChart3, PieChart, Zap, Globe, Shield, CreditCard, 
-  LayoutDashboard, MessageCircle, Ban, Check, Copy, Heart, Award, Truck, LogIn, Brain, ChevronDown
-} from "lucide-react";
-import LocationPicker from '../location/LocationPicker';
-import ContextSwitcher from '../seller/ContextSwitcher';
 import NotificationBell from '../notifications/NotificationBell';
+import { useAuth } from '@/auth/AuthProvider';
+import LocationPicker from '../location/LocationPicker';
 import ShoppingCartModal from '../cart/ShoppingCart';
 
-function Header() {
+export default function Header() {
   const auth = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,7 +34,7 @@ function Header() {
   const fetchCartCount = async () => {
     try {
       // Use new API client with automatic cookie handling
-      const response = await api.get('/cart');
+    //   const response = await api.get('/cart');
       setCartItemCount(response.data.item_count || 0);
     } catch (error) {
       console.error('Error fetching cart count:', error);
@@ -408,7 +403,7 @@ function Header() {
       </div>
       
       {/* Shopping Cart Modal */}
-      <ShoppingCartModal 
+      <ShoppingCartModal
         isOpen={showCart} 
         onClose={() => setShowCart(false)}
         onCartUpdate={setCartItemCount}
@@ -416,5 +411,3 @@ function Header() {
     </header>
   );
 }
-
-export default Header;

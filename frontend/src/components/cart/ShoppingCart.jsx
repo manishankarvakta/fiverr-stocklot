@@ -108,7 +108,7 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
   };
 
   const completeCheckout = async () => {
-    console.log('🛒 PROPER PAYSTACK API: Starting checkout...');
+    console.log('🛒 SECURE BACKEND CHECKOUT: Starting checkout...');
     
     try {
       // Basic validation
@@ -117,7 +117,7 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
         return;
       }
       
-      console.log('🛒 Initializing Paystack transaction for cart:', cart.total);
+      console.log('🛒 Creating secure order through backend:', cart.total);
       
       // Confirm payment
       const confirmPayment = confirm(`
@@ -136,13 +136,11 @@ Click OK to proceed to payment gateway.
         return;
       }
       
-      // Create Paystack transaction data
+      // Create secure payment through our backend
       const paymentData = {
+        amount: cart.total,
         email: shippingAddress.email || 'customer@stocklot.co.za',
-        amount: cart.total * 100, // Convert to kobo (cents)
-        currency: 'ZAR',
         reference: 'STOCKLOT_CART_' + Date.now(),
-        callback_url: `${window.location.origin}/payment/success`,
         metadata: {
           cart_items: cart.items.length,
           total_amount: cart.total,
@@ -151,34 +149,34 @@ Click OK to proceed to payment gateway.
         }
       };
       
-      console.log('🛒 Paystack transaction data:', paymentData);
+      console.log('🛒 Using secure backend payment endpoint...');
       
-      // Initialize transaction with Paystack API
-      const response = await fetch('https://api.paystack.co/transaction/initialize', {
+      // Call our secure backend payment endpoint
+      const response = await fetch(`${API}/payment/create-paystack`, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer pk_live_ff6855bb7797fecca7f892f482451f79a5b2cf6f',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || 'guest'}`
         },
         body: JSON.stringify(paymentData)
       });
       
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Paystack initialization response:', result);
+        console.log('✅ Secure backend payment response:', result);
         
-        if (result.status && result.data.authorization_url) {
-          console.log('🛒 Redirecting to Paystack:', result.data.authorization_url);
-          // Redirect to properly initialized Paystack payment
-          window.location.href = result.data.authorization_url;
+        if (result.success && result.payment_url) {
+          console.log('🛒 Redirecting to secure payment:', result.payment_url);
+          // Redirect to securely initialized Paystack payment
+          window.location.href = result.payment_url;
           return;
         } else {
-          throw new Error('Failed to get authorization URL from Paystack');
+          throw new Error('Failed to get payment URL from secure backend');
         }
       } else {
         const errorData = await response.json();
-        console.error('🚨 Paystack API error:', errorData);
-        throw new Error(`Paystack error: ${errorData.message || 'Payment initialization failed'}`);
+        console.error('🚨 Backend payment error:', errorData);
+        throw new Error(`Payment error: ${errorData.detail || errorData.message || 'Payment initialization failed'}`);
       }
       
     } catch (error) {

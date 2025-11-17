@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ImageGallery from './ImageGallery';
 import SellerCard from './SellerCard';
@@ -8,6 +8,10 @@ import GeofenceBanner from './GeofenceBanner';
 import ReviewsList from './ReviewsList';
 import RelatedGrid from './RelatedGrid';
 import AskQuestionButton from './AskQuestionButton';
+import GroupBuyWidget from '../features/GroupBuyWidget';
+import AuctionWidget from '../features/AuctionWidget';
+import TrustScoreDisplay from '../features/TrustScoreDisplay';
+import api from '../../api/client'; // Use centralized API client
 
 const ListingPDP = () => {
   const { id } = useParams();
@@ -22,10 +26,51 @@ const ListingPDP = () => {
     new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }), []
   );
 
+  const fetchListing = useCallback(async (retryCount = 0) => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/listings/${id}/pdp`);
+      setData(response.data);
+    } catch (err) {
+      console.error('Error fetching listing:', err);
+      if (err.response?.status === 429 && retryCount < 3) {
+        const retryAfter = err.response.headers['retry-after'] || 2;
+        console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
+        setTimeout(() => {
+          fetchListing(retryCount + 1);
+        }, parseInt(retryAfter) * 1000);
+        return;
+      } else if (err.response?.status === 404) {
+        setError('Listing not found');
+      } else {
+        setError('Error loading listing details');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id]); // Only id as dependency
+
+  const fetchABConfig = useCallback(async () => {
+    try {
+      const response = await api.get(`/ab-test/pdp-config/${id}`);
+      
+      if (response.data) {
+        setAbConfig(response.data);
+      } else {
+        // Default config if no A/B test active
+        setAbConfig({ layout: 'default', experiment_tracking: [] });
+      }
+    } catch (err) {
+      console.error('Error fetching A/B config:', err);
+      // Always continue with default config - don't let A/B testing break PDP
+      setAbConfig({ layout: 'default', experiment_tracking: [] });
+    }
+  }, [id]); // Only id as dependency
+
   useEffect(() => {
     fetchListing();
     fetchABConfig();
-  }, [id]);
+  }, [fetchListing, fetchABConfig]); // Use memoized functions as dependencies
 
   useEffect(() => {
     // Track PDP view
@@ -35,189 +80,77 @@ const ListingPDP = () => {
     }
   }, [data, abConfig]);
 
-  const fetchListing = async (retryCount = 0) => {
+  const trackAnalytics = useCallback(async (eventType, eventData = {}) => {
     try {
-      setLoading(true);
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      const response = await fetch(`${backendUrl}/api/listings/${id}/pdp`, {
-        credentials: 'include'
+      await api.post('/analytics/track', {
+        event_type: eventType,
+        listing_id: data?.id,
+        user_id: data?.currentUserId || 'anonymous',
+        metadata: eventData,
+        timestamp: new Date().toISOString()
       });
-
-      if (response.status === 429) {
-        // Rate limited - wait and retry up to 3 times
-        if (retryCount < 3) {
-          const retryAfter = response.headers.get('retry-after') || 2;
-          console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
-          setTimeout(() => {
-            fetchListing(retryCount + 1);
-          }, parseInt(retryAfter) * 1000);
-          return;
-        } else {
-          setError('Too many requests. Please refresh the page in a moment.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const listingData = await response.json();
-      setData(listingData);
     } catch (err) {
-      console.error('Error fetching listing:', err);
-      if (err.message.includes('429')) {
-        setError('Server is busy. Please try again in a moment.');
-      } else {
-        setError(err.message);
-      }
-    } finally {
-      setLoading(false);
+      console.error('Analytics error:', err);
+      // Don't block user experience for analytics failures
     }
-  };
+  }, [data]);
 
-  const fetchABConfig = async () => {
-    try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      const response = await fetch(`${backendUrl}/api/ab-test/pdp-config/${id}`, {
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const config = await response.json();
-        setAbConfig(config);
-      } else if (response.status === 429) {
-        // Rate limited - use default config and don't retry to avoid blocking PDP
-        console.warn('A/B config rate limited, using default');
-        setAbConfig({ layout: 'default', experiment_tracking: [] });
-      } else {
-        throw new Error(`HTTP ${response.status}`);
-      }
-    } catch (err) {
-      console.error('Error fetching A/B config:', err);
-      // Always continue with default config - don't let A/B testing break PDP
-      setAbConfig({ layout: 'default', experiment_tracking: [] });
-    }
-  };
-
-  const trackABEvents = async (eventType) => {
+  const trackABEvents = useCallback(async (eventType) => {
     if (!abConfig?.experiment_tracking) return;
-
+    
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      
       for (const experiment of abConfig.experiment_tracking) {
-        await fetch(`${backendUrl}/api/ab-test/track-event`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            experiment_id: experiment.experiment_id,
-            variant: experiment.variant,
-            user_identifier: sessionStorage.getItem('user_id') || 'anonymous',
-            event_type: eventType,
-            metadata: { listing_id: id }
-          })
+        await api.post('/ab-test/track-event', {
+          experiment_id: experiment.experiment_id,
+          variant: experiment.variant,
+          event_type: eventType,
+          listing_id: data?.id,
+          user_id: data?.currentUserId || 'anonymous',
+          timestamp: new Date().toISOString()
         });
       }
     } catch (err) {
-      console.error('A/B tracking failed:', err);
+      console.error('A/B tracking error:', err);
+      // Don't block user experience for tracking failures
     }
-  };
+  }, [abConfig, data]);
 
-  const trackAnalytics = async (eventType, eventData = {}) => {
+  const addToCart = useCallback(async (qtyParam = qty) => {
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      const response = await fetch(`${backendUrl}/api/analytics/track`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          event_type: eventType,
-          listing_id: data?.id,
-          session_id: sessionStorage.getItem('session_id') || Date.now().toString(),
-          metadata: eventData
-        })
+      const response = await api.post('/cart/add', {
+        listing_id: data.id,
+        quantity: qtyParam,
+        price_per_unit: data.price,
+        timestamp: new Date().toISOString()
       });
       
-      // Don't throw errors for analytics - just log them
-      if (!response.ok && response.status !== 429) {
-        console.warn(`Analytics tracking failed: ${response.status}`);
-      }
-    } catch (err) {
-      // Silent fail for analytics - don't break PDP
-      console.error('Analytics tracking failed:', err);
-    }
-  };
-
-  const addToCart = async () => {
-    try {
-      console.log('🛒 Adding to cart:', data.id, 'Quantity:', qty);
+      console.log('🛒 Cart API response:', response.data);
       
-      // Use the working backend URL
-      const backendUrl = window.REACT_APP_BACKEND_URL || 
-                        process.env.REACT_APP_BACKEND_URL || 
-                        'https://farmstock-hub-1.preview.emergentagent.com';
+      // Show success message
+      alert(`✅ Added to Cart!
       
-      const response = await fetch(`${backendUrl}/api/cart/add`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'guest'}`
-        },
-        body: JSON.stringify({
-          listing_id: data.id,
-          quantity: qty,
-          price_per_unit: data.price,
-          listing_title: data.title
-        })
-      });
-      
-      console.log('🛒 Cart API response status:', response.status);
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('🛒 Cart API response:', result);
-        
-        // Show success message
-        alert(`✅ Added to Cart!
-
 ${data.title}
-Quantity: ${qty}
-Price: R${data.price} each
-
-Item successfully added to your cart.`);
-        
-        // Track analytics for successful cart addition
-        trackAnalytics('add_to_cart', { quantity: qty, price: data.price });
-        trackABEvents('conversion');
-        
-      } else {
-        const errorData = await response.text();
-        console.error('🚨 Cart API error:', response.status, errorData);
-        
-        // Fallback: Show manual cart addition
-        alert(`ℹ️ Cart Service Unavailable
-
-${data.title} - R${data.price}
-Quantity: ${qty}
-
-Please note this item for manual processing.`);
-      }
+Quantity: ${qtyParam}
+Unit Price: R${data.price}
+Total: R${(data.price * qtyParam).toFixed(2)}`);
       
-    } catch (error) {
-      console.error('🚨 Add to cart error:', error);
+      // Track analytics for successful cart addition
+      trackAnalytics('add_to_cart', { quantity: qtyParam, price: data.price });
+      trackABEvents('conversion');
       
-      // Graceful fallback
-      alert(`ℹ️ Network Error
+    } catch (err) {
+      console.error('🚨 Cart API error:', err);
+      
+      // Fallback: Show manual cart addition
+      alert(`ℹ️ Cart Service Unavailable
+      
+Please contact us to place your order:
+📧 info@stocklot.co.za
+📞 0800 123 456
 
-${data.title} - R${data.price}
-Quantity: ${qty}
-
-Please try again or contact support.`);
+${data.title} - Quantity: ${qtyParam}`);
     }
-  };
+  }, [data, qty, trackAnalytics, trackABEvents]);
 
   const buyNow = async () => {
     console.log('🛒 PDP BUY NOW: Using proper checkout flow with fees');
@@ -426,6 +359,32 @@ Please try again or add to cart first.`);
             <div className="sm:col-span-1">
               <AskQuestionButton listingId={data.id} />
             </div>
+          </div>
+
+          {/* StockLot Differentiator Features */}
+          <div className="mt-6 space-y-4">
+            {/* Group Buying Widget */}
+            <GroupBuyWidget 
+              listingId={data.id}
+              sellerId={data.seller_id}
+              targetCents={Math.round(data.price * 100)}
+              onUpdate={(status) => {
+                console.log('Group buy status updated:', status);
+                // Could refresh listing data or show notification
+              }}
+            />
+            
+            {/* Auction Widget */}
+            <AuctionWidget 
+              listingId={data.id}
+              sellerId={data.seller_id}
+              startPrice={data.price}
+              currentUserId={data.currentUserId}
+              onUpdate={(status) => {
+                console.log('Auction status updated:', status);
+                // Could refresh listing data or show notification
+              }}
+            />
           </div>
 
           {/* Seller */}

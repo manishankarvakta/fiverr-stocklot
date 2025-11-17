@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Search, Filter, Eye, CheckCircle, XCircle, AlertTriangle, Package } from 'lucide-react';
-import adminApi from '../../api/adminClient';
+// import adminApi from '../../api/adminClient';
 
 const ListingsModeration = () => {
   const [listings, setListings] = useState([]);

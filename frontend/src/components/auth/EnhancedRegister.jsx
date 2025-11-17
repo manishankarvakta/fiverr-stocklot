@@ -152,8 +152,10 @@ export default function EnhancedRegister() {
     setError('');
 
     try {
+      const REG_API = `${process.env.REACT_APP_BACKEND_URL}/api/auth/register`;
+      console.log('Submitting registration to:', REG_API);
       // Step 1: Create user account
-      const userResponse = await fetch('/api/auth/register', {
+      const userResponse = await fetch(REG_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Include cookies for session

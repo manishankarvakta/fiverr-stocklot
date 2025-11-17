@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { Award, Clock, Mail, Shield } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Shield, Award, Clock } from "lucide-react";
 import SuggestButton from '../suggestions/SuggestButton';
-
-function Footer() {
+export default function Footer() {
   const [socialSettings, setSocialSettings] = useState({
     facebookUrl: '',
     twitterUrl: '',
@@ -228,5 +227,3 @@ function Footer() {
     </footer>
   );
 }
-
-export default Footer;

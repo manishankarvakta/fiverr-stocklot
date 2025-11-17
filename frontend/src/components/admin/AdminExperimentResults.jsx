@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Users, Target, Calendar, Award, AlertCircle, CheckCircle } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import adminApi from '../../api/adminClient';
+// import adminApi from '../../api/adminClient';
 
 const AdminExperimentResults = () => {
   const { experimentId } = useParams();

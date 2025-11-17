@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/AuthProvider';
 import { Button, Input, Label, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { CheckCircle } from "lucide-react";
+import { useRegisterMutation } from '../../store/userApi'; // <- make sure this import exists
 
 function Register() {
+  const [registerUser] = useRegisterMutation();
+
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -12,25 +15,25 @@ function Register() {
     phone: '',
     role: 'buyer'
   });
-  const [loading, setLoading] = useState(false);
+
+  
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-
-    const result = await register(formData);
-    if (result.success) {
+    console.log(formData)
+    try {
+      const result = await registerUser(formData).unwrap();
+      console.log('Registration success:', result);
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
-    } else {
-      setError(result.error);
+    } catch (err) {
+      setError(err.data?.message || 'Registration failed. Please try again.');
+      console.error('Registration failed:', err);
     }
-    setLoading(false);
   };
 
   if (success) {
@@ -55,16 +58,10 @@ function Register() {
             <span className="text-white text-2xl">📦</span>
           </div>
           <CardTitle className="text-2xl font-bold text-emerald-900">Join StockLot</CardTitle>
-          <CardDescription className="text-emerald-600">
-            Create your livestock marketplace account
-          </CardDescription>
+          <CardDescription className="text-emerald-600">Create your livestock marketplace account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -74,15 +71,15 @@ function Register() {
                   value={formData.full_name}
                   onChange={(e) => setFormData({...formData, full_name: e.target.value})}
                   required
-                  className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
                   placeholder="John Doe"
+                  className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role" className="text-emerald-800">Account Type</Label>
                 <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
                   <SelectTrigger className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
-                    <SelectValue />
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="buyer">Buyer</SelectItem>
@@ -99,8 +96,8 @@ function Register() {
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 required
-                className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
                 placeholder="john@example.com"
+                className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
               />
             </div>
             <div className="space-y-2">
@@ -109,8 +106,8 @@ function Register() {
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
                 placeholder="+27 123 456 789"
+                className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
               />
             </div>
             <div className="space-y-2">
@@ -121,25 +118,18 @@ function Register() {
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required
-                className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
                 placeholder="Create a strong password"
+                className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white" 
-              disabled={loading}
-            >
-              {loading ? 'Creating Account...' : 'Create Account'}
+            <Button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white">
+              {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="text-center">
           <p className="text-sm text-emerald-600">
-            Already have an account?{' '}
-            <Link to="/login" className="text-emerald-800 hover:text-emerald-900 font-medium underline">
-              Sign in here
-            </Link>
+            Already have an account? <Link to="/login" className="text-emerald-800 hover:text-emerald-900 font-medium underline">Sign in here</Link>
           </p>
         </CardFooter>
       </Card>
