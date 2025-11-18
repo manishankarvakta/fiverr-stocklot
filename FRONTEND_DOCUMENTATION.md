@@ -13,9 +13,10 @@ The StockLot frontend is a React-based single-page application (SPA) built with 
 - **Lucide React** - Icon library
 
 ### State Management
-- **React Context API** - Global state management
+- **Redux Toolkit (RTK Query)** - Global state management and API calls
+- **React Context API** - Authentication and UI state
 - **useState/useEffect** - Local component state
-- **SWR** - Data fetching and caching
+- **RTK Query Hooks** - Data fetching, caching, and mutations
 
 ### UI Components
 - **Custom UI Library** - Built with Radix UI primitives
@@ -95,13 +96,24 @@ src/
 
 #### API Integration
 ```javascript
-// Authentication API calls
-AuthService.login(credentials)
-AuthService.register(userData)
-AuthService.logout()
-AuthService.getProfile()
-AuthService.forgotPassword(email)
-AuthService.resetPassword(token, password)
+// Authentication API calls using Redux RTK Query
+import { 
+  useLoginMutation,
+  useRegisterMutation,
+  useLogoutMutation,
+  useGetMeQuery,
+  useForgotPasswordMutation,
+  useResetPasswordMutation
+} from '@/store/api/user.api';
+
+// In component:
+const [login, { isLoading }] = useLoginMutation();
+const { data: user } = useGetMeQuery();
+const [forgotPassword] = useForgotPasswordMutation();
+
+// Usage:
+await login({ email, password }).unwrap();
+await forgotPassword({ email }).unwrap();
 ```
 
 ### 2. Dashboard Module
@@ -153,13 +165,22 @@ AuthService.resetPassword(token, password)
 
 #### API Integration
 ```javascript
-// Seller API calls
-ListingService.createListing(data)
-ListingService.getMyListings()
-ListingService.updateListing(id, data)
-SellerService.getAnalytics()
-SellerService.getOffers()
-SellerService.createCampaign(data)
+// Seller API calls using Redux RTK Query
+import {
+  useCreateListingMutation,
+  useGetMyListingsQuery,
+  useUpdateListingMutation,
+  useDeleteListingMutation
+} from '@/store/api/listings.api';
+
+// In component:
+const { data: listings, isLoading } = useGetMyListingsQuery();
+const [createListing] = useCreateListingMutation();
+const [updateListing] = useUpdateListingMutation();
+
+// Usage:
+await createListing(listingData).unwrap();
+await updateListing({ listingId: id, ...data }).unwrap();
 ```
 
 ### 4. Buyer Module
@@ -179,11 +200,24 @@ SellerService.createCampaign(data)
 
 #### API Integration
 ```javascript
-// Buyer API calls
-WishlistService.addToWishlist(itemId)
-WishlistService.getWishlist()
-PriceAlertService.createAlert(data)
-SearchService.saveSearch(data)
+// Buyer API calls using Redux RTK Query
+import {
+  useGetWishlistQuery,
+  useAddToWishlistMutation,
+  useRemoveFromWishlistMutation,
+  useGetPriceAlertsQuery,
+  useCreatePriceAlertMutation
+} from '@/store/api/notifications.api';
+
+// In component:
+const { data: wishlist } = useGetWishlistQuery();
+const [addToWishlist] = useAddToWishlistMutation();
+const { data: priceAlerts } = useGetPriceAlertsQuery();
+const [createPriceAlert] = useCreatePriceAlertMutation();
+
+// Usage:
+await addToWishlist({ listing_id: itemId }).unwrap();
+await createPriceAlert(alertData).unwrap();
 ```
 
 ### 5. Admin Module
@@ -342,14 +376,40 @@ const AuthContext = {
 }
 ```
 
-### API Service Layer
+### API Service Layer (Redux RTK Query)
 ```javascript
-// Centralized API services
-AuthService.login(credentials)
-ListingService.getListings(filters)
-CartService.addToCart(itemId, quantity)
-OrderService.createOrder(orderData)
-NotificationService.getNotifications()
+// All API calls use Redux RTK Query hooks
+// Import from store/api modules:
+
+// Authentication
+import { useLoginMutation, useGetMeQuery } from '@/store/api/user.api';
+
+// Listings
+import { useGetListingsQuery, useCreateListingMutation } from '@/store/api/listings.api';
+
+// Cart
+import { useGetCartQuery, useAddToCartMutation } from '@/store/api/cart.api';
+
+// Orders
+import { useGetUserOrdersQuery, useCreateOrderMutation } from '@/store/api/orders.api';
+
+// Notifications
+import { useGetNotificationsQuery } from '@/store/api/notifications.api';
+
+// Buy Requests
+import { useGetPublicBuyRequestsQuery, useCreateBuyRequestMutation } from '@/store/api/buyRequests.api';
+
+// Messaging
+import { useGetInboxConversationsQuery, useSendMessageMutation } from '@/store/api/messaging.api';
+
+// Admin
+import { useGetAllUsersQuery } from '@/store/api/admin.api';
+
+// Search
+import { useSemanticSearchMutation } from '@/store/api/search.api';
+
+// Uploads
+import { useUploadListingImageMutation } from '@/store/api/uploads.api';
 ```
 
 ### Real-time Features
@@ -362,26 +422,70 @@ NotificationService.getNotifications()
 
 ## API Integration
 
-### API Client Configuration
+### Redux RTK Query Architecture
+
+All API calls are now handled through Redux Toolkit Query (RTK Query), which provides:
+- Automatic caching and data synchronization
+- Request deduplication
+- Optimistic updates
+- Automatic refetching on window focus/reconnect
+- Built-in loading and error states
+
+### API Modules Structure
 ```javascript
-// Base API client
-const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
-  withCredentials: true,
-  timeout: 30000
-});
+// All API modules are in store/api/
+store/api/
+├── baseApi.js          // Base API configuration
+├── user.api.js         // Authentication & user management
+├── listings.api.js     // Listings CRUD operations
+├── cart.api.js         // Shopping cart operations
+├── orders.api.js       // Order management
+├── buyRequests.api.js  // Buy request operations
+├── notifications.api.js // Notifications, wishlist, price alerts
+├── messaging.api.js   // Messaging and inbox
+├── admin.api.js       // Admin operations
+├── search.api.js      // Search and AI features
+└── uploads.api.js     // File uploads
 ```
 
-### Service Layer Architecture
+### Usage Pattern
 ```javascript
-// Service organization
-AuthService          // Authentication
-ListingService       // Listings management
-CartService          // Shopping cart
-OrderService         // Order processing
-NotificationService  // Notifications
-AnalyticsService     // Analytics data
+// Query hooks (GET requests)
+const { data, isLoading, error, refetch } = useGetListingsQuery(filters);
+
+// Mutation hooks (POST/PUT/DELETE)
+const [createListing, { isLoading: isCreating }] = useCreateListingMutation();
+
+// Using mutations
+const handleSubmit = async () => {
+  try {
+    const result = await createListing(formData).unwrap();
+    // Success handling
+  } catch (error) {
+    // Error handling
+  }
+};
 ```
+
+### Temporary API Helper (For Endpoints Not Yet in Redux)
+
+For endpoints that don't have Redux hooks yet, use the temporary `apiHelper` utility:
+
+```javascript
+import api from '@/utils/apiHelper';
+
+// GET request
+const response = await api.get('/endpoint', { params: { key: 'value' } });
+
+// POST request
+const response = await api.post('/endpoint', { data: 'value' });
+
+// PUT/PATCH/DELETE
+await api.put('/endpoint', data);
+await api.delete('/endpoint');
+```
+
+**Note**: The `apiHelper` is a temporary solution. All endpoints should eventually be migrated to Redux RTK Query hooks in `store/api/` modules.
 
 ### Error Handling
 - **Global Error Interceptors** - Automatic error handling
@@ -508,9 +612,11 @@ REACT_APP_MAPBOX_TOKEN     // Map integration
 - **Library-based** - Split vendor bundles
 
 ### Caching Strategy
-- **API Caching** - SWR data caching
+- **API Caching** - Redux RTK Query automatic caching with tag-based invalidation
 - **Image Caching** - Optimized image loading
 - **Static Assets** - CDN caching
+- **Query Deduplication** - Automatic request deduplication
+- **Cache Invalidation** - Tag-based cache invalidation on mutations
 
 ### Bundle Optimization
 - **Tree Shaking** - Remove unused code

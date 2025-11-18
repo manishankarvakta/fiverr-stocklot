@@ -11,120 +11,85 @@ import AskQuestionButton from './AskQuestionButton';
 import GroupBuyWidget from '../features/GroupBuyWidget';
 import AuctionWidget from '../features/AuctionWidget';
 import TrustScoreDisplay from '../features/TrustScoreDisplay';
-import api from '../../api/client'; // Use centralized API client
+import { useGetListingPDPQuery } from '../../store/api/listings.api';
+import { useTrackAnalyticsMutation, useGetABTestConfigQuery, useTrackABEventMutation } from '../../store/api/admin.api';
+import { useAddToCartMutation } from '../../store/api/cart.api';
 
 const ListingPDP = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
-  const [error, setError] = useState(null);
-  const [abConfig, setAbConfig] = useState(null);
+  
+  // Use Redux RTK Query hooks
+  const { data: responseData, isLoading: loading, error: queryError } = useGetListingPDPQuery(id);
+  const { data: abConfigData } = useGetABTestConfigQuery(id, {
+    skip: !id, // Skip if no id
+  });
+  const [trackAnalytics] = useTrackAnalyticsMutation();
+  const [trackABEvent] = useTrackABEventMutation();
+  const [addToCart] = useAddToCartMutation();
+
+  const data = responseData?.data || responseData;
+  const abConfig = abConfigData?.data || abConfigData || { layout: 'default', experiment_tracking: [] };
+  const error = queryError ? (queryError.status === 404 ? 'Listing not found' : 'Error loading listing details') : null;
 
   const priceFmt = useMemo(() => 
     new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }), []
   );
 
-  const fetchListing = useCallback(async (retryCount = 0) => {
+  const handleTrackAnalytics = useCallback(async (eventType, eventData = {}) => {
     try {
-      setLoading(true);
-      const response = await api.get(`/listings/${id}/pdp`);
-      setData(response.data);
-    } catch (err) {
-      console.error('Error fetching listing:', err);
-      if (err.response?.status === 429 && retryCount < 3) {
-        const retryAfter = err.response.headers['retry-after'] || 2;
-        console.log(`Rate limited, retrying in ${retryAfter} seconds...`);
-        setTimeout(() => {
-          fetchListing(retryCount + 1);
-        }, parseInt(retryAfter) * 1000);
-        return;
-      } else if (err.response?.status === 404) {
-        setError('Listing not found');
-      } else {
-        setError('Error loading listing details');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [id]); // Only id as dependency
-
-  const fetchABConfig = useCallback(async () => {
-    try {
-      const response = await api.get(`/ab-test/pdp-config/${id}`);
-      
-      if (response.data) {
-        setAbConfig(response.data);
-      } else {
-        // Default config if no A/B test active
-        setAbConfig({ layout: 'default', experiment_tracking: [] });
-      }
-    } catch (err) {
-      console.error('Error fetching A/B config:', err);
-      // Always continue with default config - don't let A/B testing break PDP
-      setAbConfig({ layout: 'default', experiment_tracking: [] });
-    }
-  }, [id]); // Only id as dependency
-
-  useEffect(() => {
-    fetchListing();
-    fetchABConfig();
-  }, [fetchListing, fetchABConfig]); // Use memoized functions as dependencies
-
-  useEffect(() => {
-    // Track PDP view
-    if (data) {
-      trackAnalytics('pdp_view', { listing_id: data.id });
-      trackABEvents('view');
-    }
-  }, [data, abConfig]);
-
-  const trackAnalytics = useCallback(async (eventType, eventData = {}) => {
-    try {
-      await api.post('/analytics/track', {
+      await trackAnalytics({
         event_type: eventType,
         listing_id: data?.id,
         user_id: data?.currentUserId || 'anonymous',
         metadata: eventData,
         timestamp: new Date().toISOString()
-      });
+      }).unwrap();
     } catch (err) {
       console.error('Analytics error:', err);
       // Don't block user experience for analytics failures
     }
-  }, [data]);
+  }, [data, trackAnalytics]);
 
-  const trackABEvents = useCallback(async (eventType) => {
-    if (!abConfig?.experiment_tracking) return;
+  const handleTrackABEvents = useCallback(async (eventType) => {
+    if (!abConfig?.experiment_tracking?.length) return;
     
     try {
       for (const experiment of abConfig.experiment_tracking) {
-        await api.post('/ab-test/track-event', {
+        await trackABEvent({
           experiment_id: experiment.experiment_id,
           variant: experiment.variant,
           event_type: eventType,
           listing_id: data?.id,
           user_id: data?.currentUserId || 'anonymous',
           timestamp: new Date().toISOString()
-        });
+        }).unwrap();
       }
     } catch (err) {
       console.error('A/B tracking error:', err);
       // Don't block user experience for tracking failures
     }
-  }, [abConfig, data]);
+  }, [abConfig, data, trackABEvent]);
 
-  const addToCart = useCallback(async (qtyParam = qty) => {
+  useEffect(() => {
+    // Track PDP view
+    if (data) {
+      handleTrackAnalytics('pdp_view', { listing_id: data.id });
+      handleTrackABEvents('view');
+    }
+  }, [data, handleTrackAnalytics, handleTrackABEvents]);
+
+  const handleAddToCart = useCallback(async (qtyParam = qty) => {
     try {
-      const response = await api.post('/cart/add', {
+      const response = await addToCart({
         listing_id: data.id,
         quantity: qtyParam,
         price_per_unit: data.price,
         timestamp: new Date().toISOString()
-      });
+      }).unwrap();
       
-      console.log('🛒 Cart API response:', response.data);
+      console.log('🛒 Cart API response:', response);
       
       // Show success message
       alert(`✅ Added to Cart!
@@ -135,8 +100,8 @@ Unit Price: R${data.price}
 Total: R${(data.price * qtyParam).toFixed(2)}`);
       
       // Track analytics for successful cart addition
-      trackAnalytics('add_to_cart', { quantity: qtyParam, price: data.price });
-      trackABEvents('conversion');
+      handleTrackAnalytics('add_to_cart', { quantity: qtyParam, price: data.price });
+      handleTrackABEvents('conversion');
       
     } catch (err) {
       console.error('🚨 Cart API error:', err);
@@ -150,7 +115,7 @@ Please contact us to place your order:
 
 ${data.title} - Quantity: ${qtyParam}`);
     }
-  }, [data, qty, trackAnalytics, trackABEvents]);
+  }, [data, qty, addToCart, handleTrackAnalytics, handleTrackABEvents]);
 
   const buyNow = async () => {
     console.log('🛒 PDP BUY NOW: Using proper checkout flow with fees');
@@ -185,12 +150,12 @@ ${data.title} - Quantity: ${qtyParam}`);
       navigate('/checkout/guest');
       
       // Track analytics
-      trackAnalytics('buy_now_click', { 
+      handleTrackAnalytics('buy_now_click', { 
         quantity: qty, 
         price: data.price,
         total_before_fees: data.price * qty
       });
-      trackABEvents('conversion');
+      handleTrackABEvents('conversion');
       
     } catch (error) {
       console.error('🚨 Buy Now error:', error);
@@ -209,7 +174,7 @@ Please try again or add to cart first.`);
 
   const requestDeliveryQuote = async () => {
     try {
-      trackAnalytics('delivery_quote_request', { quantity: qty });
+      handleTrackAnalytics('delivery_quote_request', { quantity: qty });
       
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
       await fetch(`${backendUrl}/api/logistics/rfq`, {
@@ -337,7 +302,7 @@ Please try again or add to cart first.`);
               : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2'
           }`}>
             <button 
-              onClick={addToCart}
+              onClick={() => handleAddToCart()}
               className={`px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors ${
                 abConfig?.cta_style === 'large' ? 'text-lg py-4' : ''
               }`}

@@ -14,7 +14,7 @@ import {
   AlertTriangle, Building, CreditCard, Globe, Mail, Phone,
   FileText, Image, Zap, RefreshCw, ArrowRight, ArrowLeft, ShoppingCart
 } from 'lucide-react';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const ComprehensiveAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');

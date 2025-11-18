@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Progress } from '../ui';
 import { Users, Clock, DollarSign, Target } from 'lucide-react';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const GroupBuyCard = ({ groupBuy, onPledge, onPay }) => {
   const [pledging, setPledging] = useState(false);

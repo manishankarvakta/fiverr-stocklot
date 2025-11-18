@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SocialLoginButtons from './SocialLoginButtons';
+import { useRegisterMutation, useLoginMutation } from '../../store/api/user.api';
+import api from '../../utils/apiHelper';
 
 const ORGANIZATION_TYPES = [
   { 
@@ -94,6 +96,10 @@ export default function EnhancedRegister() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Use Redux RTK Query hooks
+  const [register] = useRegisterMutation();
+  const [login] = useLoginMutation();
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -152,77 +158,61 @@ export default function EnhancedRegister() {
     setError('');
 
     try {
-      const REG_API = `${process.env.REACT_APP_BACKEND_URL}/api/auth/register`;
-      console.log('Submitting registration to:', REG_API);
-      // Step 1: Create user account
-      const userResponse = await fetch(REG_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Include cookies for session
-        body: JSON.stringify({
-          full_name: formData.full_name,
+      // Step 1: Create user account using Redux RTK Query
+      const registerData = {
+        full_name: formData.full_name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        role: formData.user_type // Use 'role' instead of 'user_type'
+      };
+
+      const userResponse = await register(registerData).unwrap();
+
+      // Step 2: Automatically log in the user after registration
+      try {
+        const loginResponse = await login({
           email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-          role: formData.user_type // Use 'role' instead of 'user_type'
-        })
-      });
+          password: formData.password
+        }).unwrap();
 
-      const userData = await userResponse.json();
-
-      if (userResponse.ok) {
-        // Step 2: Automatically log in the user after registration
-        const loginResponse = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include', // Include cookies for session
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password
-          })
-        });
-
-        if (loginResponse.ok) {
-          const loginData = await loginResponse.json();
-          
-          // Step 3: If organization account, create organization
-          if (accountType === 'organization') {
-            const orgResponse = await fetch('/api/orgs', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              credentials: 'include', // Use cookie auth instead of token
-              body: JSON.stringify({
-                name: formData.org_name,
-                kind: formData.org_kind,
-                handle: formData.org_handle,
-                phone: formData.org_phone,
-                email: formData.org_email,
-                website: formData.org_website
-              })
+        // Store token if present
+        if (loginResponse.access_token) {
+          localStorage.setItem('token', loginResponse.access_token);
+        }
+        if (loginResponse.user) {
+          localStorage.setItem('user', JSON.stringify(loginResponse.user));
+        }
+        
+        // Step 3: If organization account, create organization
+        if (accountType === 'organization') {
+          try {
+            await api.post('/orgs', {
+              name: formData.org_name,
+              kind: formData.org_kind,
+              handle: formData.org_handle,
+              phone: formData.org_phone,
+              email: formData.org_email,
+              website: formData.org_website
             });
-
-            if (orgResponse.ok) {
-              navigate('/dashboard');
-            } else {
-              setError('User created but organization setup failed. You can create it later.');
-              setTimeout(() => navigate('/dashboard'), 3000);
-            }
-          } else {
-            // Individual account - go to dashboard
             navigate('/dashboard');
+          } catch (orgError) {
+            console.error('Organization creation error:', orgError);
+            setError('User created but organization setup failed. You can create it later.');
+            setTimeout(() => navigate('/dashboard'), 3000);
           }
         } else {
-          setError('Registration successful but auto-login failed. Please login manually.');
-          setTimeout(() => navigate('/login'), 3000);
+          // Individual account - go to dashboard
+          navigate('/dashboard');
         }
-      } else {
-        setError(userData.detail || 'Registration failed');
+      } catch (loginError) {
+        console.error('Auto-login error:', loginError);
+        setError('Registration successful but auto-login failed. Please login manually.');
+        setTimeout(() => navigate('/login'), 3000);
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setError('Registration failed. Please try again.');
+      setError(error?.data?.detail || error?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Progress } from '../ui';
 import { Users, Lock, CheckCircle, XCircle, Clock } from 'lucide-react';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const AdminGroupBuys = () => {
   const [groupBuys, setGroupBuys] = useState([]);

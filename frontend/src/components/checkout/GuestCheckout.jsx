@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import LocationPicker from '../location/CheckoutLocationPicker';
 import { assessRisk, RISK_CATEGORIES, getRiskCategory } from '../../lib/risk/riskRules';
-import { CheckoutService, handleAPIError } from '../../services/api';
+import api from '../../utils/apiHelper';
+import { handleAPIError } from '../../services/api';
 import { useToast } from '../../hooks/use-toast';
 import PaymentRedirectService from '../../services/PaymentRedirectService';
 
@@ -61,7 +62,7 @@ export default function GuestCheckout() {
     setError('');
     
     try {
-      const quoteData = await CheckoutService.getGuestQuote({ 
+      const quoteData = await api.post('/checkout/guest/quote', { 
         items, 
         ship_to: shipTo 
       });
@@ -84,7 +85,7 @@ export default function GuestCheckout() {
     setError('');
 
     try {
-      const orderData = await CheckoutService.createGuestOrder({
+      const orderData = await api.post('/checkout/guest/order', {
         contact,
         ship_to: shipTo,
         items,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '../ui';
 import { Truck, Shield, CreditCard, CheckCircle } from 'lucide-react';
 import { IfFlag } from '../../providers/FeatureFlagsProvider';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const CheckoutOptions = ({ orderId, orderDetails, onUpdate }) => {
   const [transportQuotes, setTransportQuotes] = useState([]);

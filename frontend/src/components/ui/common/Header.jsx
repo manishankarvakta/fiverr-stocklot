@@ -9,7 +9,7 @@ import ShoppingCartModal from "@/components/cart/ShoppingCart";
 import { Menu, Search, X, ShoppingCart, MessageCircle, ChevronDown, CreditCard, DollarSign, MapPin, LayoutDashboard, Users, Shield, LogOut, User, Plus, Building, Package } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ContextSwitcher from "@/components/seller/ContextSwitcher";
-import api from "@/api/client";
+import api from '@/utils/apiHelper';
 // import { Menu } from "@radix-ui/react-menubar";
 
 // Header component

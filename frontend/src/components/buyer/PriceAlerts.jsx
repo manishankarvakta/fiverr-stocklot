@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Bell, Plus, X, Edit, TrendingDown, TrendingUp, Package, Search, Filter, Calendar, DollarSign } from 'lucide-react';
-import api from '../../api/client';
+import {
+  useGetPriceAlertsQuery,
+  useCreatePriceAlertMutation,
+  useUpdatePriceAlertMutation,
+  useDeletePriceAlertMutation,
+  useGetPriceAlertStatsQuery
+} from '../../store/api/notifications.api';
 
 const PriceAlerts = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [filters, setFilters] = useState({
@@ -13,70 +17,41 @@ const PriceAlerts = () => {
     category: 'all',
     search: ''
   });
-  const [stats, setStats] = useState({});
 
-  useEffect(() => {
-    loadPriceAlerts();
-    loadAlertStats();
-  }, [filters]);
+  // Use Redux RTK Query hooks
+  const { data: alertsData, isLoading: loading, refetch } = useGetPriceAlertsQuery();
+  const { data: statsData } = useGetPriceAlertStatsQuery();
+  const [createPriceAlert] = useCreatePriceAlertMutation();
+  const [updatePriceAlert] = useUpdatePriceAlertMutation();
+  const [deletePriceAlert] = useDeletePriceAlertMutation();
 
-  const loadPriceAlerts = async () => {
+  const alerts = alertsData?.alerts || [];
+  const stats = statsData || {};
+
+  const handleCreatePriceAlert = async (alertData) => {
     try {
-      setLoading(true);
-      
-      const response = await api.get('/buyer/price-alerts', {
-        params: {
-          status: filters.status !== 'all' ? filters.status : undefined,
-          category: filters.category !== 'all' ? filters.category : undefined,
-          search: filters.search || undefined
-        }
-      });
-      
-      setAlerts(response.data.alerts || []);
-      
-    } catch (error) {
-      console.error('Error loading price alerts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAlertStats = async () => {
-    try {
-      const response = await api.get('/buyer/price-alerts/stats');
-      setStats(response.data || {});
-    } catch (error) {
-      console.error('Error loading alert stats:', error);
-    }
-  };
-
-  const createPriceAlert = async (alertData) => {
-    try {
-      await api.post('/buyer/price-alerts', alertData);
-      await loadPriceAlerts();
-      await loadAlertStats();
+      await createPriceAlert(alertData).unwrap();
+      refetch();
       setShowCreateModal(false);
     } catch (error) {
       console.error('Error creating price alert:', error);
     }
   };
 
-  const updatePriceAlert = async (alertId, alertData) => {
+  const handleUpdatePriceAlert = async (alertId, alertData) => {
     try {
-      await api.patch(`/buyer/price-alerts/${alertId}`, alertData);
-      await loadPriceAlerts();
-      await loadAlertStats();
+      await updatePriceAlert({ alertId, ...alertData }).unwrap();
+      refetch();
       setSelectedAlert(null);
     } catch (error) {
       console.error('Error updating price alert:', error);
     }
   };
 
-  const deletePriceAlert = async (alertId) => {
+  const handleDeletePriceAlert = async (alertId) => {
     try {
-      await api.delete(`/buyer/price-alerts/${alertId}`);
-      await loadPriceAlerts();
-      await loadAlertStats();
+      await deletePriceAlert(alertId).unwrap();
+      refetch();
     } catch (error) {
       console.error('Error deleting price alert:', error);
     }
@@ -336,7 +311,7 @@ const PriceAlerts = () => {
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => deletePriceAlert(alert.id)}
+                      onClick={() => handleDeletePriceAlert(alert.id)}
                       className="text-red-600 hover:text-red-700 text-sm"
                     >
                       <X className="h-4 w-4" />
@@ -382,7 +357,7 @@ const PriceAlerts = () => {
       {showCreateModal && (
         <CreateAlertModal
           onClose={() => setShowCreateModal(false)}
-          onSubmit={createPriceAlert}
+          onSubmit={handleCreatePriceAlert}
         />
       )}
 
@@ -391,7 +366,7 @@ const PriceAlerts = () => {
         <EditAlertModal
           alert={selectedAlert}
           onClose={() => setSelectedAlert(null)}
-          onSubmit={(alertData) => updatePriceAlert(selectedAlert.id, alertData)}
+          onSubmit={(alertData) => handleUpdatePriceAlert(selectedAlert.id, alertData)}
         />
       )}
     </div>

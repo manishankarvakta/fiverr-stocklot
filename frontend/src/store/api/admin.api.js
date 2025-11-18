@@ -190,6 +190,28 @@ export const adminApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
+    
+    // Analytics tracking
+    trackAnalytics: builder.mutation({
+      query: (data) => ({
+        url: '/analytics/track',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    
+    // AB Testing
+    getABTestConfig: builder.query({
+      query: (listingId) => `/ab-test/pdp-config/${listingId}`,
+    }),
+    
+    trackABEvent: builder.mutation({
+      query: (data) => ({
+        url: '/ab-test/track-event',
+        method: 'POST',
+        body: data,
+      }),
+    }),
   }),
   overrideExisting: false,
 });
@@ -232,5 +254,9 @@ export const {
   useGetRealTimeMetricsQuery,
   useLazyGetRealTimeMetricsQuery,
   useGenerateCustomReportMutation,
+  useTrackAnalyticsMutation,
+  useGetABTestConfigQuery,
+  useLazyGetABTestConfigQuery,
+  useTrackABEventMutation,
 } = adminApi;
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '../ui';
 import { Gavel, Clock, Users, DollarSign } from 'lucide-react';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const AdminAuctions = () => {
   const [auctions, setAuctions] = useState([]);

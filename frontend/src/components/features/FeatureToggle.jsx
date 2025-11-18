@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const FeatureToggle = ({ featureKey, children, fallback = null }) => {
   const [isEnabled, setIsEnabled] = useState(false);
