@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import api from "@/api/client";
+import { useLoginMutation } from "@/store/api/user.api";
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -19,20 +19,23 @@ function Login() {
   const searchParams = new URLSearchParams(location.search);
   const redirectTo = searchParams.get('redirect');
 
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await login({ email, password }).unwrap();
 
-      if (response.data.success) {
-        await refetch();
-        navigate(redirectTo === 'admin' ? '/admin' : '/marketplace');
-      } else {
-        setError('Login failed');
+      // Handle token storage if present
+      if (response.access_token) {
+        localStorage.setItem('token', response.access_token);
       }
+      
+      await refetch();
+      navigate(redirectTo === 'admin' ? '/admin' : '/marketplace');
     } catch (err) {
       console.error('Login error:', err);
       setError(err.response?.data?.detail || 'Invalid credentials');

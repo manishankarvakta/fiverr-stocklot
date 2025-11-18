@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Switch } from '../ui';
 import { Settings, ToggleLeft, ToggleRight, Percent } from 'lucide-react';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const AdminFeatureFlags = () => {
   const [flags, setFlags] = useState([]);

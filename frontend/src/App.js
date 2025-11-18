@@ -19,7 +19,7 @@ import PublicOnlyRoute from './auth/PublicOnlyRoute';
 import EmailVerificationPage from './components/auth/EmailVerificationPage';
 import PasswordResetPage from './components/auth/PasswordResetPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
-import api from './api/client';
+
 
 import APIServices from './services/api';
 import { 
@@ -185,6 +185,8 @@ function InlineCartPage() {
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://stockdiff-app.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
+
+console.log("Backend URL:", BACKEND_URL,API);
 
 // API helper with auth token (keeping for backward compatibility)
 const apiCall = async (method, url, data = null) => {

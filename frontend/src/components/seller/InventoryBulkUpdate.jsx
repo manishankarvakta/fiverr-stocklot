@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Upload, Download, CheckCircle, AlertTriangle, Package, FileText } from 'lucide-react';
+
 // import api from '../../api/client';
+
+import { useGetMyListingsQuery } from '../../store/api/listings.api';
+import api from '../../utils/apiHelper';
+
 
 const InventoryBulkUpdate = () => {
   const [listings, setListings] = useState([]);
@@ -21,19 +26,19 @@ const InventoryBulkUpdate = () => {
     loadSellerListings();
   }, []);
 
-  const loadSellerListings = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await api.get('/seller/listings');
-      setListings(response.data.listings || []);
-      
-    } catch (error) {
-      console.error('Error loading listings:', error);
-    } finally {
+  // Use Redux RTK Query for listings
+  const { data: listingsData, isLoading: listingsLoading } = useGetMyListingsQuery();
+  
+  useEffect(() => {
+    if (listingsData) {
+      setListings(listingsData.listings || listingsData || []);
       setLoading(false);
     }
-  };
+  }, [listingsData]);
+  
+  useEffect(() => {
+    setLoading(listingsLoading);
+  }, [listingsLoading]);
 
   const toggleListingSelection = (listingId) => {
     const newSelected = new Set(selectedListings);

@@ -18,14 +18,14 @@ import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 
 // Page Components
-import Homepage from './pages/static/Homepage';
+import Homepage from '@/pages/static/Homepage';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import HowItWorks from './pages/static/HowItWorks';
-import AboutUs from './pages/static/AboutUs';
-import Pricing from './pages/static/Pricing';
-import Blog from './pages/static/Blog';
-import Contact from './pages/static/Contact';
+import HowItWorks from '@/pages/static/HowItWorks';
+import AboutUs from '@/pages/static/AboutUs';
+import Pricing from '@/pages/static/Pricing';
+import Blog from '@/pages/static/Blog';
+import Contact from '@/pages/static/Contact';
 import Dashboard from './pages/dashboard/Dashboard';
 import SellerDashboard from './pages/dashboard/SellerDashboard';
 import AdminDashboardPage from './pages/dashboard/AdminDashboard';

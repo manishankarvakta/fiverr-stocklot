@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui';
 import { Shield, Star, TrendingUp } from 'lucide-react';
-// import api from '../../api/client';
+
+import api from '../../utils/apiHelper';
+
 
 const TrustScoreBadge = ({ userId, size = 'sm' }) => {
   const [trustScore, setTrustScore] = useState(null);

@@ -9,9 +9,8 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation,
 
 // 🚀 API Optimization - Initialize early to catch all API calls
 import SmartAPIInterceptor from '@/services/SmartAPIInterceptor';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui";
 import { Brain, CheckCircle, Filter, MapPin, Search, Shield, Star, User } from "lucide-react";
-import { Label } from "recharts";
 import Header from "../layout/Header";
 // import { Input } from "postcss";
 import DeliverableFilterBar from "../geofence/DeliverableFilterBar";

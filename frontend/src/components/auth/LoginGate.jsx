@@ -8,13 +8,16 @@ import {
   LogIn, UserPlus, AlertCircle, Mail, Lock, User, Phone
 } from 'lucide-react';
 import SocialLoginButtons from './SocialLoginButtons';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import { useLoginMutation, useRegisterMutation } from '../../store/api/user.api';
 
 const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Redux RTK Query hooks
+  const [loginMutation] = useLoginMutation();
+  const [registerMutation] = useRegisterMutation();
   
   // Login form state
   const [loginData, setLoginData] = useState({
@@ -38,28 +41,15 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
     setError(null);
 
     try {
-      const requestBody = {
+      const data = await loginMutation({
         email: loginData.email,
         password: loginData.password
-      };
-
-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
-      }
-
-      const data = await response.json();
+      }).unwrap();
       
       // Store token and user data
-      localStorage.setItem('token', data.access_token);
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+      }
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
       }
@@ -78,7 +68,7 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
 
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || 'Login failed');
+      setError(error?.data?.detail || error?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -100,27 +90,12 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
         throw new Error('Password must be at least 6 characters');
       }
 
-      const requestBody = {
+      const data = await registerMutation({
         email: registerData.email,
         password: registerData.password,
         full_name: registerData.full_name,
         role: registerData.role
-      };
-
-      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Registration failed');
-      }
-
-      const data = await response.json();
+      }).unwrap();
       
       // Auto-login after registration
       if (data.access_token) {
@@ -146,7 +121,7 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
 
     } catch (error) {
       console.error('Registration error:', error);
-      setError(error.message || 'Registration failed');
+      setError(error?.data?.detail || error?.message || 'Registration failed');
     } finally {
       setLoading(false);
     }

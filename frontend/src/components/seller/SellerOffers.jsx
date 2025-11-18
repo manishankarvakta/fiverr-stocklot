@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { MessageSquare, Clock, DollarSign, TrendingUp, Check, X, Eye, Filter, Search, Calendar, Package, User } from 'lucide-react';
+
 // import api from '../../api/client';
+
+import api from '../../utils/apiHelper';
+
 
 const SellerOffers = () => {
   const [offers, setOffers] = useState([]);
@@ -34,7 +38,7 @@ const SellerOffers = () => {
         }
       });
       
-      setOffers(response.data.offers || []);
+      setOffers(response.offers || response.data?.offers || []);
       
     } catch (error) {
       console.error('Error loading offers:', error);
@@ -46,7 +50,7 @@ const SellerOffers = () => {
   const loadOfferStats = async () => {
     try {
       const response = await api.get('/seller/offers/stats');
-      setStats(response.data || {});
+      setStats(response || response.data || {});
     } catch (error) {
       console.error('Error loading offer stats:', error);
     }

@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '../ui';
 import { Gavel, Clock, TrendingUp, Users } from 'lucide-react';
 // import { IfFlag } from '../../providers/FeatureFlagsProvider';
+
 // import api from '../../api/client';
+
+import api from '../../utils/apiHelper';
 
 const AuctionWidget = ({ auctionId, listingId, sellerId, startPrice, currentUserId, onUpdate }) => {
   const [auction, setAuction] = useState(null);

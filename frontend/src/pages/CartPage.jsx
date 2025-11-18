@@ -8,42 +8,34 @@ import {
   MapPin, Package, AlertCircle, CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
-import { CartService, handleAPIError } from '../services/api';
+import {
+  useGetCartQuery,
+  useUpdateCartItemMutation,
+  useRemoveFromCartMutation
+} from '../store/api/cart.api';
 
 function CartPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
+  const [guestCartItems, setGuestCartItems] = useState([]);
 
+  // Use Redux RTK Query hooks for authenticated users
+  const { data: cartData, isLoading: loading, refetch } = useGetCartQuery(undefined, {
+    skip: !user, // Skip query if user is not authenticated
+  });
+  const [updateCartItem] = useUpdateCartItemMutation();
+  const [removeFromCart] = useRemoveFromCartMutation();
+
+  // Load guest cart from localStorage for non-authenticated users
   useEffect(() => {
-    fetchCartItems();
+    if (!user) {
+      const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+      setGuestCartItems(guestCart);
+    }
   }, [user]);
 
-  const fetchCartItems = async () => {
-    try {
-      if (user) {
-        // Fetch authenticated user's cart using API service
-        const cartData = await CartService.getCart();
-        setCartItems(cartData.items || []);
-      } else {
-        // Load guest cart from localStorage
-        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
-        console.log('Loading guest cart:', guestCart); // Debug log
-        setCartItems(guestCart);
-      }
-    } catch (error) {
-      console.error('Error fetching cart items:', error);
-      handleAPIError(error, false);
-      // Always fallback to guest cart for any network errors
-      const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
-      console.log('Fallback to guest cart:', guestCart); // Debug log
-      setCartItems(guestCart);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const cartItems = user ? (cartData?.items || []) : guestCartItems;
 
   const updateQuantity = async (itemId, newQuantity) => {
     if (newQuantity < 1) return;
@@ -52,26 +44,19 @@ function CartPage() {
     
     try {
       if (user) {
-        // Update authenticated user's cart using API service
-        await CartService.updateCartItem(itemId, newQuantity);
-        // Update local state
-        setCartItems(items => 
-          items.map(item => 
-            item.id === itemId ? { ...item, quantity: newQuantity } : item
-          )
-        );
+        // Update authenticated user's cart using Redux
+        await updateCartItem({ itemId, quantity: newQuantity }).unwrap();
+        refetch();
       } else {
         // Update guest cart in localStorage
-        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
-        const updatedCart = guestCart.map(item => 
+        const updatedCart = guestCartItems.map(item => 
           item.listing_id === itemId ? { ...item, quantity: newQuantity } : item
         );
         localStorage.setItem('guest_cart', JSON.stringify(updatedCart));
-        setCartItems(updatedCart);
+        setGuestCartItems(updatedCart);
       }
     } catch (error) {
       console.error('Error updating quantity:', error);
-      handleAPIError(error);
     } finally {
       setUpdating(prev => ({ ...prev, [itemId]: false }));
     }
@@ -80,19 +65,17 @@ function CartPage() {
   const removeItem = async (itemId) => {
     try {
       if (user) {
-        // Remove from authenticated user's cart using API service
-        await CartService.removeFromCart(itemId);
-        setCartItems(items => items.filter(item => item.id !== itemId));
+        // Remove from authenticated user's cart using Redux
+        await removeFromCart(itemId).unwrap();
+        refetch();
       } else {
         // Remove from guest cart in localStorage
-        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
-        const updatedCart = guestCart.filter(item => item.listing_id !== itemId);
+        const updatedCart = guestCartItems.filter(item => item.listing_id !== itemId);
         localStorage.setItem('guest_cart', JSON.stringify(updatedCart));
-        setCartItems(updatedCart);
+        setGuestCartItems(updatedCart);
       }
     } catch (error) {
       console.error('Error removing item:', error);
-      handleAPIError(error);
     }
   };
 

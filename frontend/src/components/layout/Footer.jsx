@@ -17,11 +17,16 @@ export default function Footer() {
       try {
         const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
         const response = await fetch(`${backendUrl}/api/platform/config`);
-        if (response.ok) {
+        
+        // Check if response is OK and content-type is JSON
+        const contentType = response.headers.get('content-type');
+        const isJson = contentType && contentType.includes('application/json');
+        
+        if (response.ok && isJson) {
           const config = await response.json();
           const settings = config.settings || {};
           const socialMedia = settings.social_media || {};
-          console.log('Loaded social settings:', socialMedia); // Debug log
+          console.log('Loaded social settings:', socialMedia);
           setSocialSettings({
             facebookUrl: socialMedia.facebook || socialMedia.facebook_url || 'https://facebook.com/stocklot',
             twitterUrl: socialMedia.twitter || socialMedia.x_url || 'https://x.com/stocklotmarket',
@@ -30,8 +35,7 @@ export default function Footer() {
             linkedinUrl: socialMedia.linkedin || socialMedia.linkedin_url || 'https://www.linkedin.com/company/stocklotmarket'
           });
         } else {
-          console.error('Failed to load platform config:', response.status);
-          // Set fallback social media URLs
+          // Set fallback social media URLs if endpoint doesn't exist or returns non-JSON
           setSocialSettings({
             facebookUrl: 'https://facebook.com/stocklot',
             twitterUrl: 'https://x.com/stocklotmarket',
