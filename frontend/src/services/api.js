@@ -1,3 +1,7 @@
+
+// src/services/api.js - Comprehensive API service layer
+// import { apiCall, authAPI, listingsAPI, cartAPI, orderAPI, checkoutAPI } from '../api/client';
+
 // DEPRECATED: This file is kept for backward compatibility only
 // All new code should use Redux RTK Query hooks from store/api/
 // 

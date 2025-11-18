@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Heart, X, ShoppingCart, Eye, Bell, BellOff, Filter, Search, Package, DollarSign, Calendar, Star } from 'lucide-react';
-import { 
-  useGetWishlistQuery, 
-  useRemoveFromWishlistMutation,
-  useGetWishlistStatsQuery 
-} from '../../store/api/notifications.api';
+
 
 const Wishlist = () => {
   const [filters, setFilters] = useState({

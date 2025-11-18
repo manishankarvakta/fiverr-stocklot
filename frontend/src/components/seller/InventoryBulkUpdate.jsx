@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Upload, Download, CheckCircle, AlertTriangle, Package, FileText } from 'lucide-react';
+
+// import api from '../../api/client';
+
 import { useGetMyListingsQuery } from '../../store/api/listings.api';
 import api from '../../utils/apiHelper';
+
 
 const InventoryBulkUpdate = () => {
   const [listings, setListings] = useState([]);

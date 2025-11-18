@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { MessageSquare, Clock, DollarSign, TrendingUp, Check, X, Eye, Filter, Search, Calendar, Package, User } from 'lucide-react';
+
+// import api from '../../api/client';
+
 import api from '../../utils/apiHelper';
+
 
 const SellerOffers = () => {
   const [offers, setOffers] = useState([]);

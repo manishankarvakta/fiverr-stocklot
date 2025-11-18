@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Bell, Plus, X, Edit, TrendingDown, TrendingUp, Package, Search, Filter, Calendar, DollarSign } from 'lucide-react';
+
+// import api from '../../api/client';
 import {
   useGetPriceAlertsQuery,
   useCreatePriceAlertMutation,
@@ -8,6 +10,7 @@ import {
   useDeletePriceAlertMutation,
   useGetPriceAlertStatsQuery
 } from '../../store/api/notifications.api';
+
 
 const PriceAlerts = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
