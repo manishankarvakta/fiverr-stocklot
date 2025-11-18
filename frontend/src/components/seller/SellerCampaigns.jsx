@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Plus, Play, Pause, X, Edit, Eye, Target, TrendingUp, DollarSign, Users, Calendar, Filter } from 'lucide-react';
-import api from '../../api/client';
+// import api from '../../api/client';
 
 const SellerCampaigns = () => {
   const [campaigns, setCampaigns] = useState([]);

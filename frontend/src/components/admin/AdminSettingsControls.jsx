@@ -12,7 +12,7 @@ import {
   Smartphone, Share2, Mail, Phone, MapPin, Facebook, Twitter, Instagram, 
   Youtube, Linkedin, DollarSign, Percent
 } from 'lucide-react';
-// import api from '../../api/client';
+// import api from '../.1./api/client';
 
 export default function AdminSettingsControls() {
   // Original functionality state

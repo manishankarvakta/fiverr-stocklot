@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Input, Label, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { CheckCircle } from "lucide-react";
-import { useRegisterMutation } from '../../store/userApi'; // <- make sure this import exists
+import { useRegisterMutation } from "@/store/api/user.api";
+// import { useRegisterMutation } from '../../store/userApi'; // <- make sure this import exists
 
 function Register() {
   const [registerUser] = useRegisterMutation();

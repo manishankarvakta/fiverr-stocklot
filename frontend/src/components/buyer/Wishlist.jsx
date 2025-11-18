@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Heart, X, ShoppingCart, Eye, Bell, BellOff, Filter, Search, Package, DollarSign, Calendar, Star } from 'lucide-react';
-import api from '../../api/client';
+// import api from '../../api/client';
 
 const Wishlist = () => {
   const [wishlistItems, setWishlistItems] = useState([]);

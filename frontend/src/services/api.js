@@ -1,5 +1,5 @@
 // src/services/api.js - Comprehensive API service layer
-import { apiCall, authAPI, listingsAPI, cartAPI, orderAPI, checkoutAPI } from '../api/client';
+// import { apiCall, authAPI, listingsAPI, cartAPI, orderAPI, checkoutAPI } from '../api/client';
 
 // Authentication Services
 export const AuthService = {

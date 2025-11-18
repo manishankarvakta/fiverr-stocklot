@@ -11,7 +11,7 @@ import AskQuestionButton from './AskQuestionButton';
 import GroupBuyWidget from '../features/GroupBuyWidget';
 import AuctionWidget from '../features/AuctionWidget';
 import TrustScoreDisplay from '../features/TrustScoreDisplay';
-import api from '../../api/client'; // Use centralized API client
+// import api from '../../api/client'; // Use centralized API client
 
 const ListingPDP = () => {
   const { id } = useParams();
