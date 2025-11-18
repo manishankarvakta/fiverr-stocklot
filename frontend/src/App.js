@@ -157,12 +157,12 @@ function App() {
 
   return (
     <FeatureFlagsProvider>
-      <AuthProvider>
-        <AuthGate>
-          <Router>
-            <div className="App">
+    <AuthProvider>
+      <AuthGate>
+        <Router>
+          <div className="App">
               <Header/>
-              <main className="min-h-screen">
+            <main className="min-h-screen">
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Homepage />} />

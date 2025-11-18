@@ -4,27 +4,26 @@ services:
     image: mongo:7.0
     container_name: stocklot-mongodb
     restart: unless-stopped
-    # No external ports - only accessible within Docker network
-    # This prevents conflicts with other MongoDB instances
+    # Expose port for local development
+    ports:
+      - "27017:27025"
     expose:
       - "27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}
-      MONGO_INITDB_DATABASE: ${MONGO_DBNAME:-${DB_NAME:-stocklot}}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-stocklot}
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
     networks:
       - stocklot-network
     healthcheck:
-      # Simple ping test - MongoDB will be ready when this succeeds
-      # Authentication will be tested by backend with retry mechanism
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 40s  # Give MongoDB time to initialize
+      retries: 5
+      start_period: 30s
 
   # MinIO Object Storage
   minio:
@@ -86,10 +85,8 @@ services:
       - "8000:8000"
     environment:
       # MongoDB Configuration
-      # Support both MONGO_URI and MONGO_URL for flexibility
-      MONGO_URI: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}:${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}@mongodb:27017/${MONGO_DBNAME:-${DB_NAME:-stocklot}}?authSource=admin}
-      MONGO_URL: ${MONGO_URL:-${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}:${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}@mongodb:27017/${MONGO_DBNAME:-${DB_NAME:-stocklot}}?authSource=admin}}
-      DB_NAME: ${MONGO_DBNAME:-${DB_NAME:-stocklot}}
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-adminpassword}@mongodb:27017/${DB_NAME:-stocklot}?authSource=admin
+      DB_NAME: ${DB_NAME:-stocklot}
       
       # MinIO Configuration (S3-compatible)
       MINIO_ENDPOINT: minio:9000
@@ -107,7 +104,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
-      ALLOWED_ORIGINS: ${CORS_ORIGINS:-${ALLOWED_ORIGINS:-}}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       
       # Optional Services (set these in .env file)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -174,12 +171,7 @@ volumes:
 
 networks:
   stocklot-network:
-    name: stocklot-network
     driver: bridge
     # Internal network - services communicate via service names
-    # Using named network to ensure isolation from other projects
     internal: false  # Set to true if you want complete isolation (no internet access)
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.28.0.0/16  # Use custom subnet to avoid conflicts
+
