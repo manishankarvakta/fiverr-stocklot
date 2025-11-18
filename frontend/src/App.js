@@ -182,12 +182,12 @@ console.log("Backend URL:", BACKEND_URL,API);
 
 
 
-<>
+{/* <>
 <Login />
 <Footer />
 
 
-</>
+</> */}
 
 
 
