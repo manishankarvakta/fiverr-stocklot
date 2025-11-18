@@ -122,12 +122,43 @@ class Console:
 
 console = Console()
 
-# MongoDB connection
+# MongoDB connection with retry mechanism
 # Support both MONGO_URI and MONGO_URL for flexibility
 mongo_url = os.environ.get('MONGO_URI') or os.environ.get('MONGO_URL')
 if not mongo_url:
     raise ValueError("Either MONGO_URI or MONGO_URL environment variable must be set")
-client = AsyncIOMotorClient(mongo_url)
+
+# Initialize MongoDB client with connection retry
+async def connect_mongodb_with_retry(max_retries=10, delay=2):
+    """Connect to MongoDB with retry mechanism"""
+    for attempt in range(max_retries):
+        try:
+            client = AsyncIOMotorClient(
+                mongo_url,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+                socketTimeoutMS=5000
+            )
+            # Test connection
+            await client.admin.command('ping')
+            logger.info(f"✅ MongoDB connection successful (attempt {attempt + 1})")
+            return client
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"⚠️  MongoDB connection attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+                delay = min(delay * 1.5, 10)  # Exponential backoff, max 10s
+            else:
+                logger.error(f"❌ MongoDB connection failed after {max_retries} attempts: {e}")
+                raise
+
+# Create client synchronously (will be connected on first use)
+client = AsyncIOMotorClient(
+    mongo_url,
+    serverSelectionTimeoutMS=10000,
+    connectTimeoutMS=10000,
+    socketTimeoutMS=10000
+)
 db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
 db = client[db_name]
 
@@ -2095,6 +2126,26 @@ async def update_order_status(
 async def initialize_database():
     """Initialize database with comprehensive livestock taxonomy"""
     try:
+        # Wait for MongoDB to be ready with retry
+        max_retries = 10
+        delay = 2
+        for attempt in range(max_retries):
+            try:
+                # Test MongoDB connection
+                await client.admin.command('ping')
+                # Test database access
+                await db.list_collection_names()
+                logger.info(f"✅ MongoDB is ready (attempt {attempt + 1})")
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"⚠️  MongoDB not ready yet (attempt {attempt + 1}): {e}. Waiting {delay}s...")
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 1.5, 10)  # Exponential backoff
+                else:
+                    logger.error(f"❌ MongoDB not ready after {max_retries} attempts: {e}")
+                    raise
+        
         # FORCE REINITIALIZE - Clear existing incomplete data
         print("Checking database status...")
         

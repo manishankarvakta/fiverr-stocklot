@@ -1,10 +1,12 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 // Get backend URL with fallback
 const getBackendUrl = () => {
   // Expect REACT_APP_BACKEND_URL to be something like 'https://api.example.com'
   // We append '/api' in the baseQuery below. Use fallback without '/api'.
+  console.log("Backend URL:", process.env.REACT_APP_BACKEND_URL);
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+
 };
 
 // Base query with authentication
