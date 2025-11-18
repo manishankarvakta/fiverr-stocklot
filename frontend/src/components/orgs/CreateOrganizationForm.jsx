@@ -8,6 +8,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Building2, CheckCircle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../utils/apiHelper';
 
 const ORGANIZATION_TYPES = [
   { value: 'FARM', label: 'Farm', description: 'Individual or family farm operation' },
@@ -38,32 +39,17 @@ export default function CreateOrganizationForm({ onClose, onSuccess }) {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/orgs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(true);
-        setTimeout(() => {
-          if (onSuccess) onSuccess(data);
-          if (onClose) onClose();
-          // Redirect to organization dashboard
-          navigate(`/orgs/${data.handle || data.id}/dashboard`);
-        }, 2000);
-      } else {
-        setError(data.detail || 'Failed to create organization');
-      }
+      const data = await api.post('/orgs', formData);
+      setSuccess(true);
+      setTimeout(() => {
+        if (onSuccess) onSuccess(data);
+        if (onClose) onClose();
+        // Redirect to organization dashboard
+        navigate(`/orgs/${data.handle || data.id}/dashboard`);
+      }, 2000);
     } catch (error) {
       console.error('Error creating organization:', error);
-      setError('Failed to create organization');
+      setError(error?.message || error?.data?.detail || 'Failed to create organization');
     } finally {
       setLoading(false);
     }

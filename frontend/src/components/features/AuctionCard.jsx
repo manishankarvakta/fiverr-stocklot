@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '../ui';
 import { Gavel, Clock, TrendingUp, Users } from 'lucide-react';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const AuctionCard = ({ auction, onBid, currentUserId }) => {
   const [bidding, setBidding] = useState(false);

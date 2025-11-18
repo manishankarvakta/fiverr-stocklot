@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
-import api from '../../api/client';
+import { useLoginMutation } from '../../store/api/user.api';
 import { Button, Input, Label, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui';
 
 function Login() {
@@ -17,30 +17,33 @@ function Login() {
   const searchParams = new URLSearchParams(location.search);
   const redirectTo = searchParams.get('redirect');
 
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      // Use new API client for login
-      const response = await api.post('/auth/login', { 
+      // Use Redux RTK Query for login
+      const response = await login({ 
         email: email, 
         password: password 
-      });
+      }).unwrap();
       
-      if (response.data.success) {
-        // Refresh auth state to get user data
-        await refetch();
-        
-        // Redirect to admin if that's where they came from, otherwise marketplace
-        if (redirectTo === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/marketplace');
-        }
+      // Handle token storage if present
+      if (response.access_token) {
+        localStorage.setItem('token', response.access_token);
+      }
+      
+      // Refresh auth state to get user data
+      await refetch();
+      
+      // Redirect to admin if that's where they came from, otherwise marketplace
+      if (redirectTo === 'admin') {
+        navigate('/admin');
       } else {
-        setError('Login failed');
+        navigate('/marketplace');
       }
     } catch (error) {
       console.error('Login error:', error);

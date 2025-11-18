@@ -10,7 +10,7 @@ import {
   DollarSign, Plus, ArrowUpRight, ArrowDownLeft, Clock, 
   CheckCircle, XCircle, AlertTriangle, Wallet, CreditCard, RefreshCw
 } from 'lucide-react';
-import api from '../../api/client'; // Use the proper API client
+import api from '../../utils/apiHelper'; // Use the proper API client
 
 const CreditWallet = () => {
   const navigate = useNavigate();

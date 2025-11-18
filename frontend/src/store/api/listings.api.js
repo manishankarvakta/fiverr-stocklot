@@ -73,6 +73,12 @@ export const listingsApi = baseApi.injectEndpoints({
         'Listing',
       ],
     }),
+    
+    // PDP endpoint
+    getListingPDP: builder.query({
+      query: (listingId) => `/listings/${listingId}/pdp`,
+      providesTags: (result, error, listingId) => [{ type: 'Listing', id: listingId }],
+    }),
   }),
   overrideExisting: false,
 });
@@ -90,5 +96,7 @@ export const {
   useGetMyListingsQuery,
   useLazyGetMyListingsQuery,
   useEnhanceListingMutation,
+  useGetListingPDPQuery,
+  useLazyGetListingPDPQuery,
 } = listingsApi;
 

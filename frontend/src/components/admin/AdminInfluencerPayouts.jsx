@@ -10,7 +10,7 @@ import {
   Users, Plus, Star, DollarSign, TrendingUp, Eye, Edit, Trash2, CheckCircle, XCircle,
   UserPlus, Award, Target, BarChart3, Calendar, Clock
 } from 'lucide-react';
-// import api from '../../api/client';
+// import api from '../../utils/apiHelper';
 
 export default function AdminInfluencerPayouts() {
   const [influencers, setInfluencers] = useState([]);

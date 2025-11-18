@@ -9,8 +9,8 @@ import PublicOnlyRoute from './auth/PublicOnlyRoute';
 import EmailVerificationPage from './components/auth/EmailVerificationPage';
 import PasswordResetPage from './components/auth/PasswordResetPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
-import api from './api/client';
-import APIServices from './services/api';
+// All API calls now use Redux RTK Query hooks from store/api/
+// See FRONTEND_DOCUMENTATION.md for migration guide
 import { 
   Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Input, Label, Textarea, Badge, Avatar, AvatarFallback,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogDescription, 
@@ -147,6 +147,8 @@ function InlineCartPage() {
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+console.log("Backend URL:", BACKEND_URL,API);
 
 // API helper with auth token (keeping for backward compatibility)
 const apiCall = async (method, url, data = null) => {

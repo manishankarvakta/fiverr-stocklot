@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, Search, ShoppingCart, User, LogOut, ChevronDown, MessageCircle, CreditCard, MapPin, LayoutDashboard, Plus, Building, Package, Users, Shield } from 'lucide-react';
 // import { AuthProvider, AuthGate, useAuth } from './auth/AuthProvider';
-// import api from './api/client';
+// import api from './utils/apiHelper';
 import { 
   Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Input, Label, Textarea, Badge, Avatar, AvatarFallback,
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,

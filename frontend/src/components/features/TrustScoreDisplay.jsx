@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Badge } from '../ui';
 import { Shield, Star, TrendingUp, Award } from 'lucide-react';
 // import { IfFlag } from '../../provide/rs/FeatureFlagsProvider';
-import api from '../../api/client';
+import api from '../../utils/apiHelper';
 
 const TrustScoreDisplay = ({ userId, size = 'sm', showDetails = false }) => {
   const [trustScore, setTrustScore] = useState(null);

@@ -18,7 +18,7 @@ import {
   Users, DollarSign, ShoppingCart, TrendingUp, Eye, Edit, Trash2, Plus,
   Activity, Bell, Settings, RefreshCw, Download, Upload, Search, Filter
 } from 'lucide-react';
-// import api from '../../api/client';
+// import api from '../../utils/apiHelper';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
