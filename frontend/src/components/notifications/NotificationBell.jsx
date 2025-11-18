@@ -10,6 +10,7 @@ const NotificationBell = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [lastFetch, setLastFetch] = useState(0);
 
   // Simple way to check if user is logged in
   const token = localStorage.getItem('token');
@@ -18,11 +19,52 @@ const NotificationBell = () => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
+      
+      // Set up intelligent polling - only when component is visible and not too frequently
+      const interval = setInterval(() => {
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetch;
+        
+        // Only fetch if:
+        // 1. More than 30 seconds since last fetch
+        // 2. Page is visible (not in background)
+        // 3. User is still logged in
+        if (timeSinceLastFetch > 30000 && !document.hidden && localStorage.getItem('token')) {
+          fetchNotifications();
+        }
+      }, 30000); // Check every 30 seconds, but with conditions
+
+      // Clean up on unmount
+      return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, lastFetch]);
+
+  // Listen for page visibility changes to pause/resume polling
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        // Page became visible, check for new notifications
+        const now = Date.now();
+        if (now - lastFetch > 10000) { // Only if it's been 10+ seconds
+          fetchNotifications();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, lastFetch]);
 
   const fetchNotifications = async () => {
+    // Prevent excessive calls
+    const now = Date.now();
+    if (now - lastFetch < 5000) { // Don't allow calls more frequent than 5 seconds
+      return;
+    }
+
     setLoading(true);
+    setLastFetch(now);
+    
     try {
       const notificationData = await NotificationService.getNotifications(20);
       setNotifications(notificationData.notifications || []);
@@ -67,6 +109,17 @@ const NotificationBell = () => {
     }
   };
 
+  // Refresh notifications when popup opens (but respect rate limiting)
+  const handlePopoverOpen = (isOpen) => {
+    setOpen(isOpen);
+    if (isOpen && user) {
+      const now = Date.now();
+      if (now - lastFetch > 10000) { // Only if it's been 10+ seconds
+        fetchNotifications();
+      }
+    }
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -81,7 +134,7 @@ const NotificationBell = () => {
   if (!user) return null;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handlePopoverOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="relative">
           <Bell className="h-4 w-4" />

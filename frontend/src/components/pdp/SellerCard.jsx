@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import TrustScoreDisplay from '../features/TrustScoreDisplay';
 
 const SellerCard = ({ seller, listingId }) => {
   const navigate = useNavigate();
@@ -45,6 +46,15 @@ const SellerCard = ({ seller, listingId }) => {
                 <span>{seller.review_count} review{seller.review_count === 1 ? '' : 's'}</span>
                 <span>•</span>
                 <span>{seller.years_active}+ years</span>
+              </div>
+              
+              {/* Trust Score Display */}
+              <div className="mt-2">
+                <TrustScoreDisplay 
+                  userId={seller.id} 
+                  size="sm" 
+                  showDetails={false} 
+                />
               </div>
             </div>
 

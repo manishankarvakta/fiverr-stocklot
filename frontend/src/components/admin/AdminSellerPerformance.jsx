@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Star, Package, TrendingUp, DollarSign, Users, ArrowLeft } from 'lucide-react';
-import adminApi from '../../api/adminClient';
+// import adminApi from '../../api/adminClient';
 
 const AdminSellerPerformance = () => {
   const { id } = useParams();

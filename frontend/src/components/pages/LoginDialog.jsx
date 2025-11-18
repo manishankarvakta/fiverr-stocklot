@@ -1,9 +1,3 @@
-import React, { useState } from "react";
-import { X, LogIn, UserPlus } from "lucide-react";
-import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-
 function LoginDialog({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -82,101 +76,96 @@ function LoginDialog({ open, onClose, onSuccess }) {
           <div className="space-y-4">
             {!isLogin && (
               <div>
-                <Label htmlFor="full_name" className="text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name *
-                </Label>
-                <Input
-                  id="full_name"
+                </label>
+                <input
                   type="text"
                   value={formData.full_name}
                   onChange={(e) => setFormData(prev => ({...prev, full_name: e.target.value}))}
-                  className="border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
                   required={!isLogin}
                 />
               </div>
             )}
 
             <div>
-              <Label htmlFor="email" className="text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email *
-              </Label>
-              <Input
-                id="email"
+              </label>
+              <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
-                className="border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Password *
-              </Label>
-              <Input
-                id="password"
+              </label>
+              <input
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
-                className="border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
                 required
               />
             </div>
 
             {!isLogin && (
               <div>
-                <Label htmlFor="role" className="text-gray-700">
-                  Role *
-                </Label>
-                <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({...prev, role: value}))}>
-                  <SelectTrigger className="border-gray-300">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="buyer">Buyer</SelectItem>
-                    <SelectItem value="seller">Seller</SelectItem>
-                    <SelectItem value="both">Both (Buyer & Seller)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  I want to
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData(prev => ({...prev, role: e.target.value}))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="seller">Sell livestock</option>
+                  <option value="buyer">Buy livestock</option>
+                </select>
               </div>
             )}
+          </div>
 
-            {error && (
-              <div className="p-3 bg-red-100 border border-red-300 rounded-md">
-                <p className="text-red-700 text-sm">{error}</p>
+          {error && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-red-700">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm">{error}</span>
               </div>
-            )}
+            </div>
+          )}
 
-            <Button
-              type="submit"
+          <div className="mt-6 space-y-3">
+            <Button 
+              type="submit" 
               disabled={loading}
               className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
             >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : isLogin ? (
-                <LogIn className="h-4 w-4 mr-2" />
-              ) : (
-                <UserPlus className="h-4 w-4 mr-2" />
-              )}
-              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </Button>
-          </div>
 
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError(null);
+                setFormData({ email: '', password: '', full_name: '', role: 'seller' });
+              }}
             >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-            </button>
+              {isLogin ? 'Need an account? Sign up' : 'Already have an account? Sign in'}
+            </Button>
           </div>
         </form>
       </div>
     </div>
   );
 }
-
 export default LoginDialog;

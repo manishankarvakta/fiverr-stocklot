@@ -10,6 +10,7 @@ import {
   FileText, MessageSquare, Phone, Info
 } from 'lucide-react';
 import FeeBreakdown from './FeeBreakdown';
+import CheckoutOptions from './CheckoutOptions';
 
 const CheckoutFlow = ({ orderGroupId, onComplete, onCancel }) => {
   const [orderGroup, setOrderGroup] = useState(null);
@@ -547,6 +548,16 @@ const CheckoutFlow = ({ orderGroupId, onComplete, onCancel }) => {
           {/* Payment Actions */}
           <Card>
             <CardContent className="pt-6 space-y-4">
+              {/* StockLot Differentiator Features - Checkout Options */}
+              <CheckoutOptions 
+                orderId={orderGroupId}
+                orderDetails={orderGroup}
+                onUpdate={(options) => {
+                  console.log('Checkout options updated:', options);
+                  // Could update order with transport/insurance/finance options
+                }}
+              />
+              
               <Button
                 onClick={initializePayment}
                 disabled={processing || timeRemaining <= 0}

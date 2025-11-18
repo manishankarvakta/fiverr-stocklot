@@ -2,8 +2,9 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 // Get backend URL with fallback
 const getBackendUrl = () => {
-  return process.env.REACT_APP_BACKEND_URL || 
-         'https://farmstock-hub-1.preview.emergentagent.com';
+  // Expect REACT_APP_BACKEND_URL to be something like 'https://api.example.com'
+  // We append '/api' in the baseQuery below. Use fallback without '/api'.
+  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 };
 
 // Base query with authentication
@@ -18,8 +19,9 @@ const baseQuery = fetchBaseQuery({
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
-    
-    headers.set('Content-Type', 'application/json');
+    // Do not set Content-Type globally so multipart/FormData requests can
+    // be sent without forcing 'application/json'. Individual endpoints
+    // may set headers when needed.
     return headers;
   },
 });
@@ -41,6 +43,16 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
       );
       
       if (refreshResult.data) {
+        // If refresh returned a new token, persist it so prepareHeaders
+        // will include it for the retried request.
+        const newToken =
+          refreshResult.data.token ||
+          refreshResult.data.accessToken ||
+          refreshResult.data.access_token;
+
+        if (newToken) {
+          localStorage.setItem('token', newToken);
+        }
         // Retry the original query with new token
         result = await baseQuery(args, api, extraOptions);
       } else {
