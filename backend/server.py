@@ -123,9 +123,13 @@ class Console:
 console = Console()
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+# Support both MONGO_URI and MONGO_URL for flexibility
+mongo_url = os.environ.get('MONGO_URI') or os.environ.get('MONGO_URL')
+if not mongo_url:
+    raise ValueError("Either MONGO_URI or MONGO_URL environment variable must be set")
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
+db = client[db_name]
 
 # Initialize extended services
 messaging_service = MessagingService(db)
