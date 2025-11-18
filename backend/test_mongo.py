@@ -5,10 +5,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 async def test_connection():
     try:
-        # Try without database first (authSource=admin)
-        client = AsyncIOMotorClient('mongodb://admin:adminpassword@localhost:27017/?authSource=admin')
+        # Connect to MongoDB on port 27025
+        client = AsyncIOMotorClient('mongodb://localhost:27025/')
         await client.admin.command('ping')
-        print('✅ MongoDB connection successful')
+        print('✅ MongoDB connection successful on port 27025')
         
         # Test database access
         db = client['stocklot']

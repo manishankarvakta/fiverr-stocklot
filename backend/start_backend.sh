@@ -1,7 +1,7 @@
 #!/bin/bash
 cd /Users/manishankarvakta/Desktop/FIVERR/client/stocklot/backend
 source venv/bin/activate
-export MONGO_URL="mongodb://localhost:27017/"
+export MONGO_URL="mongodb://localhost:27025/"
 export DB_NAME="stocklot"
 export MINIO_ENDPOINT="localhost:9000"
 export MINIO_ACCESS_KEY="minioadmin"

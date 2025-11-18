@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     # Expose port for local development
     ports:
-      - "27017:27025"
+      - "27025:27017"
     expose:
       - "27017"
     environment:
