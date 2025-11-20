@@ -10,9 +10,10 @@ services:
     expose:
       - "27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
-      MONGO_INITDB_DATABASE: ${DB_NAME:-stocklot}
+      # Support both naming conventions
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}
+      MONGO_INITDB_DATABASE: ${MONGO_DBNAME:-${DB_NAME:-stocklot}}
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
@@ -85,8 +86,12 @@ services:
       - "8000:8000"
     environment:
       # MongoDB Configuration
-      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-adminpassword}@mongodb:27017/${DB_NAME:-stocklot}?authSource=admin
-      DB_NAME: ${DB_NAME:-stocklot}
+      # Priority: MONGO_URI > MONGO_URL > build from components
+      # For Dokploy: Use Docker service name 'mongodb:27017' for internal network connection
+      # If MONGO_URI is set with external IP, it will be used; otherwise defaults to internal 'mongodb:27017'
+      MONGO_URI: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}:${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}@mongodb:27017/${MONGO_DBNAME:-${DB_NAME:-stocklot}}?authSource=admin}
+      MONGO_URL: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}:${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}@mongodb:27017/${MONGO_DBNAME:-${DB_NAME:-stocklot}}?authSource=admin}
+      DB_NAME: ${MONGO_DBNAME:-${DB_NAME:-stocklot}}
       
       # MinIO Configuration (S3-compatible)
       MINIO_ENDPOINT: minio:9000
@@ -174,4 +179,5 @@ networks:
     external: true
     # Dokploy creates this network - services communicate via service names
     # All services use this network for internal communication
+    
 
