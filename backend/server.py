@@ -131,7 +131,8 @@ console = Console()
 
 # db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
 
-mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin'
+# mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin' #local docker
+mongo_url = 'mongodb://posDBUser:posDBPassword@tcm-pos-posdb-2i3j8w:27017/?authSource=admin' #dokploy
 db_name = 'stocklotDB'
 
 # Mask password in logs for security
