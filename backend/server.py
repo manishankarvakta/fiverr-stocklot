@@ -125,11 +125,14 @@ console = Console()
 # MongoDB connection
 # Support DB_URL, MONGO_URL, or MONGO_URI (in that order of priority)
 # Following the pattern from working Docker Compose examples
-mongo_url = os.environ.get('DB_URL') or os.environ.get('MONGO_URL') or os.environ.get('MONGO_URI')
-if not mongo_url:
-    raise ValueError("DB_URL, MONGO_URL, or MONGO_URI environment variable must be set")
+# mongo_url = os.environ.get('DB_URL') or os.environ.get('MONGO_URL') or os.environ.get('MONGO_URI')
+# if not mongo_url:
+#     raise ValueError("DB_URL, MONGO_URL, or MONGO_URI environment variable must be set")
 
-db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
+# db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
+
+mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin'
+db_name = 'stocklotDB'
 
 # Mask password in logs for security
 def mask_mongo_url(url: str) -> str:
