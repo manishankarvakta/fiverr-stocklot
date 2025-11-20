@@ -2,7 +2,6 @@ services:
   # MongoDB Database
   mongodb:
     image: mongo:7.0
-    container_name: stocklot-mongodb
     restart: unless-stopped
     expose:
       - "27017"
@@ -25,11 +24,10 @@ services:
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
-    container_name: stocklot-minio
     restart: unless-stopped
     expose:
-      - "9000"  # API port (internal only)
-      - "9001"  # Console port (internal only)
+      - "9000"  # API port
+      - "9001"  # Console port
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -48,7 +46,6 @@ services:
   # MinIO Client (for bucket initialization)
   minio-setup:
     image: minio/mc:latest
-    container_name: stocklot-minio-setup
     restart: "no"
     depends_on:
       minio:
@@ -74,10 +71,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: stocklot-backend
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
       # MongoDB - Use Docker service name for internal network connection
       # If MONGO_URI is set, use it (for external DB), otherwise use internal mongodb service
@@ -129,6 +125,13 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    # Traefik labels for domain routing (optional - can use native domain config in Dokploy UI)
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-stocklot.rule=Host(`apilifestock.aamardokan.online`)"
+      - "traefik.http.routers.backend-stocklot.entrypoints=websecure"
+      - "traefik.http.routers.backend-stocklot.tls.certResolver=letsencrypt"
+      - "traefik.http.services.backend-stocklot.loadbalancer.server.port=8000"
 
   # Frontend (React + Nginx)
   frontend:
@@ -137,10 +140,9 @@ services:
       dockerfile: Dockerfile
       args:
         - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
-    container_name: stocklot-frontend
     restart: unless-stopped
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     depends_on:
       backend:
         condition: service_healthy
@@ -152,6 +154,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    # Traefik labels for domain routing (optional - can use native domain config in Dokploy UI)
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend-stocklot.rule=Host(`lifestock.aamardokan.online`)"
+      - "traefik.http.routers.frontend-stocklot.entrypoints=websecure"
+      - "traefik.http.routers.frontend-stocklot.tls.certResolver=letsencrypt"
+      - "traefik.http.services.frontend-stocklot.loadbalancer.server.port=80"
 
 volumes:
   mongodb_data:
