@@ -71,8 +71,8 @@ services:
       - "8000"
     environment:
       # MongoDB - Simple internal connection using service name (like the reference example)
-      DB_URL=mongodb://mongodb:27017
-      MONGO_URL=mongodb://mongodb:27017
+      - DB_URL=mongodb://mongodb:27017
+      - MONGO_URL=mongodb://mongodb:27017
       # DB_NAME: ${MONGO_DBNAME:-my_database_name}
       
       # MinIO Configuration
