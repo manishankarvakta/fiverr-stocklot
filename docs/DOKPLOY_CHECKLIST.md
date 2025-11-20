@@ -69,11 +69,13 @@ REACT_APP_BACKEND_URL=http://backend:8000
 
 ### 3. Network Configuration
 
-- All services must be on the same Docker network
+- **All services must use `dokploy-network`** (external network created by Dokploy)
 - Services communicate using service names:
   - Backend → MongoDB: `mongodb:27017`
   - Backend → MinIO: `minio:9000`
   - Frontend → Backend: `backend:8000`
+- The `dokploy-network` is configured as `external: true` in docker-compose.yml
+- This ensures proper internal communication and database connectivity
 
 ### 4. Volume Configuration
 

@@ -123,9 +123,48 @@ class Console:
 console = Console()
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Support DB_URL, MONGO_URL, or MONGO_URI (in that order of priority)
+# Following the pattern from working Docker Compose examples
+# mongo_url = os.environ.get('DB_URL') or os.environ.get('MONGO_URL') or os.environ.get('MONGO_URI')
+# if not mongo_url:
+#     raise ValueError("DB_URL, MONGO_URL, or MONGO_URI environment variable must be set")
+
+# db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
+
+# mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin' #local docker
+mongo_url = 'mongodb://posDBUser:posDBPassword@tcm-pos-posdb-2i3j8w:27017/?authSource=admin' #dokploy
+db_name = 'stocklotDB'
+
+# Mask password in logs for security
+def mask_mongo_url(url: str) -> str:
+    """Mask password in MongoDB connection string for logging"""
+    try:
+        if '@' in url:
+            parts = url.split('@')
+            auth_part = parts[0]
+            if ':' in auth_part:
+                user_pass = auth_part.split('://', 1)[1] if '://' in auth_part else auth_part
+                if ':' in user_pass:
+                    user = user_pass.split(':')[0]
+                    return url.replace(user_pass, f"{user}:***")
+        return url
+    except:
+        return "mongodb://***:***@***"
+    
+logger.info(f"Connecting to MongoDB: {mask_mongo_url(mongo_url)}")
+logger.info(f"Database name: {db_name}")
+
+# Initialize MongoDB client with longer timeouts for external connections
+# This allows time for external MongoDB servers to respond
+client = AsyncIOMotorClient(
+    mongo_url, 
+    serverSelectionTimeoutMS=30000,  # 30 seconds for external DB
+    connectTimeoutMS=30000,
+    socketTimeoutMS=30000,
+    retryWrites=True
+)
+db = client[db_name]
+logger.info("MongoDB client initialized (connection will be tested on first use)")
 
 # Initialize extended services
 messaging_service = MessagingService(db)
@@ -251,6 +290,18 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
+    """Test database connection on startup"""
+    try:
+        # Test MongoDB connection
+        await client.admin.command('ping')
+        logger.info("✅ MongoDB connection verified on startup")
+        
+        # Test database access
+        collections = await db.list_collection_names()
+        logger.info(f"✅ Database access verified - {len(collections)} collections found")
+    except Exception as e:
+        logger.error(f"❌ Database connection test failed on startup: {e}")
+        # Don't raise - let the app start but log the error
     global notification_service, notification_worker
     # Initialize comprehensive notification system
     notification_service = NotificationService(db)
@@ -295,8 +346,35 @@ app.add_middleware(
 # Health check endpoint
 @api_router.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+    """Health check endpoint - always returns 200 if server is responding"""
+    # Always return 200 - server is healthy if it can respond to HTTP requests
+    # Database connectivity is tested but doesn't fail the health check
+    # This prevents container from being marked unhealthy due to temporary DB issues
+    db_status = "unknown"
+    db_error = None
+    
+    try:
+        # Test database connection with a simple query (CRUD Read operation)
+        # Use a timeout to prevent health check from hanging
+        await asyncio.wait_for(
+            db.users.count_documents({}, limit=1),
+            timeout=5.0
+        )
+        db_status = "connected"
+    except asyncio.TimeoutError:
+        db_status = "timeout"
+        db_error = "Database connection timeout"
+    except Exception as e:
+        db_status = "disconnected"
+        db_error = str(e)
+    
+    # Always return 200 - server is running
+    return {
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "database": db_status,
+        "error": db_error
+    }
 
 # Enums (keeping non-auth related ones)
 class ListingStatus(str, Enum):

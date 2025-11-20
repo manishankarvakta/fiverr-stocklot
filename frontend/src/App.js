@@ -20,49 +20,18 @@ import EmailVerificationPage from './components/auth/EmailVerificationPage';
 import PasswordResetPage from './components/auth/PasswordResetPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
 
-
-import APIServices from './services/api';
-import { 
-  Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Input, Label, Textarea, Badge, Avatar, AvatarFallback,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogDescription, 
-  DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Tabs, TabsList, TabsTrigger, TabsContent,
-  Switch, Alert, AlertDescription, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from "./components/ui";
-import { 
-  Bell, Search, Menu, X, Users, Package, TrendingUp, DollarSign, 
-  Eye, ChevronDown, ChevronUp, Calendar, Clock, MapPin, Phone, Mail, Star, ShoppingCart, 
-  CheckCircle, XCircle, AlertTriangle, AlertCircle, Filter, SortAsc, Home, Building, User, Settings, 
-  LogOut, Edit, Trash2, Plus, RefreshCw, ArrowRight, ArrowLeft, ArrowLeftRight, Upload, Download, 
-  FileText, Image, Video, Play, Pause, BarChart3, PieChart, Zap, Globe, Shield, CreditCard, 
-  LayoutDashboard, MessageCircle, Ban, Check, Copy, Heart, Award, Truck, LogIn, Brain
-} from "lucide-react";
-import LocationPicker from './components/location/LocationPicker';
-import GeofenceBanner from './components/geofence/GeofenceBanner';
-import RangeBadge from './components/geofence/RangeBadge';
-import DeliverableFilterBar from './components/geofence/DeliverableFilterBar';
-import ContextSwitcher from './components/seller/ContextSwitcher';
 import CreateOrganizationPage from './components/orgs/CreateOrganizationPage';
 import OrganizationDashboard from './components/orgs/OrganizationDashboard';
-import OrganizationManagement from './components/admin/OrganizationManagement';
-import AdminRoleManagement from './components/admin/AdminRoleManagement';
 import EnhancedRegister from './components/auth/EnhancedRegister';
 import TwoFactorManagement from './components/auth/TwoFactorManagement';
-import TwoFactorSetup from './components/auth/TwoFactorSetup';
-import OrganizationDashboardCard from './components/dashboard/OrganizationDashboardCard';
 import GuestCheckout from './components/checkout/GuestCheckout';
 
 // Import new components
-import NotificationBell from './components/notifications/NotificationBell';
 import ReferralDashboard from './components/referrals/ReferralDashboard';
 import BlogList from './components/blog/BlogList';
 import BlogEditor from './components/blog/BlogEditor';
 import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
-import CreateBuyRequestForm from './components/buyRequests/CreateBuyRequestForm';
-import BuyRequestsList from './components/buyRequests/BuyRequestsList';
-import AdminDashboard from './components/admin/AdminDashboard';
-import AdminLayoutWithSidebar from './components/admin/AdminLayout';
 import AdminAnalyticsOverview from './components/admin/AdminAnalyticsOverview';
 import AdminAnalyticsPDP from './components/admin/AdminAnalyticsPDP';
 import AdminSellerPerformance from './components/admin/AdminSellerPerformance';
@@ -119,23 +88,13 @@ import SellerProfileLayout from './components/seller/SellerProfileLayout';
 import BasicInfo from './components/seller/profile/BasicInfo';
 import BusinessInfo from './components/seller/profile/BusinessInfo';
 import SidebarDemo from './components/demo/SidebarDemo';
-import PaymentMethodsForm from './components/PaymentMethodsForm';
 
 // Wallet Components
 import CreditWallet from './components/wallet/CreditWallet';
 
-import SuggestButton from './components/suggestions/SuggestButton';
-import ShoppingCartModal from './components/cart/ShoppingCart';
 import FAQChatbot from './components/support/FAQChatbot';
-import PublicBuyRequestsPage from './pages/PublicBuyRequestsPage';
-import EnhancedPublicBuyRequestsPage from './pages/EnhancedPublicBuyRequestsPage';
-import EnhancedCreateBuyRequestForm from './components/buyRequests/EnhancedCreateBuyRequestForm';
-import BuyerOffersPage from './pages/BuyerOffersPage';
-import InboxPage from './pages/InboxPage';
 import ReviewsTestPage from './pages/ReviewsTestPage';
 import CartPage from './pages/CartPage';
-import TestCartPage from './pages/TestCartPage';
-import DeliveryRateForm from './components/seller/DeliveryRateForm';
 import LoginGate from './components/auth/LoginGate';
 
 // Import comprehensive PDP component
@@ -171,26 +130,10 @@ import RequestDetailModal from "./components/pages/RequestDetailModal";
 import SendOfferModal from "./components/buyRequests/SendOfferModal";
 import LoginDialog from "./components/pages/LoginDialog";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://stockdiff-app.preview.emergentagent.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://apilifestock.aamardokan.online';
 const API = `${BACKEND_URL}/api`;
 
 console.log("Backend URL:", BACKEND_URL,API);
-
-
-
-
-
-
-
-{/* <>
-<Login />
-<Footer />
-
-
-</> */}
-
-
-
 
 
 
@@ -214,12 +157,12 @@ function App() {
 
   return (
     <FeatureFlagsProvider>
-      <AuthProvider>
-        <AuthGate>
-          <Router>
-            <div className="App">
+    <AuthProvider>
+      <AuthGate>
+        <Router>
+          <div className="App">
               <Header/>
-              <main className="min-h-screen">
+            <main className="min-h-screen">
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Homepage />} />
@@ -415,248 +358,5 @@ function App() {
 </>
 
 
-
-
-// Send Offer Modal Component
-
-
-// Login Dialog Component
-
-
-// View Offers Modal Component (for buyers to see and accept offers)
-function ViewOffersModal({ request, user, onClose, onAcceptOffer }) {
-  const [offers, setOffers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Load offers for the request
-  useEffect(() => {
-    const loadOffers = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/buy-requests/${request.id}/offers`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to load offers');
-        }
-
-        const data = await response.json();
-        setOffers(data.items || []);
-        setError(null);
-      } catch (error) {
-        console.error('Error loading offers:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (request.id) {
-      loadOffers();
-    }
-  }, [request.id]);
-
-  const getTimeRemaining = (expiresAt) => {
-    const deadline = new Date(expiresAt);
-    const now = new Date();
-    const diff = deadline - now;
-    
-    if (diff <= 0) return { text: 'Expired', color: 'text-red-600' };
-    
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
-    if (days > 0) return { text: `${days}d ${hours}h`, color: 'text-green-600' };
-    return { text: `${hours}h`, color: 'text-yellow-600' };
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-emerald-900 mb-2">
-                Offers for: {request.title || `${request.species} Request`}
-              </h2>
-              <p className="text-gray-600">
-                {offers.length} offers received for {request.qty} {request.unit}
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="text-center py-8">
-              <div className="animate-spin h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-              <p className="text-gray-600">Loading offers...</p>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertCircle className="h-4 w-4" />
-                <span>{error}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Offers List */}
-          {!loading && offers.length > 0 && (
-            <div className="space-y-4">
-              {offers.map((offer, index) => {
-                const timeRemaining = getTimeRemaining(offer.validity_expires_at);
-                const unitPrice = offer.unit_price_minor / 100; // Convert from cents
-                const totalPrice = unitPrice * offer.qty;
-                
-                return (
-                  <Card key={offer.id} className="border-2 hover:border-emerald-300 transition-colors">
-                    <CardContent className="pt-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Offer Details */}
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-lg">Offer #{index + 1}</h4>
-                          <div className="text-sm space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Quantity:</span>
-                              <span className="font-medium">{offer.qty} {request.unit}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Unit Price:</span>
-                              <span className="font-medium">R{unitPrice.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Total:</span>
-                              <span className="font-medium text-emerald-600 text-lg">R{totalPrice.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Delivery:</span>
-                              <span className="font-medium">
-                                {offer.delivery_mode === 'SELLER' ? 'Seller delivers' : 'Buyer pickup'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Seller Info */}
-                        <div className="space-y-3">
-                          <h5 className="font-medium">Seller Information</h5>
-                          <div className="text-sm space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Seller:</span>
-                              <span className="font-medium">{offer.seller_name || 'Anonymous'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Rating:</span>
-                              <div className="flex items-center gap-1">
-                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                <span className="text-sm">{offer.seller_rating || 'New'}</span>
-                              </div>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Location:</span>
-                              <span className="font-medium">{offer.seller_province || 'Not specified'}</span>
-                            </div>
-                          </div>
-                          {offer.notes && (
-                            <div className="mt-2">
-                              <p className="text-xs text-gray-600 mb-1">Notes:</p>
-                              <p className="text-sm bg-gray-50 p-2 rounded">{offer.notes}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Status & Actions */}
-                        <div className="space-y-3">
-                          <div className="text-center">
-                            <div className={`text-sm font-medium ${timeRemaining.color}`}>
-                              {timeRemaining.text} remaining
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Expires: {new Date(offer.validity_expires_at).toLocaleDateString()}
-                            </div>
-                          </div>
-                          
-                          <div className="text-center">
-                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                              offer.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                              offer.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {offer.status?.charAt(0).toUpperCase() + offer.status?.slice(1) || 'Pending'}
-                            </span>
-                          </div>
-
-                          {offer.status === 'pending' && timeRemaining.text !== 'Expired' && (
-                            <Button 
-                              onClick={() => onAcceptOffer(offer)}
-                              className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Accept & Checkout
-                            </Button>
-                          )}
-                          
-                          {timeRemaining.text === 'Expired' && (
-                            <Button 
-                              variant="outline" 
-                              disabled
-                              className="w-full"
-                            >
-                              Expired
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loading && offers.length === 0 && !error && (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Package className="h-8 w-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No offers yet</h3>
-              <p className="text-gray-600">
-                Sellers haven't submitted offers for this request yet. Check back later!
-              </p>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex justify-between items-center pt-6 border-t mt-6">
-            <div className="text-sm text-gray-600">
-              Request deadline: {new Date(request.deadline_at).toLocaleDateString()}
-            </div>
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Buyer Offers Inbox Page - Where buyers see all offers sent to them
-
-// Unified Inbox Page - All notifications and messages
-
-
-// Exotics Page - Dedicated page for exotic livestock
 
 export default App;

@@ -198,7 +198,26 @@ export default function EnhancedRegister() {
             navigate('/dashboard');
           } catch (orgError) {
             console.error('Organization creation error:', orgError);
-            setError('User created but organization setup failed. You can create it later.');
+            // Handle organization error format
+            let orgErrorMessage = 'User created but organization setup failed. You can create it later.';
+            
+            if (orgError?.data) {
+              if (Array.isArray(orgError.data)) {
+                orgErrorMessage = orgError.data[0]?.msg || orgErrorMessage;
+              } else if (orgError.data.detail) {
+                if (Array.isArray(orgError.data.detail)) {
+                  orgErrorMessage = orgError.data.detail[0]?.msg || orgErrorMessage;
+                } else if (typeof orgError.data.detail === 'string') {
+                  orgErrorMessage = orgError.data.detail;
+                }
+              } else if (orgError.data.message) {
+                orgErrorMessage = orgError.data.message;
+              }
+            } else if (orgError?.message) {
+              orgErrorMessage = orgError.message;
+            }
+            
+            setError(orgErrorMessage);
             setTimeout(() => navigate('/dashboard'), 3000);
           }
         } else {
@@ -207,12 +226,55 @@ export default function EnhancedRegister() {
         }
       } catch (loginError) {
         console.error('Auto-login error:', loginError);
-        setError('Registration successful but auto-login failed. Please login manually.');
+        // Handle login error format
+        let loginErrorMessage = 'Registration successful but auto-login failed. Please login manually.';
+        
+        if (loginError?.data) {
+          if (Array.isArray(loginError.data)) {
+            loginErrorMessage = loginError.data[0]?.msg || loginErrorMessage;
+          } else if (loginError.data.detail) {
+            if (Array.isArray(loginError.data.detail)) {
+              loginErrorMessage = loginError.data.detail[0]?.msg || loginErrorMessage;
+            } else if (typeof loginError.data.detail === 'string') {
+              loginErrorMessage = loginError.data.detail;
+            }
+          } else if (loginError.data.message) {
+            loginErrorMessage = loginError.data.message;
+          }
+        } else if (loginError?.message) {
+          loginErrorMessage = loginError.message;
+        }
+        
+        setError(loginErrorMessage);
         setTimeout(() => navigate('/login'), 3000);
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setError(error?.data?.detail || error?.message || 'Registration failed. Please try again.');
+      // Handle different error formats
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error?.data) {
+        // Handle array of validation errors (Pydantic format)
+        if (Array.isArray(error.data)) {
+          errorMessage = error.data[0]?.msg || error.data[0]?.message || errorMessage;
+        } 
+        // Handle detail field (could be string or array)
+        else if (error.data.detail) {
+          if (Array.isArray(error.data.detail)) {
+            errorMessage = error.data.detail[0]?.msg || error.data.detail[0]?.message || errorMessage;
+          } else if (typeof error.data.detail === 'string') {
+            errorMessage = error.data.detail;
+          }
+        }
+        // Handle message field
+        else if (error.data.message) {
+          errorMessage = error.data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
