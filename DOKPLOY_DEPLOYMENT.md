@@ -92,12 +92,17 @@ frontend:
 
 ### 4. Network Configuration
 
-Ensure all services are on the same Docker network:
+**IMPORTANT**: All services must use the `dokploy-network` which is created by Dokploy:
 ```yaml
 networks:
-  stocklot-network:
-    driver: bridge
+  dokploy-network:
+    external: true
 ```
+
+This ensures:
+- Services can communicate internally using service names (e.g., `mongodb:27017`)
+- Database connections work properly within the Dokploy environment
+- All CRUD operations function correctly
 
 ### 5. Troubleshooting
 

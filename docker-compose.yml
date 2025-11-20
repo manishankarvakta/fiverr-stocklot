@@ -17,7 +17,7 @@ services:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
     networks:
-      - stocklot-network
+      - dokploy-network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
       interval: 10s
@@ -42,7 +42,7 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
     networks:
-      - stocklot-network
+      - dokploy-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -72,7 +72,7 @@ services:
       echo 'MinIO buckets initialized';
       "
     networks:
-      - stocklot-network
+      - dokploy-network
 
   # Backend API (FastAPI)
   backend:
@@ -128,7 +128,7 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - stocklot-network
+      - dokploy-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
@@ -151,7 +151,7 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - stocklot-network
+      - dokploy-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
       interval: 30s
@@ -170,8 +170,8 @@ volumes:
     driver: local
 
 networks:
-  stocklot-network:
-    driver: bridge
-    # Internal network - services communicate via service names
-    internal: false  # Set to true if you want complete isolation (no internet access)
+  dokploy-network:
+    external: true
+    # Dokploy creates this network - services communicate via service names
+    # All services use this network for internal communication
 

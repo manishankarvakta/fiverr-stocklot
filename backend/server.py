@@ -295,8 +295,22 @@ app.add_middleware(
 # Health check endpoint
 @api_router.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+    """Health check endpoint with database connectivity test"""
+    try:
+        # Test database connection with a simple query (CRUD Read operation)
+        await db.users.count_documents({}, limit=1)
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "database": "disconnected",
+            "error": str(e)
+        }
 
 # Enums (keeping non-auth related ones)
 class ListingStatus(str, Enum):
