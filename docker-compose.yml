@@ -4,16 +4,12 @@ services:
     image: mongo:7.0
     container_name: stocklot-mongodb
     restart: unless-stopped
-    # Expose port for local development
-    ports:
-      - "27025:27017"
     expose:
       - "27017"
     environment:
-      # Support both naming conventions
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}
-      MONGO_INITDB_DATABASE: ${MONGO_DBNAME:-${DB_NAME:-stocklot}}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}
+      MONGO_INITDB_DATABASE: ${MONGO_DBNAME:-my_database_name}
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
@@ -31,14 +27,12 @@ services:
     image: minio/minio:latest
     container_name: stocklot-minio
     restart: unless-stopped
-    # No external ports - only accessible internally via Docker network
-    # Services connect using: minio:9000
     expose:
       - "9000"  # API port (internal only)
       - "9001"  # Console port (internal only)
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -55,14 +49,14 @@ services:
   minio-setup:
     image: minio/mc:latest
     container_name: stocklot-minio-setup
-    restart: "no"  # One-time setup, don't restart
+    restart: "no"
     depends_on:
       minio:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       sleep 10;
-      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
       /usr/bin/mc mb myminio/stocklot-uploads --ignore-existing;
       /usr/bin/mc mb myminio/stocklot-profiles --ignore-existing;
       /usr/bin/mc mb myminio/stocklot-kyc --ignore-existing;
@@ -85,33 +79,30 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # MongoDB Configuration
-      # Priority: MONGO_URI > MONGO_URL > build from components
-      # For Dokploy: Use Docker service name 'mongodb:27017' for internal network connection
-      # If MONGO_URI is set with external IP, it will be used; otherwise defaults to internal 'mongodb:27017'
-      MONGO_URI: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}:${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}@mongodb:27017/${MONGO_DBNAME:-${DB_NAME:-stocklot}}?authSource=admin}
-      MONGO_URL: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-${MONGO_ROOT_USERNAME:-admin}}:${MONGO_INITDB_ROOT_PASSWORD:-${MONGO_ROOT_PASSWORD:-adminpassword}}@mongodb:27017/${MONGO_DBNAME:-${DB_NAME:-stocklot}}?authSource=admin}
-      DB_NAME: ${MONGO_DBNAME:-${DB_NAME:-stocklot}}
+      # MongoDB - Use Docker service name for internal network connection
+      # If MONGO_URI is set, use it (for external DB), otherwise use internal mongodb service
+      MONGO_URI: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin}
+      MONGO_URL: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin}
+      DB_NAME: ${MONGO_DBNAME:-my_database_name}
       
-      # MinIO Configuration (S3-compatible)
+      # MinIO Configuration
       MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-stocklot-uploads}
       MINIO_USE_SSL: "false"
-      # AWS S3-compatible settings for boto3
       AWS_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       AWS_DEFAULT_REGION: us-east-1
       
       # Application Configuration
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ALLOWED_ORIGINS: ${CORS_ORIGINS}
       
-      # Optional Services (set these in .env file)
+      # Optional Services
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
       PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-}
@@ -124,8 +115,6 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     volumes:
-      # Only mount code in development - comment out for production
-      # - ./backend:/app
       - backend_uploads:/app/uploads
     depends_on:
       mongodb:
@@ -147,11 +136,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL:-http://backend:8000}
+        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
     container_name: stocklot-frontend
     restart: unless-stopped
     ports:
-      - "3001:80"  # Changed to 3001 to avoid conflict with other services
+      - "80:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -177,7 +166,3 @@ volumes:
 networks:
   dokploy-network:
     external: true
-    # Dokploy creates this network - services communicate via service names
-    # All services use this network for internal communication
-    
-
