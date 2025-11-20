@@ -75,11 +75,14 @@ services:
     expose:
       - "8000"
     environment:
-      # MongoDB - Use Docker service name for internal network connection
-      # If MONGO_URI is set, use it (for external DB), otherwise use internal mongodb service
-      MONGO_URI: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin}
+      # MongoDB - Use internal Docker service name (mongodb:27017) via dokploy-network
+      # Only use MONGO_URI if you need external MongoDB (not recommended for dokploy-network)
+      MONGO_URI: ${MONGO_URI:-}
       MONGO_URL: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin}
       DB_NAME: ${MONGO_DBNAME:-my_database_name}
+      # Explicit MongoDB connection components for internal connection
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}
       
       # MinIO Configuration
       MINIO_ENDPOINT: minio:9000
