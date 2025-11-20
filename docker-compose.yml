@@ -71,39 +71,39 @@ services:
       - "8000"
     environment:
       # MongoDB - Simple internal connection using service name (like the reference example)
-      DB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin
-      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin
-      DB_NAME: ${MONGO_DBNAME:-my_database_name}
+      DB_URL=mongodb://mongodb:27017
+      MONGO_URL=mongodb://mongodb:27017
+      # DB_NAME: ${MONGO_DBNAME:-my_database_name}
       
       # MinIO Configuration
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-stocklot-uploads}
-      MINIO_USE_SSL: "false"
-      AWS_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-      AWS_DEFAULT_REGION: us-east-1
+      # MINIO_ENDPOINT: minio:9000
+      # MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      # MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      # MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-stocklot-uploads}
+      # MINIO_USE_SSL: "false"
+      # AWS_ENDPOINT_URL: http://minio:9000
+      # AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      # AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      # AWS_DEFAULT_REGION: us-east-1
       
       # Application Configuration
-      ENVIRONMENT: ${ENVIRONMENT:-production}
-      DEBUG: ${DEBUG:-false}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      ALLOWED_ORIGINS: ${CORS_ORIGINS}
+      # ENVIRONMENT: ${ENVIRONMENT:-production}
+      # DEBUG: ${DEBUG:-false}
+      # JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      # ALLOWED_ORIGINS: ${CORS_ORIGINS}
       
       # Optional Services
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
-      PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-}
-      PAYSTACK_WEBHOOK_SECRET: ${PAYSTACK_WEBHOOK_SECRET:-}
-      PAYSTACK_DEMO_MODE: ${PAYSTACK_DEMO_MODE:-true}
-      MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
-      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
-      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
+      # PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-}
+      # PAYSTACK_WEBHOOK_SECRET: ${PAYSTACK_WEBHOOK_SECRET:-}
+      # PAYSTACK_DEMO_MODE: ${PAYSTACK_DEMO_MODE:-true}
+      # MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+      # MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+      # MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
+      # CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      # CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      # CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     volumes:
       - backend_uploads:/app/uploads
     depends_on:
