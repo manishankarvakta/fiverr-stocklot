@@ -3,8 +3,6 @@ services:
   mongodb:
     image: mongo:7.0
     restart: unless-stopped
-    expose:
-      - "27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}
@@ -25,15 +23,12 @@ services:
   minio:
     image: minio/minio:latest
     restart: unless-stopped
-    expose:
-      - "9000"  # API port
-      - "9001"  # Console port
+    command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
-    command: server /data --console-address ":9001"
     networks:
       - dokploy-network
     healthcheck:
@@ -75,14 +70,10 @@ services:
     expose:
       - "8000"
     environment:
-      # MongoDB - Use internal Docker service name (mongodb:27017) via dokploy-network
-      # Only use MONGO_URI if you need external MongoDB (not recommended for dokploy-network)
-      MONGO_URI: ${MONGO_URI:-}
-      MONGO_URL: ${MONGO_URI:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin}
+      # MongoDB - Simple internal connection using service name (like the reference example)
+      DB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin
+      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin
       DB_NAME: ${MONGO_DBNAME:-my_database_name}
-      # Explicit MongoDB connection components for internal connection
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}
       
       # MinIO Configuration
       MINIO_ENDPOINT: minio:9000

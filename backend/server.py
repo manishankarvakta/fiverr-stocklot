@@ -123,10 +123,11 @@ class Console:
 console = Console()
 
 # MongoDB connection
-# Support both MONGO_URL and MONGO_URI environment variables
-mongo_url = os.environ.get('MONGO_URL') or os.environ.get('MONGO_URI')
+# Support DB_URL, MONGO_URL, or MONGO_URI (in that order of priority)
+# Following the pattern from working Docker Compose examples
+mongo_url = os.environ.get('DB_URL') or os.environ.get('MONGO_URL') or os.environ.get('MONGO_URI')
 if not mongo_url:
-    raise ValueError("MONGO_URL or MONGO_URI environment variable must be set")
+    raise ValueError("DB_URL, MONGO_URL, or MONGO_URI environment variable must be set")
 
 db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
 
