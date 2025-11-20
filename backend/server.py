@@ -149,13 +149,17 @@ def mask_mongo_url(url: str) -> str:
 logger.info(f"Connecting to MongoDB: {mask_mongo_url(mongo_url)}")
 logger.info(f"Database name: {db_name}")
 
-try:
-    client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=10000, connectTimeoutMS=10000)
-    db = client[db_name]
-    logger.info("MongoDB client initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize MongoDB client: {e}")
-    raise
+# Initialize MongoDB client with longer timeouts for external connections
+# This allows time for external MongoDB servers to respond
+client = AsyncIOMotorClient(
+    mongo_url, 
+    serverSelectionTimeoutMS=30000,  # 30 seconds for external DB
+    connectTimeoutMS=30000,
+    socketTimeoutMS=30000,
+    retryWrites=True
+)
+db = client[db_name]
+logger.info("MongoDB client initialized (connection will be tested on first use)")
 
 # Initialize extended services
 messaging_service = MessagingService(db)
@@ -337,22 +341,35 @@ app.add_middleware(
 # Health check endpoint
 @api_router.get("/health")
 async def health_check():
-    """Health check endpoint with database connectivity test"""
+    """Health check endpoint - always returns 200 if server is responding"""
+    # Always return 200 - server is healthy if it can respond to HTTP requests
+    # Database connectivity is tested but doesn't fail the health check
+    # This prevents container from being marked unhealthy due to temporary DB issues
+    db_status = "unknown"
+    db_error = None
+    
     try:
         # Test database connection with a simple query (CRUD Read operation)
-        await db.users.count_documents({}, limit=1)
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "database": "connected"
-        }
+        # Use a timeout to prevent health check from hanging
+        await asyncio.wait_for(
+            db.users.count_documents({}, limit=1),
+            timeout=5.0
+        )
+        db_status = "connected"
+    except asyncio.TimeoutError:
+        db_status = "timeout"
+        db_error = "Database connection timeout"
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "database": "disconnected",
-            "error": str(e)
-        }
+        db_status = "disconnected"
+        db_error = str(e)
+    
+    # Always return 200 - server is running
+    return {
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "database": db_status,
+        "error": db_error
+    }
 
 # Enums (keeping non-auth related ones)
 class ListingStatus(str, Enum):
