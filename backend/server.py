@@ -131,8 +131,8 @@ console = Console()
 
 # db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
 
-# mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin' #local docker
-mongo_url = 'mongodb://posDBUser:posDBPassword@tcm-pos-posdb-2i3j8w:27017/?authSource=admin' #dokploy
+mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin' #local docker
+# mongo_url = 'mongodb://posDBUser:posDBPassword@tcm-pos-posdb-2i3j8w:27017/?authSource=admin' #dokploy
 db_name = 'stocklotDB'
 
 # Mask password in logs for security
@@ -325,15 +325,20 @@ allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLO
 # Add default origins if not in environment
 default_origins = [
     "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
     "https://stocklot.farm",
     "https://www.stocklot.farm"
 ]
 # Combine and filter empty strings
 cors_origins = [origin.strip() for origin in allowed_origins + default_origins if origin.strip()]
 
-# If ALLOWED_ORIGINS is set to "*", allow all origins
+# If ALLOWED_ORIGINS is set to "*", allow all origins (useful for development)
 if os.getenv("ALLOWED_ORIGINS") == "*":
     cors_origins = ["*"]
+    
+logger.info(f"CORS allowed origins: {cors_origins if cors_origins != ['*'] else ['* (all origins)']}")
 
 app.add_middleware(
     CORSMiddleware,
