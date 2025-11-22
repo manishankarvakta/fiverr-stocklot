@@ -209,8 +209,8 @@ function Dashboard() {
     );
   }
 
-  const isSeller = user.roles.includes('seller');
-  const isBuyer = user.roles.includes('buyer');
+  const isSeller = user.roles?.includes('seller') || false;
+  const isBuyer = user.roles?.includes('buyer') || false;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">

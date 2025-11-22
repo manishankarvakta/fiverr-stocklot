@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { MessageSquare, Clock, DollarSign, TrendingUp, Check, X, Eye, Filter, Search, Calendar, Package, User } from 'lucide-react';
-
-// import api from '../../api/client';
-
-import api from '../../utils/apiHelper';
+import {
+  useGetSellerOffersQuery,
+  useGetSellerOfferStatsQuery,
+  useRespondToOfferMutation,
+  useCreateCounterOfferMutation,
+} from '../../store/api/seller.api';
 
 
 const SellerOffers = () => {
-  const [offers, setOffers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [filters, setFilters] = useState({
     status: 'all',
@@ -17,57 +17,28 @@ const SellerOffers = () => {
     search: '',
     sort: 'newest'
   });
-  const [stats, setStats] = useState({});
   const [respondingToId, setRespondingToId] = useState(null);
 
-  useEffect(() => {
-    loadOffers();
-    loadOfferStats();
-  }, [filters]);
+  // Redux Toolkit Query hooks
+  const { data: offersData, isLoading: loading, refetch: refetchOffers } = useGetSellerOffersQuery({
+    status: filters.status !== 'all' ? filters.status : undefined,
+    type: filters.type !== 'all' ? filters.type : undefined,
+    search: filters.search || undefined,
+    sort: filters.sort
+  });
+  
+  const { data: statsData } = useGetSellerOfferStatsQuery();
+  const [respondToOfferMutation] = useRespondToOfferMutation();
+  const [createCounterOfferMutation] = useCreateCounterOfferMutation();
 
-  const loadOffers = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await api.get('/seller/offers', {
-        params: {
-          status: filters.status !== 'all' ? filters.status : undefined,
-          type: filters.type !== 'all' ? filters.type : undefined,
-          search: filters.search || undefined,
-          sort: filters.sort
-        }
-      });
-      
-      setOffers(response.offers || response.data?.offers || []);
-      
-    } catch (error) {
-      console.error('Error loading offers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadOfferStats = async () => {
-    try {
-      const response = await api.get('/seller/offers/stats');
-      setStats(response || response.data || {});
-    } catch (error) {
-      console.error('Error loading offer stats:', error);
-    }
-  };
+  const offers = offersData?.offers || offersData?.data?.offers || [];
+  const stats = statsData?.data || statsData || {};
 
   const respondToOffer = async (offerId, response, message = '') => {
     try {
       setRespondingToId(offerId);
-      
-      await api.post(`/seller/offers/${offerId}/respond`, {
-        response,
-        message: message || undefined
-      });
-      
-      await loadOffers();
-      await loadOfferStats();
-      
+      await respondToOfferMutation({ offerId, response, message: message || undefined }).unwrap();
+      refetchOffers();
     } catch (error) {
       console.error('Error responding to offer:', error);
     } finally {
@@ -77,9 +48,8 @@ const SellerOffers = () => {
 
   const createCounterOffer = async (offerId, counterOfferData) => {
     try {
-      await api.post(`/seller/offers/${offerId}/counter`, counterOfferData);
-      await loadOffers();
-      await loadOfferStats();
+      await createCounterOfferMutation({ offerId, ...counterOfferData }).unwrap();
+      refetchOffers();
     } catch (error) {
       console.error('Error creating counter offer:', error);
     }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   Button, Input, Label, Alert, AlertDescription,
@@ -9,8 +10,10 @@ import {
 } from 'lucide-react';
 import SocialLoginButtons from './SocialLoginButtons';
 import { useLoginMutation, useRegisterMutation } from '../../store/api/user.api';
+import { setUser, loadUserProfile } from '../../store/authSlice';
 
 const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
+  const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -52,7 +55,12 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
       }
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
+        // Update Redux immediately
+        dispatch(setUser(data.user));
       }
+      
+      // Refresh auth state to get latest user data
+      await dispatch(loadUserProfile(true));
       
       // Call parent login handler
       if (onLogin) {
@@ -102,7 +110,12 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
         localStorage.setItem('token', data.access_token);
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
+          // Update Redux immediately
+          dispatch(setUser(data.user));
         }
+        
+        // Refresh auth state to get latest user data
+        await dispatch(loadUserProfile(true));
         
         if (onLogin) {
           onLogin(data);
@@ -128,7 +141,7 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
   };
 
   // Handle social login success
-  const handleSocialSuccess = (data) => {
+  const handleSocialSuccess = async (data) => {
     try {
       // Store token and user data if not already stored by social auth hook
       if (data.access_token) {
@@ -136,7 +149,12 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
       }
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
+        // Update Redux immediately
+        dispatch(setUser(data.user));
       }
+      
+      // Refresh auth state to get latest user data
+      await dispatch(loadUserProfile(true));
       
       // Call parent login handler
       if (onLogin) {

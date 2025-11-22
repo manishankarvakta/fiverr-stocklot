@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Plus, Play, Pause, X, Edit, Eye, Target, TrendingUp, DollarSign, Users, Calendar, Filter } from 'lucide-react';
-
-// import api from '../../api/client';
-
-import api from '../../utils/apiHelper';
+import {
+  useGetSellerCampaignsQuery,
+  useCreateSellerCampaignMutation,
+  useUpdateSellerCampaignMutation,
+  useGetSellerCampaignStatsQuery,
+} from '../../store/api/seller.api';
 
 
 const SellerCampaigns = () => {
-  const [campaigns, setCampaigns] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [filters, setFilters] = useState({
@@ -18,48 +18,25 @@ const SellerCampaigns = () => {
     type: 'all',
     search: ''
   });
-  const [stats, setStats] = useState({});
 
-  useEffect(() => {
-    loadCampaigns();
-    loadCampaignStats();
-  }, [filters]);
+  // Redux Toolkit Query hooks
+  const { data: campaignsData, isLoading: loading, refetch: refetchCampaigns } = useGetSellerCampaignsQuery({
+    status: filters.status !== 'all' ? filters.status : undefined,
+    type: filters.type !== 'all' ? filters.type : undefined,
+    search: filters.search || undefined
+  });
+  
+  const { data: statsData } = useGetSellerCampaignStatsQuery();
+  const [createCampaignMutation] = useCreateSellerCampaignMutation();
+  const [updateCampaignMutation] = useUpdateSellerCampaignMutation();
 
-  const loadCampaigns = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await api.get('/seller/promotion/campaigns', {
-        params: {
-          status: filters.status !== 'all' ? filters.status : undefined,
-          type: filters.type !== 'all' ? filters.type : undefined,
-          search: filters.search || undefined
-        }
-      });
-      
-      setCampaigns(response.data.campaigns || []);
-      
-    } catch (error) {
-      console.error('Error loading campaigns:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCampaignStats = async () => {
-    try {
-      const response = await api.get('/seller/promotion/stats');
-      setStats(response.data || {});
-    } catch (error) {
-      console.error('Error loading campaign stats:', error);
-    }
-  };
+  const campaigns = campaignsData?.campaigns || campaignsData?.data?.campaigns || [];
+  const stats = statsData?.data || statsData || {};
 
   const createCampaign = async (campaignData) => {
     try {
-      await api.post('/seller/promotion/campaigns', campaignData);
-      await loadCampaigns();
-      await loadCampaignStats();
+      await createCampaignMutation(campaignData).unwrap();
+      refetchCampaigns();
       setShowCreateModal(false);
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -68,9 +45,8 @@ const SellerCampaigns = () => {
 
   const updateCampaignStatus = async (campaignId, status) => {
     try {
-      await api.patch(`/seller/promotion/campaigns/${campaignId}`, { status });
-      await loadCampaigns();
-      await loadCampaignStats();
+      await updateCampaignMutation({ campaignId, status }).unwrap();
+      refetchCampaigns();
     } catch (error) {
       console.error('Error updating campaign status:', error);
     }
