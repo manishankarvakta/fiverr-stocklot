@@ -2,16 +2,19 @@ services:
   # MongoDB Database
   mongodb:
     image: mongo:7.0
+    container_name: stocklot-mongodb
     restart: unless-stopped
+    ports:
+      - "27025:27017"  # Expose for local access
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}
-      MONGO_INITDB_DATABASE: ${MONGO_DBNAME:-my_database_name}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-adminpassword}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-stocklot}
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
     networks:
-      - dokploy-network
+      - stocklot-network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
       interval: 10s
@@ -22,15 +25,19 @@ services:
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
+    container_name: stocklot-minio
     restart: unless-stopped
-    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API port
+      - "9001:9001"  # Console port
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - minio_data:/data
+    command: server /data --console-address ":9001"
     networks:
-      - dokploy-network
+      - stocklot-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -41,6 +48,7 @@ services:
   # MinIO Client (for bucket initialization)
   minio-setup:
     image: minio/mc:latest
+    container_name: stocklot-minio-setup
     restart: "no"
     depends_on:
       minio:
@@ -48,7 +56,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       sleep 10;
-      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
       /usr/bin/mc mb myminio/stocklot-uploads --ignore-existing;
       /usr/bin/mc mb myminio/stocklot-profiles --ignore-existing;
       /usr/bin/mc mb myminio/stocklot-kyc --ignore-existing;
@@ -59,40 +67,39 @@ services:
       echo 'MinIO buckets initialized';
       "
     networks:
-      - dokploy-network
+      - stocklot-network
 
   # Backend API (FastAPI)
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: stocklot-backend
     restart: unless-stopped
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"  # Expose for local access
     environment:
-      # MongoDB - Simple internal connection using service name (like the reference example)
-      DB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin
-      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-strong_mongo_password}@mongodb:27017/${MONGO_DBNAME:-my_database_name}?authSource=admin
-      DB_NAME: ${MONGO_DBNAME:-my_database_name}
+      # MongoDB - Local connection using service name
+      DB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-adminpassword}@mongodb:27017/${DB_NAME:-stocklot}?authSource=admin
+      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-adminpassword}@mongodb:27017/${DB_NAME:-stocklot}?authSource=admin
+      DB_NAME: ${DB_NAME:-stocklot}
       
       # MinIO Configuration
       MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-stocklot-uploads}
       MINIO_USE_SSL: "false"
       AWS_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       AWS_DEFAULT_REGION: us-east-1
       
       # Application Configuration
-      ENVIRONMENT: ${ENVIRONMENT:-production}
-      DEBUG: ${DEBUG:-false}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      # ALLOWED_ORIGINS: ${CORS_ORIGINS}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,https://lifestock.aamardokan.online,https://apilifestock.aamardokan.online}
-
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-dev-secret-key-change-in-production}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002}
       
       # Optional Services
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -107,6 +114,8 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     volumes:
+      # Mount code for development hot reload (comment out for production)
+      - ./backend:/app
       - backend_uploads:/app/uploads
     depends_on:
       mongodb:
@@ -114,20 +123,13 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - dokploy-network
+      - stocklot-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-    # Traefik labels for domain routing (optional - can use native domain config in Dokploy UI)
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend-stocklot.rule=Host(`apilifestock.aamardokan.online`)"
-      - "traefik.http.routers.backend-stocklot.entrypoints=websecure"
-      - "traefik.http.routers.backend-stocklot.tls.certResolver=letsencrypt"
-      - "traefik.http.services.backend-stocklot.loadbalancer.server.port=8000"
 
   # Frontend (React + Nginx)
   frontend:
@@ -135,28 +137,22 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
+        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL:-http://localhost:8000}
+    container_name: stocklot-frontend
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "3001:80"  # Expose for local access
     depends_on:
       backend:
         condition: service_healthy
     networks:
-      - dokploy-network
+      - stocklot-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-    # Traefik labels for domain routing (optional - can use native domain config in Dokploy UI)
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend-stocklot.rule=Host(`lifestock.aamardokan.online`)"
-      - "traefik.http.routers.frontend-stocklot.entrypoints=websecure"
-      - "traefik.http.routers.frontend-stocklot.tls.certResolver=letsencrypt"
-      - "traefik.http.services.frontend-stocklot.loadbalancer.server.port=80"
 
 volumes:
   mongodb_data:
@@ -169,5 +165,5 @@ volumes:
     driver: local
 
 networks:
-  dokploy-network:
-    external: true
+  stocklot-network:
+    driver: bridge
