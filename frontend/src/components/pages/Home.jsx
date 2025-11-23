@@ -85,7 +85,7 @@ function Homepage() {
             <div className="flash-logo">
               <i className="fas fa-cow"></i>
             </div>
-            <h1 className="flash-title">StockLot</h1>
+            {/* <h1 className="flash-title">StockLot</h1> */}
             <p className="flash-subtitle">South Africa's Premier Livestock Marketplace</p>
             <div className="progress-bar">
               <div className="progress"></div>
@@ -104,11 +104,11 @@ function Homepage() {
       {/* Hero Section */}
       <section className="hero">
         <div className="container hero-content">
-          <h1 className="hero-title">South Africa's Premier Livestock Marketplace</h1>
-          <p className="hero-subtitle">
+          {/* <h1 className="hero-title">South Africa's Premier Livestock Marketplace</h1> */}
+          {/* <p className="hero-subtitle">
             Buy and sell chickens, goats, cattle, and more with secure escrow payments. 
-            From day-old chicks to breeding stock, find quality livestock from trusted farmers.
-          </p>
+            From day-old chicks to breeding stocck, find quality livestock from trusted farmers.
+          </p> */}
           <div className="hero-buttons">
             <Button 
               onClick={() => navigate('/marketplace')}

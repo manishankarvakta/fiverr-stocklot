@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { Button, Card, CardContent } from "@/components/ui";
 import { Shield, CheckCircle, Search, MapPin, User, Star } from "lucide-react";
+import { useGetListingsQuery } from "@/store/api/listings.api";
 
 // API helper with auth token (keeping for backward compatibility)
 const apiCall = async (method, url, data = null) => {
@@ -51,6 +52,9 @@ function Homepage() {
   });
   const [showFlash, setShowFlash] = useState(true);
   const [featuredListings, setFeaturedListings] = useState([]);
+   const {data, isSuccess, isError} = useGetListingsQuery();
+
+    console.log("HOME: Listing",data, isSuccess);
 
   useEffect(() => {
     // Load stats from API

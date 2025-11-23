@@ -4,9 +4,8 @@ export const listingsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Public endpoints
     getListings: builder.query({
-      query: (params = {}) => ({
+      query: () => ({
         url: '/listings',
-        params,
       }),
       providesTags: ['Listing'],
     }),

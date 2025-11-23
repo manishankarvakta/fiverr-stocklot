@@ -105,7 +105,7 @@ import ListingPDP from './components/pdp/ListingPDP';
 import SellerProfile from './components/seller/SellerProfile';
 
 import "./App.css";
-import Homepage from "./components/pages/Home";
+import Homepage from "./pages/home";
 import Header from "./components/ui/common/Header";
 import Footer from "./components/ui/common/Footer";
 import Login from "./components/pages/Login";

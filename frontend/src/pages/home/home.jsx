@@ -1,3 +1,5 @@
+import { useGetListingsQuery } from "@/store/api/listings.api";
+
 export default function Homepage() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -9,6 +11,10 @@ export default function Homepage() {
     const [showFlash, setShowFlash] = useState(true);
     const [featuredListings, setFeaturedListings] = useState([]);
   
+     const {data, isSuccess, isError} = useGetListingsQuery();
+
+    console.log("HOME: Listing",data, isSuccess);
+
     useEffect(() => {
       // Load stats from API
       loadStats();
@@ -35,16 +41,20 @@ export default function Homepage() {
         });
       }
     };
+
+   
   
-    const loadFeaturedListings = async () => {
-      try {
-        const response = await apiCall('GET', '/listings');
-        setFeaturedListings((response.data || []).slice(0, 3)); // Get first 3 listings with fallback
-      } catch (error) {
-        console.error('Error loading featured listings:', error);
-        setFeaturedListings([]); // Set empty array as fallback
-      }
-    };
+    // const loadFeaturedListings = async () => {
+    //   try {
+    //     // const response = await apiCall('GET', '/listings');
+
+    //     //TODO:: get data from redux api call
+    //     setFeaturedListings((response.data || []).slice(0, 3)); // Get first 3 listings with fallback
+    //   } catch (error) {
+    //     console.error('Error loading featured listings:', error);
+    //     setFeaturedListings([]); // Set empty array as fallback
+    //   }
+    // };
   
     const handleCategoryClick = (category) => {
       navigate('/marketplace');
@@ -66,7 +76,7 @@ export default function Homepage() {
                 <i className="fas fa-cow"></i>
               </div>
               <h1 className="flash-title">StockLot</h1>
-              <p className="flash-subtitle">South Africa's Premier Livestock Marketplace</p>
+              {/* <p className="flash-subtitle">South Africa's Premier Livestock Marketplace</p> */}
               <div className="progress-bar">
                 <div className="progress"></div>
               </div>
@@ -84,7 +94,7 @@ export default function Homepage() {
         {/* Hero Section */}
         <section className="hero">
           <div className="container hero-content">
-            <h1 className="hero-title">South Africa's Premier Livestock Marketplace</h1>
+            {/* <h1 className="hero-title">South Africa's Premier Livestock Marketplace</h1> */}
             <p className="hero-subtitle">
               Buy and sell chickens, goats, cattle, and more with secure escrow payments. 
               From day-old chicks to breeding stock, find quality livestock from trusted farmers.
@@ -268,6 +278,7 @@ export default function Homepage() {
                         </span>
                       </div>
                     </div>
+
                     <CardContent className="p-4">
                       <h3 className="stock-title text-lg font-semibold mb-2">{listing.title}</h3>
                       <div className="stock-price text-xl font-bold text-emerald-600 mb-2">R{listing.price_per_unit}</div>
