@@ -12,6 +12,7 @@ import NotificationBell from '../notifications/NotificationBell';
 import { useAuth } from '@/auth/AuthProvider';
 import LocationPicker from '../location/LocationPicker';
 import ShoppingCartModal from '../cart/ShoppingCart';
+import ContextSwitcher from '../seller/ContextSwitcher';
 
 export default function Header() {
   const auth = useAuth();

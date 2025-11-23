@@ -1,17 +1,20 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { useLoginMutation } from "@/store/api/user.api";
+import { setUser, loadUserProfile } from "@/store/authSlice";
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const dispatch = useDispatch();
   const { refetch } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,7 +37,14 @@ function Login() {
         localStorage.setItem('token', response.access_token);
       }
       
-      await refetch();
+      // Update Redux immediately if user data is in response
+      if (response.user) {
+        dispatch(setUser(response.user));
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+      
+      // Refresh auth state to get latest user data from API
+      await dispatch(loadUserProfile(true));
       navigate(redirectTo === 'admin' ? '/admin' : '/marketplace');
     } catch (err) {
       console.error('Login error:', err);

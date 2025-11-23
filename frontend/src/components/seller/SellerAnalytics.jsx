@@ -7,6 +7,7 @@ import {
   BarChart3, PieChart, Activity, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { useGetSellerAnalyticsQuery } from '../../store/api/seller.api';
 
 const SellerAnalytics = () => {
   const { user } = useAuth();
@@ -28,70 +29,54 @@ const SellerAnalytics = () => {
     monthly_revenue: [],
     category_breakdown: []
   });
-  const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30days');
 
+  // Use Redux Toolkit Query hook
+  const { data: analyticsData, isLoading: loading, error } = useGetSellerAnalyticsQuery(
+    { period: timeRange },
+    { skip: !user }
+  );
+
+  // Update analytics state when data changes
   useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange]);
-
-  const fetchAnalytics = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/seller/analytics?period=${timeRange}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data);
-      } else {
-        // Mock data for demo
-        setAnalytics({
-          overview: {
-            total_revenue: 125000,
-            total_listings: 23,
-            total_views: 1847,
-            conversion_rate: 12.5,
-            active_listings: 18,
-            sold_listings: 5
-          },
-          performance: {
-            revenue_growth: 15.2,
-            listing_growth: 8.7,
-            view_growth: 22.1
-          },
-          top_listings: [
-            { id: 1, title: "Premium Angus Cattle", views: 342, revenue: 45000 },
-            { id: 2, title: "Purebred Boer Goats", views: 289, revenue: 28000 },
-            { id: 3, title: "Layer Chickens", views: 201, revenue: 15000 }
-          ],
-          monthly_revenue: [
-            { month: 'Jan', revenue: 18000 },
-            { month: 'Feb', revenue: 22000 },
-            { month: 'Mar', revenue: 28000 },
-            { month: 'Apr', revenue: 32000 },
-            { month: 'May', revenue: 25000 }
-          ],
-          category_breakdown: [
-            { category: 'Cattle', percentage: 45, revenue: 56250 },
-            { category: 'Goats', percentage: 30, revenue: 37500 },
-            { category: 'Poultry', percentage: 25, revenue: 31250 }
-          ]
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    } finally {
-      setLoading(false);
+    if (analyticsData) {
+      setAnalytics(analyticsData);
+    } else if (error) {
+      // Fallback to mock data on error
+      setAnalytics({
+        overview: {
+          total_revenue: 125000,
+          total_listings: 23,
+          total_views: 1847,
+          conversion_rate: 12.5,
+          active_listings: 18,
+          sold_listings: 5
+        },
+        performance: {
+          revenue_growth: 15.2,
+          listing_growth: 8.7,
+          view_growth: 22.1
+        },
+        top_listings: [
+          { id: 1, title: "Premium Angus Cattle", views: 342, revenue: 45000 },
+          { id: 2, title: "Purebred Boer Goats", views: 289, revenue: 28000 },
+          { id: 3, title: "Layer Chickens", views: 201, revenue: 15000 }
+        ],
+        monthly_revenue: [
+          { month: 'Jan', revenue: 18000 },
+          { month: 'Feb', revenue: 22000 },
+          { month: 'Mar', revenue: 28000 },
+          { month: 'Apr', revenue: 32000 },
+          { month: 'May', revenue: 25000 }
+        ],
+        category_breakdown: [
+          { category: 'Cattle', percentage: 45, revenue: 56250 },
+          { category: 'Goats', percentage: 30, revenue: 37500 },
+          { category: 'Poultry', percentage: 25, revenue: 31250 }
+        ]
+      });
     }
-  };
+  }, [analyticsData, error]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-ZA', {

@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { baseApi } from './api/baseApi';
+import authReducer from './authSlice';
 
 // Import all API slices to ensure they inject their endpoints
 import './api/user.api';
@@ -12,10 +13,12 @@ import './api/notifications.api';
 import './api/admin.api';
 import './api/search.api';
 import './api/uploads.api';
+import './api/seller.api';
+import './api/kyc.api';
 
 export const store = configureStore({
   reducer: {
-    // Add your reducers here
+    auth: authReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

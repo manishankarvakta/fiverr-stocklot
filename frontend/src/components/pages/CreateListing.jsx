@@ -1,23 +1,32 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCreateListingMutation } from "@/store/api/listings.api";
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '../ui/card';
-import { DollarSign, FileText, ShoppingCart, TrendingUp, Upload } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../ui/card';
+import { DollarSign, FileText, ShoppingCart, TrendingUp, Upload, Image as ImageIcon, X } from "lucide-react";
+
+// Get backend URL
+const getBackendUrl = () => {
+  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+};
 
 function CreateListing() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [createListing, { isLoading: isCreating }] = useCreateListingMutation();
   const [taxonomy, setTaxonomy] = useState([]);
   const [coreCategories, setCoreCategories] = useState([]);
   const [exoticCategories, setExoticCategories] = useState([]);
   const [showExoticCategories, setShowExoticCategories] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [imagePreviews, setImagePreviews] = useState([]);
   
   const [formData, setFormData] = useState({
     category_group_id: '',
@@ -29,11 +38,11 @@ function CreateListing() {
     quantity: 1,
     unit: 'head',
     price_per_unit: '',
-    listing_type: 'buy_now', // New field: 'buy_now', 'auction', 'hybrid'
-    starting_price: '', // For auctions
-    reserve_price: '', // Optional reserve for auctions
-    buy_now_price: '', // For hybrid listings
-    auction_duration: '24', // Hours: 24, 48, 168 (7 days)
+    listing_type: 'buy_now',
+    starting_price: '',
+    reserve_price: '',
+    buy_now_price: '',
+    auction_duration: '24',
     delivery_available: false,
     has_vet_certificate: false,
     health_notes: '',
@@ -41,7 +50,6 @@ function CreateListing() {
     city: '',
     images: [],
     certificates: [],
-    // Animal Statistics Fields
     age: '',
     sex: '',
     weight: '',
@@ -57,14 +65,13 @@ function CreateListing() {
   const [filteredProductTypes, setFilteredProductTypes] = useState([]);
 
   useEffect(() => {
-    if (user && user.roles.includes('seller')) {
+    if (user && user.roles?.includes('seller')) {
       fetchTaxonomy();
     }
   }, [user]);
 
-  // Re-fetch categories when exotic toggle changes
   useEffect(() => {
-    if (user && user.roles.includes('seller')) {
+    if (user && user.roles?.includes('seller')) {
       fetchTaxonomy();
     }
   }, [showExoticCategories]);
@@ -72,9 +79,10 @@ function CreateListing() {
   const fetchTaxonomy = async () => {
     try {
       setLoading(true);
+      const backendUrl = getBackendUrl();
       
       // Fetch core categories
-      const coreResponse = await fetch('/api/taxonomy/categories?mode=core');
+      const coreResponse = await fetch(`${backendUrl}/api/taxonomy/categories?mode=core`);
       if (coreResponse.ok) {
         const coreData = await coreResponse.json();
         setCoreCategories(coreData);
@@ -82,7 +90,7 @@ function CreateListing() {
 
       // Fetch exotic categories if enabled
       if (showExoticCategories) {
-        const exoticResponse = await fetch('/api/taxonomy/categories?mode=exotic');
+        const exoticResponse = await fetch(`${backendUrl}/api/taxonomy/categories?mode=exotic`);
         if (exoticResponse.ok) {
           const exoticData = await exoticResponse.json();
           setExoticCategories(exoticData);
@@ -91,8 +99,8 @@ function CreateListing() {
         setExoticCategories([]);
       }
 
-      // Also fetch full taxonomy for species/breeds (keep existing functionality)
-      const taxonomyResponse = await fetch('/api/taxonomy/full');
+      // Fetch full taxonomy for species/breeds
+      const taxonomyResponse = await fetch(`${backendUrl}/api/taxonomy/full`);
       if (taxonomyResponse.ok) {
         const data = await taxonomyResponse.json();
         setTaxonomy(data);
@@ -134,35 +142,82 @@ function CreateListing() {
     setFilteredBreeds(selectedSpecies ? selectedSpecies.breeds : []);
   };
 
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 5) {
+      setError('Maximum 5 images allowed');
+      return;
+    }
+    
+    // Create previews
+    const previews = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    
+    setImagePreviews(previews);
+    setFormData({...formData, images: files});
+  };
+
+  const removeImage = (index) => {
+    const newImages = formData.images.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setFormData({...formData, images: newImages});
+    setImagePreviews(newPreviews);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
 
     try {
       // Get current context
       const currentContext = localStorage.getItem('currentContext') || 'user';
       
-      // Make request with organization context header
-      const config = {
-        method: 'POST',
-        url: `${API}/listings`,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'X-Org-Context': currentContext
-        },
-        data: formData
-      };
+      // Create FormData for file uploads
+      const submitData = new FormData();
       
-      await axios(config);
+      // Add all form fields
+      Object.keys(formData).forEach(key => {
+        if (key === 'images' || key === 'certificates') {
+          // Handle files separately
+          return;
+        }
+        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
+          submitData.append(key, formData[key]);
+        }
+      });
+
+      // Append images
+      formData.images.forEach((image, index) => {
+        submitData.append(`images`, image);
+      });
+
+      // Append certificates
+      formData.certificates.forEach((cert, index) => {
+        submitData.append(`certificates`, cert);
+      });
+
+      // Create listing with FormData and organization context
+      const result = await createListing({
+        data: submitData,
+        headers: {
+          'X-Org-Context': currentContext
+        }
+      }).unwrap();
+      
+      // Success - navigate to dashboard
       navigate('/dashboard');
     } catch (error) {
       console.error('Error creating listing:', error);
+      setError(error?.data?.detail || error?.message || 'Failed to create listing. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
-  if (!user || !user.roles.includes('seller')) {
+  if (!user || !user.roles?.includes('seller')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 flex items-center justify-center">
         <Card className="p-8 text-center">
@@ -203,7 +258,7 @@ function CreateListing() {
               <span className="font-medium text-blue-900">Creating listing as:</span>
               <span className="text-blue-700">
                 {localStorage.getItem('currentContext') === 'user' ? 
-                  `${user.full_name} (Personal)` : 
+                  `${user.full_name || user.email} (Personal)` : 
                   'Organization'
                 }
               </span>
@@ -219,6 +274,11 @@ function CreateListing() {
             <CardDescription>Provide comprehensive information about your livestock</CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Exotic Categories Toggle */}
               <Card className="border-amber-200 bg-amber-50">
@@ -271,14 +331,12 @@ function CreateListing() {
                       <SelectValue placeholder="Select category group" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Core Categories - Always Show */}
                       {coreCategories.map(category => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
                       ))}
                       
-                      {/* Exotic Categories - Show Only When Enabled */}
                       {showExoticCategories && exoticCategories.length > 0 && (
                         <>
                           <div className="px-2 py-1 text-xs font-semibold text-amber-700 bg-amber-100">
@@ -378,7 +436,7 @@ function CreateListing() {
                 <Input
                   type="number"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value)})}
+                  onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 1})}
                   min="1"
                   className="border-emerald-200"
                   required
@@ -801,26 +859,29 @@ function CreateListing() {
                         type="file" 
                         multiple 
                         accept="image/*"
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files);
-                          if (files.length > 5) {
-                            alert('Maximum 5 images allowed');
-                            return;
-                          }
-                          setFormData({...formData, images: files});
-                        }}
+                        onChange={handleImageChange}
                         className="hidden" 
                       />
                     </label>
                   </div>
-                  {formData.images && formData.images.length > 0 && (
+                  {imagePreviews.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-sm text-emerald-700 mb-2">Selected images: {formData.images.length}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {Array.from(formData.images).map((file, index) => (
-                          <div key={index} className="flex items-center bg-emerald-100 rounded px-2 py-1">
-                            <Image className="w-4 h-4 mr-1 text-emerald-600" />
-                            <span className="text-xs text-emerald-700">{file.name}</span>
+                      <p className="text-sm text-emerald-700 mb-2">Selected images: {imagePreviews.length}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <img 
+                              src={preview.preview} 
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-24 object-cover rounded border border-emerald-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -850,7 +911,7 @@ function CreateListing() {
                         onChange={(e) => {
                           const files = Array.from(e.target.files);
                           if (files.length > 5) {
-                            alert('Maximum 5 certificates allowed');
+                            setError('Maximum 5 certificates allowed');
                             return;
                           }
                           setFormData({...formData, certificates: files});
@@ -897,10 +958,10 @@ function CreateListing() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || isCreating}
                   className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
                 >
-                  {submitting ? 'Creating Listing...' : 'Create Listing'}
+                  {submitting || isCreating ? 'Creating Listing...' : 'Create Listing'}
                 </Button>
               </div>
             </form>
@@ -910,4 +971,5 @@ function CreateListing() {
     </div>
   );
 }
+
 export default CreateListing;

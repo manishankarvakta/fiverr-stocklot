@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { useAuth } from '../../auth/AuthProvider';
+import { setUser, loadUserProfile } from '../../store/authSlice';
 
 // import api from '../../api/client';
 
@@ -13,6 +15,7 @@ function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const dispatch = useDispatch();
   const { refetch } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,8 +43,14 @@ function Login() {
         localStorage.setItem('token', response.access_token);
       }
       
-      // Refresh auth state to get user data
-      await refetch();
+      // Update Redux immediately if user data is in response
+      if (response.user) {
+        dispatch(setUser(response.user));
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+      
+      // Refresh auth state to get latest user data from API
+      await dispatch(loadUserProfile(true));
       
       // Redirect to admin if that's where they came from, otherwise marketplace
       if (redirectTo === 'admin') {

@@ -1,14 +1,15 @@
-// src/auth/PublicOnlyRoute.jsx - Keep authenticated users away from login
+// src/auth/PublicOnlyRoute.jsx - Keep authenticated users away from login (Redux)
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "./AuthProvider";
+import { useSelector } from "react-redux";
+import { selectAuthStatus } from "../store/authSlice";
 
 export default function PublicOnlyRoute({ redirectTo = "/marketplace", children }) {
-  const auth = useAuth();
+  const status = useSelector(selectAuthStatus);
   
   // Let AuthGate handle loading state  
-  if (auth.status === "loading") return null;
+  if (status === "loading") return null;
   
-  if (auth.status === "authenticated") {
+  if (status === "authenticated") {
     return <Navigate to={redirectTo} replace />;
   }
 

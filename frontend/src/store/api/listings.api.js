@@ -26,11 +26,32 @@ export const listingsApi = baseApi.injectEndpoints({
     
     // Seller endpoints
     createListing: builder.mutation({
-      query: (data) => ({
-        url: '/listings',
-        method: 'POST',
-        body: data,
-      }),
+      query: (args) => {
+        // Handle both direct data and object with data/headers
+        const data = args?.data || args;
+        const customHeaders = args?.headers || {};
+        
+        // Get organization context from headers or localStorage
+        const orgContext = customHeaders['X-Org-Context'] || localStorage.getItem('currentContext') || 'user';
+        
+        // Build headers object (don't include Content-Type for FormData - browser sets it)
+        const headers = {
+          'X-Org-Context': orgContext,
+          ...customHeaders
+        };
+        
+        // Remove Content-Type if data is FormData (browser will set it with boundary)
+        if (data instanceof FormData && headers['Content-Type']) {
+          delete headers['Content-Type'];
+        }
+        
+        return {
+          url: '/listings',
+          method: 'POST',
+          body: data,
+          headers
+        };
+      },
       invalidatesTags: ['Listing'],
     }),
     
