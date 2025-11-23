@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 
+console.log("baseApi", baseApi);
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Authentication

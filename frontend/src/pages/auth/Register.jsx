@@ -17,6 +17,8 @@ function Register() {
     phone: '',
     role: 'buyer'
   });
+  console.log(formData)
+  const [isLoading, setIsLoading] = useState(false);
 
   
   const [error, setError] = useState('');
