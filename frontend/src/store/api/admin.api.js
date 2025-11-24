@@ -118,6 +118,14 @@ export const adminApi = baseApi.injectEndpoints({
       invalidatesTags: ['Admin', 'KYC'],
     }),
     
+    // Admin Stats
+    adminStats: builder.query({
+      query: (params = {}) => ({
+        url: '/admin/stats',
+        params,
+      }),
+      providesTags: ['Admin'],
+    }),
     // Reports & Analytics
     getRevenueReport: builder.query({
       query: (params = {}) => ({
@@ -218,6 +226,7 @@ export const adminApi = baseApi.injectEndpoints({
 
 export const {
   useGetAllUsersQuery,
+  useAdminStatsQuery,
   useLazyGetAllUsersQuery,
   useGetUserDetailsQuery,
   useLazyGetUserDetailsQuery,

@@ -3,29 +3,71 @@
 import { useEffect, useState } from 'react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../ui/select';
 import { Building2, User } from 'lucide-react';
+import { useAuth } from '@/auth/AuthProvider';
+
+// Get backend URL
+const getBackendUrl = () => {
+  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+};
 
 export default function ContextSwitcher() {
+  const auth = useAuth();
+  const user = auth.status === 'authenticated' ? auth.user : null;
+  const isAuthenticated = auth.status === 'authenticated';
   const [items, setItems] = useState([]);
   const [currentValue, setCurrentValue] = useState('user');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchContexts();
-  }, []);
+    // Only fetch contexts if user is authenticated
+    if (isAuthenticated && user) {
+      fetchContexts();
+    } else {
+      // If not authenticated, set default user context and stop loading
+      setItems([{
+        label: 'Personal',
+        value: 'user',
+        type: 'USER'
+      }]);
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
   const fetchContexts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/orgs/my-contexts', {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const backendUrl = getBackendUrl();
+      const response = await fetch(`${backendUrl}/api/orgs/my-contexts`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
+
+      console.log('response', response);
       
       if (response.ok) {
-        const data = await response.json();
-        setItems(data.items || []);
-        setCurrentValue(data.current || 'user');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setItems(data.items || []);
+          setCurrentValue(data.current || 'user');
+        } else {
+          console.error('Response is not JSON');
+        }
+      } else {
+        // Handle non-OK responses
+        if (response.status === 401) {
+          console.warn('Unauthorized - user may not be authenticated');
+        } else {
+          console.error('Failed to fetch contexts:', response.status, response.statusText);
+        }
       }
     } catch (error) {
       console.error('Error fetching contexts:', error);
@@ -39,12 +81,19 @@ export default function ContextSwitcher() {
       setCurrentValue(value);
       
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/orgs/switch', {
+      if (!token) {
+        console.warn('No token available for context switch');
+        return;
+      }
+
+      const backendUrl = getBackendUrl();
+      const response = await fetch(`${backendUrl}/api/orgs/switch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({ target: value })
       });
 
@@ -53,6 +102,8 @@ export default function ContextSwitcher() {
         localStorage.setItem('currentContext', value);
         // Refresh page to apply context
         window.location.reload();
+      } else {
+        console.error('Failed to switch context:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error switching context:', error);

@@ -130,10 +130,10 @@ console = Console()
 #     raise ValueError("DB_URL, MONGO_URL, or MONGO_URI environment variable must be set")
 
 # db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
-
-mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin' #local docker
+mongo_url = 'mongodb://admin:adminpassword@stocklot-mongodb:27017/'
+#mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin' #local docker
 # mongo_url = 'mongodb://posDBUser:posDBPassword@tcm-pos-posdb-2i3j8w:27017/?authSource=admin' #dokploy
-db_name = 'stocklotDB'
+db_name = 'stocklot'
 
 # Mask password in logs for security
 def mask_mongo_url(url: str) -> str:
@@ -1902,6 +1902,182 @@ async def create_checkout(
     except Exception as e:
         logger.error(f"Error creating checkout: {e}")
         raise HTTPException(status_code=500, detail="Failed to create checkout session")
+
+@api_router.post("/checkout/order")
+async def create_authenticated_order(
+    request: Request,
+    request_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Create order for authenticated user with escrow payment (similar to guest checkout)"""
+    # Apply rate limiting for authenticated checkout
+    await rate_limit_middleware(request, "checkout_create", current_user.id if current_user else None)
+    
+    try:
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        ship_to = request_data.get("ship_to")
+        items = request_data.get("items", [])
+        quote = request_data.get("quote")
+        
+        if not items:
+            raise HTTPException(status_code=400, detail="Empty cart")
+        
+        if not ship_to:
+            raise HTTPException(status_code=400, detail="Delivery address required")
+        
+        if not quote:
+            raise HTTPException(status_code=400, detail="Quote required")
+        
+        # Re-assess risk (using the assess_risk function defined in this file)
+        lines = [{"species": i.get("species"), "product_type": i.get("product_type"), 
+                 "qty": i.get("qty"), "line_total": i.get("line_total") or 0} for i in items]
+        risk = assess_risk(lines)
+        
+        if risk["gate"] == "BLOCK":
+            raise HTTPException(status_code=403, detail="KYC required for these items")
+        
+        # Create order group
+        quote_summary = quote.get("summary", {})
+        grand_total = quote_summary.get("grand_total") or 0
+        delivery_total = quote_summary.get("delivery_total") or 0
+        
+        order_group = {
+            "id": str(uuid.uuid4()),
+            "buyer_user_id": current_user.id,
+            "status": "PENDING",
+            "currency": "ZAR",
+            "grand_total": grand_total,
+            "items_count": len(items),
+            "delivery_total": delivery_total,
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.order_groups.insert_one(order_group)
+        
+        # Create order contact (using authenticated user's info)
+        order_contact = {
+            "order_group_id": order_group["id"],
+            "email": current_user.email,
+            "phone": current_user.phone or "",
+            "full_name": current_user.full_name or "",
+            "address_json": ship_to,
+            "kyc_level_required": risk["kyc_required"],
+            "kyc_checked_at": None
+        }
+        await db.order_contacts.insert_one(order_contact)
+        
+        # Create seller orders
+        for seller in quote["sellers"]:
+            seller_subtotal = seller.get("subtotal") or 0
+            seller_delivery = seller.get("delivery") or 0
+            
+            seller_order = {
+                "id": str(uuid.uuid4()),
+                "order_group_id": order_group["id"],
+                "seller_id": seller["seller_id"],
+                "subtotal": seller_subtotal,
+                "delivery": seller_delivery,
+                "total": seller_subtotal + seller_delivery,
+                "status": "PENDING",
+                "created_at": datetime.now(timezone.utc)
+            }
+            await db.seller_orders.insert_one(seller_order)
+            
+            # Create order items
+            for item in seller["items"]:
+                order_item = {
+                    "id": str(uuid.uuid4()),
+                    "seller_order_id": seller_order["id"],
+                    "listing_id": item["listing_id"],
+                    "title": item["title"],
+                    "species": item["species"],
+                    "product_type": item["product_type"],
+                    "unit": item["unit"],
+                    "qty": item["qty"],
+                    "price": item["price"],
+                    "line_total": item["line_total"]
+                }
+                await db.order_items.insert_one(order_item)
+        
+        # Clear user's cart after successful order creation
+        await db.carts.delete_one({"user_id": current_user.id})
+        
+        # Initialize Paystack transaction for payment
+        try:
+            base_url = os.getenv("FRONTEND_URL", "https://farmstock-hub-1.preview.emergentagent.com")
+            callback_url = f"{base_url}/checkout/return?og={order_group['id']}"
+            
+            payment_result = await paystack_service.initialize_transaction(
+                email=current_user.email,
+                amount=quote["summary"]["grand_total"],
+                order_id=order_group["id"],
+                callback_url=callback_url
+            )
+            
+            logger.info(f"Paystack payment result: {payment_result}")
+            
+            authorization_url = None
+            reference = f"STOCKLOT_{order_group['id']}"
+            
+            if payment_result:
+                if isinstance(payment_result, dict):
+                    if payment_result.get("status") == True or payment_result.get("success") == True:
+                        data = payment_result.get("data", payment_result)
+                        authorization_url = data.get("authorization_url")
+                        reference = data.get("reference", reference)
+                    elif payment_result.get("authorization_url"):
+                        authorization_url = payment_result.get("authorization_url")
+                        reference = payment_result.get("reference", reference)
+                    elif "checkout.paystack.com" in str(payment_result.get("authorization_url", "")):
+                        authorization_url = payment_result.get("authorization_url")
+                        reference = payment_result.get("reference", reference)
+            
+            if authorization_url and ("checkout.paystack.com" in authorization_url or "paystack.com" in authorization_url):
+                logger.info(f"✅ Valid Paystack authorization URL: {authorization_url}")
+            else:
+                logger.warning(f"⚠️ Invalid or missing Paystack URL. Received: {payment_result}")
+                authorization_url = f"https://demo-checkout.paystack.com/{order_group['id']}"
+                reference = f"DEMO_{order_group['id']}"
+                logger.info(f"Using demo URL: {authorization_url}")
+                
+        except Exception as e:
+            logger.error(f"Payment service error for order {order_group['id']}: {e}")
+            base_url = os.getenv("FRONTEND_URL", "https://farmstock-hub-1.preview.emergentagent.com")
+            authorization_url = f"https://demo-checkout.paystack.com/{order_group['id']}"
+            reference = f"ERROR_{order_group['id']}"
+            logger.info(f"Using error fallback URL: {authorization_url}")
+        
+        order_count = len(quote["sellers"])
+        
+        response_data = {
+            "ok": True,
+            "order_group_id": order_group["id"],
+            "order_count": order_count,
+            "paystack": {
+                "authorization_url": authorization_url,
+                "reference": reference
+            },
+            "authorization_url": authorization_url,
+            "redirect_url": authorization_url,
+            "payment_url": authorization_url,
+            "reference": reference,
+            "risk": risk
+        }
+        
+        logger.info(f"✅ Authenticated order created successfully with payment URL: {authorization_url}")
+        return response_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error(f"Error creating authenticated order: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        error_detail = f"Failed to create order: {str(e)}"
+        if "unsupported operand type" in str(e):
+            error_detail = "Order calculation error - please contact support"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @api_router.post("/checkout/{session_id}/complete")
 async def complete_checkout(
@@ -5796,12 +5972,46 @@ def assess_risk(cart_lines):
         'total_value': total
     }
 
+@api_router.post("/checkout/quote")
+async def checkout_quote(request: Request, request_data: dict, current_user: User = Depends(get_current_user_optional)):
+    """Get quote for checkout (works for both authenticated and guest users)"""
+    try:
+        items = request_data.get("items", [])
+        ship_to = request_data.get("ship_to")
+        
+        if not items:
+            raise HTTPException(status_code=400, detail="Empty cart")
+        
+        if not ship_to:
+            raise HTTPException(status_code=400, detail="Delivery address required")
+        
+        # Create a GuestCheckoutRequest-like object to reuse the same logic
+        class QuoteRequest:
+            def __init__(self, items, ship_to):
+                self.items = items
+                self.ship_to = ship_to
+        
+        quote_request = QuoteRequest(items, ship_to)
+        
+        # Call the guest checkout quote logic (it's the same for both)
+        return await guest_checkout_quote_logic(quote_request)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating quote: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create quote")
+
 @api_router.post("/checkout/guest/quote")
 async def guest_checkout_quote(request: GuestCheckoutRequest):
     """Get quote for guest checkout"""
+    return await guest_checkout_quote_logic(request)
+
+async def guest_checkout_quote_logic(request):
+    """Shared quote logic for both authenticated and guest checkout"""
     try:
-        items = request.items
-        ship_to = request.ship_to
+        items = request.items if hasattr(request, 'items') else request.get("items", [])
+        ship_to = request.ship_to if hasattr(request, 'ship_to') else request.get("ship_to")
         
         if not items:
             raise HTTPException(status_code=400, detail="Empty cart")
@@ -6546,13 +6756,61 @@ async def get_listing_pdp(
                 email=seller_doc.get("email")
             )
         
+        # Resolve category group name from species_id -> category_group_id
+        category_group_name = "Livestock"
+        category_group_id = None
+        species_name = listing_doc.get("species", "")
+        
+        if listing_doc.get("species_id"):
+            try:
+                species_doc = await db.species.find_one({"id": listing_doc["species_id"]})
+                if species_doc:
+                    species_name = species_doc.get("name", "Livestock")
+                    category_group_id = species_doc.get("category_group_id")
+                    
+                    # Resolve category group name
+                    if category_group_id:
+                        category_group_doc = await db.category_groups.find_one({"id": category_group_id})
+                        if category_group_doc:
+                            category_group_name = category_group_doc.get("name", "Livestock")
+            except Exception as e:
+                logger.warning(f"Failed to resolve species/category for listing {listing_id}: {e}")
+                species_name = "Livestock"
+                category_group_name = "Livestock"
+        
+        # Resolve breed name from breed_id
+        breed_name = listing_doc.get("breed", species_name)
+        if listing_doc.get("breed_id") and (not breed_name or breed_name == species_name):
+            try:
+                breed_doc = await db.breeds.find_one({"id": listing_doc["breed_id"]})
+                if breed_doc:
+                    breed_name = breed_doc.get("name", species_name)
+            except Exception as e:
+                logger.warning(f"Failed to resolve breed for listing {listing_id}: {e}")
+                breed_name = species_name
+        
+        # Resolve product type name from product_type_id
+        product_type_name = listing_doc.get("category", "Livestock")
+        if listing_doc.get("product_type_id") and not product_type_name:
+            try:
+                product_type_doc = await db.product_types.find_one({"id": listing_doc["product_type_id"]})
+                if product_type_doc:
+                    product_type_name = product_type_doc.get("label") or product_type_doc.get("name", "Livestock")
+            except Exception as e:
+                logger.warning(f"Failed to resolve product type for listing {listing_id}: {e}")
+                product_type_name = "Livestock"
+        
         # Build comprehensive response
         pdp_data = {
             "id": listing_doc["id"],
             "title": listing_doc["title"],
-            "species": listing_doc.get("species", ""),
-            "breed": listing_doc.get("breed", listing_doc.get("species", "")),
-            "product_type": listing_doc.get("category", "Livestock"),
+            "species": species_name,
+            "breed": breed_name,
+            "species_id": listing_doc.get("species_id"),
+            "breed_id": listing_doc.get("breed_id"),
+            "category_group": category_group_name,
+            "category_group_id": category_group_id,
+            "product_type": product_type_name,
             "unit": "head",  # Default unit, can be enhanced
             "price": float(listing_doc["price_per_unit"]),
             "qty_available": listing_doc.get("quantity", 1),

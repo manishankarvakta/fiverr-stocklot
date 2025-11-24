@@ -3,7 +3,10 @@ import { baseApi } from './baseApi';
 export const cartApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getCart: builder.query({
-      query: () => '/cart',
+      query: (params = {}) => ({
+        url: '/cart',
+        params,
+      }),
       providesTags: ['Cart'],
     }),
     

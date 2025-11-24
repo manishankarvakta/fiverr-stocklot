@@ -1,6 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
 // import { Link, Menu, x, Search, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button, Input, Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Avatar, AvatarFallback } from "..";
 // import { Button, Input } from "../ui";
@@ -10,6 +10,7 @@ import { Menu, Search, X, ShoppingCart, MessageCircle, ChevronDown, CreditCard, 
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ContextSwitcher from "@/components/seller/ContextSwitcher";
 import api from '@/utils/apiHelper';
+import { useLazyGetCartQuery } from "@/store/api/cart.api";
 // import { Menu } from "@radix-ui/react-menubar";
 
 // Header component
@@ -22,24 +23,146 @@ function Header() {
   const [showCart, setShowCart] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
   const user = auth.status === 'authenticated' ? auth.user : null;
+  const isAuthenticated = auth.status === 'authenticated';
+  const isLoading = auth.status === 'loading';
+  const hasFetchedCart = useRef(false);
+  const userId = user?.id;
 
-
-  // Fetch cart count on component mount
+  // Use lazy query to only fetch when explicitly called (when user is authenticated)
+  const [getCart, {data: cartData, isSuccess: isCartSuccess, isError: isCartError}] = useLazyGetCartQuery();
+  
+  // Store getCart in a ref to avoid dependency issues
+  const getCartRef = useRef(getCart);
   useEffect(() => {
-    if (user) {
-      fetchCartCount();
+    getCartRef.current = getCart;
+  }, [getCart]);
+  
+  useEffect(() => {
+    // Don't do anything while auth is loading
+    if (isLoading) {
+      return;
     }
-  }, [user]);
 
-  const fetchCartCount = async () => {
-    try {
-      // Use new API client with automatic cookie handling
-      const response = await api.get('/cart');
-      setCartItemCount(response.data.item_count || 0);
-    } catch (error) {
-      console.error('Error fetching cart count:', error);
+    // Reset fetch flag when user logs out
+    if (!isAuthenticated || !user) {
+      hasFetchedCart.current = false;
+      // Update cart count from localStorage for guest users
+      const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+      const guestCartCount = guestCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+      setCartItemCount(guestCartCount);
+      return;
     }
-  };
+
+    // Only fetch cart once when all conditions are met:
+    // 1. Auth is not loading (checked above)
+    // 2. User is authenticated
+    // 3. User object exists and has an ID
+    // 4. Token exists in localStorage and is not empty
+    // 5. We haven't fetched yet for this user
+    const token = localStorage.getItem('token');
+    const userHasId = user && user.id;
+    
+    // Double-check: ensure we have all required data before making the request
+    if (isAuthenticated && userHasId && token && token.trim() !== '' && !hasFetchedCart.current) {
+      hasFetchedCart.current = true;
+      // Use setTimeout to ensure auth state is fully settled
+      const timeoutId = setTimeout(() => {
+        getCartRef.current().catch((error) => {
+          // If fetch fails with 401, user might not be properly authenticated
+          // Don't reset the flag for 401 - it means user is not authenticated
+          if (error?.status === 401 || error?.data?.status === 401) {
+            // Silently handle 401 - user is not authenticated, which is expected
+            hasFetchedCart.current = true; // Keep flag to prevent retries
+          } else {
+            console.error('Failed to fetch cart:', error);
+            hasFetchedCart.current = false; // Allow retry for non-401 errors
+          }
+        });
+      }, 100); // Small delay to ensure auth state is settled
+      
+      return () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    }
+  }, [isLoading, isAuthenticated, userId]); // Stable dependencies - removed getCart
+
+  // console.log('cartData', cartData);
+  // console.log('isCartSuccess', isCartSuccess);
+  // console.log('isCartError', isCartError);
+
+  // Initialize cart count on mount and when auth status changes
+  useEffect(() => {
+    const updateCartCount = () => {
+      if (!isAuthenticated) {
+        // For guest users, get count from localStorage
+        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+        const guestCartCount = guestCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+        setCartItemCount(guestCartCount);
+      }
+    };
+    
+    // Update on mount and when auth changes
+    updateCartCount();
+    
+    // Also listen for storage changes (when cart is updated in another tab/window)
+    const handleStorageChange = (e) => {
+      if (e.key === 'guest_cart' && !isAuthenticated) {
+        updateCartCount();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [isAuthenticated]);
+
+  // Update cart count when cart data changes
+  useEffect(() => {
+    if (isCartSuccess && cartData !== undefined) {
+      setCartItemCount(cartData.item_count || 0);
+    }
+  }, [cartData, isCartSuccess]);
+
+  // Listen for cart updates from both guest and authenticated users
+  useEffect(() => {
+    const handleCartUpdate = (event) => {
+      // For guest users, update count from event
+      if (!isAuthenticated && event.detail?.count !== undefined) {
+        setCartItemCount(event.detail.count);
+      }
+    };
+
+    const handleCartRefetch = async () => {
+      // For authenticated users, refetch cart when items are added
+      if (isAuthenticated && user && user.id) {
+        try {
+          await getCartRef.current();
+        } catch (error) {
+          // Silently handle errors
+        }
+      }
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener('cartRefetch', handleCartRefetch);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('cartRefetch', handleCartRefetch);
+    };
+  }, [isAuthenticated, user, getCartRef]);
+  // const fetchCartCount = async () => {
+  //   try {
+  //     // Use new API client with automatic cookie handling
+  //     const response = await api.get('/cart');
+      
+  //     setCartItemCount(response.data.item_count || 0);
+  //   } catch (error) {
+  //     console.error('Error fetching cart count:', error);
+  //   }
+  // };
 
   const isSeller = user && (user.roles || []).includes('seller');
   const isAdmin = user && (user.roles || []).includes('admin');
@@ -56,7 +179,7 @@ function Header() {
   };
 
   return (
-    <header className="border-b border-emerald-200 bg-white/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+    <header className="border-b border-emerald-200 bg-white/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm pt-2">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
@@ -114,7 +237,7 @@ function Header() {
                 {/* Shopping Cart - Always visible */}
                 <Button
                   variant="ghost" 
-                  onClick={() => setShowCart(true)}
+                  onClick={() => navigate('/cart')}
                   className="relative p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50"
                   title="Shopping Cart"
                 >
@@ -289,17 +412,20 @@ function Header() {
           </div>
         </div>
 
-        {/* Location Picker */}
-        <div className="mt-3 flex justify-center">
-          <LocationPicker triggerClassName="text-emerald-600 hover:text-emerald-700" />
+        <div className="flex items-center justify-center mb-2">
+          {/* Location Picker */}
+          <div className="mt-3 flex justify-center">
+            <LocationPicker triggerClassName="text-emerald-600 hover:text-emerald-700" />
+          </div>
+
+          {/* Context Switcher for Sellers */}
+          {isSeller && (
+            <div className="mt-3 flex justify-center">
+              <ContextSwitcher />
+            </div>
+          )}
         </div>
 
-        {/* Context Switcher for Sellers */}
-        {isSeller && (
-          <div className="mt-3 flex justify-center">
-            <ContextSwitcher />
-          </div>
-        )}
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (

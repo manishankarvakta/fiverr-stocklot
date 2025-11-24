@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ImageGallery from './ImageGallery';
 import SellerCard from './SellerCard';
 import RatingSummary from './RatingSummary';
@@ -11,15 +11,22 @@ import AskQuestionButton from './AskQuestionButton';
 import GroupBuyWidget from '../features/GroupBuyWidget';
 import AuctionWidget from '../features/AuctionWidget';
 import TrustScoreDisplay from '../features/TrustScoreDisplay';
+import { IfFlag } from '../../providers/FeatureFlagsProvider';
+import { useAuth } from '../../auth/AuthProvider';
+import { useToast } from '../../hooks/use-toast';
 // import apifrom '../../api/client'; // Use centralized API client
 import { useGetListingPDPQuery } from '../../store/api/listings.api';
 import { useTrackAnalyticsMutation, useGetABTestConfigQuery, useTrackABEventMutation } from '../../store/api/admin.api';
-import { useAddToCartMutation } from '../../store/api/cart.api';
+import { useAddToCartMutation, useLazyGetCartQuery } from '../../store/api/cart.api';
 
 const ListingPDP = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [qty, setQty] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
   
   // Use Redux RTK Query hooks
   const { data: responseData, isLoading: loading, error: queryError } = useGetListingPDPQuery(id);
@@ -28,11 +35,56 @@ const ListingPDP = () => {
   });
   const [trackAnalytics] = useTrackAnalyticsMutation();
   const [trackABEvent] = useTrackABEventMutation();
-  const [addToCart] = useAddToCartMutation();
+  // Only use cart mutation for authenticated users - use skip option
+  const [addToCart, { isLoading: isAddingToCart }] = useAddToCartMutation();
+  const [refetchCart] = useLazyGetCartQuery();
+  
+  // Get token to verify authentication status
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  // Strict check: user must be authenticated, have user object with id, AND have a valid token
+  const isUserAuthenticated = Boolean(
+    isAuthenticated && 
+    user && 
+    user.id && 
+    token && 
+    token.trim() !== ''
+  );
 
+  // Extract data from response - handle both wrapped and direct responses
   const data = responseData?.data || responseData;
   const abConfig = abConfigData?.data || abConfigData || { layout: 'default', experiment_tracking: [] };
   const error = queryError ? (queryError.status === 404 ? 'Listing not found' : 'Error loading listing details') : null;
+
+  // Normalize data with fallbacks
+  const normalizedData = useMemo(() => {
+    if (!data) return null;
+    
+    return {
+      ...data,
+      species: data.species || data.species_name || 'Livestock',
+      breed: data.breed || data.breed_name || data.species || 'General',
+      category_group: data.category_group || data.category || 'Livestock',
+      category_group_id: data.category_group_id,
+      product_type: data.product_type || data.category || 'Livestock',
+      title: data.title || 'Untitled Listing',
+      price: data.price || data.price_per_unit || 0,
+      qty_available: data.qty_available || data.quantity || 0,
+      unit: data.unit || 'head',
+      description: data.description || '',
+      media: data.media || data.images || [],
+      location: data.location || {
+        city: data.city || '',
+        province: data.province || data.region || '',
+        lat: data.lat || data.latitude || 0,
+        lng: data.lng || data.longitude || 0
+      },
+      seller: data.seller || {},
+      attributes: data.attributes || {},
+      certificates: data.certificates || {},
+      reviewSummary: data.reviewSummary || { average: 0, count: 0, breakdown: {} },
+      similar: data.similar || []
+    };
+  }, [data]);
 
   const priceFmt = useMemo(() => 
     new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }), []
@@ -42,8 +94,8 @@ const ListingPDP = () => {
     try {
       await trackAnalytics({
         event_type: eventType,
-        listing_id: data?.id,
-        user_id: data?.currentUserId || 'anonymous',
+        listing_id: normalizedData?.id,
+        user_id: normalizedData?.currentUserId || 'anonymous',
         metadata: eventData,
         timestamp: new Date().toISOString()
       }).unwrap();
@@ -51,7 +103,7 @@ const ListingPDP = () => {
       console.error('Analytics error:', err);
       // Don't block user experience for analytics failures
     }
-  }, [data, trackAnalytics]);
+  }, [normalizedData, trackAnalytics]);
 
   const handleTrackABEvents = useCallback(async (eventType) => {
     if (!abConfig?.experiment_tracking?.length) return;
@@ -62,8 +114,8 @@ const ListingPDP = () => {
           experiment_id: experiment.experiment_id,
           variant: experiment.variant,
           event_type: eventType,
-          listing_id: data?.id,
-          user_id: data?.currentUserId || 'anonymous',
+          listing_id: normalizedData?.id,
+          user_id: normalizedData?.currentUserId || 'anonymous',
           timestamp: new Date().toISOString()
         }).unwrap();
       }
@@ -71,65 +123,214 @@ const ListingPDP = () => {
       console.error('A/B tracking error:', err);
       // Don't block user experience for tracking failures
     }
-  }, [abConfig, data, trackABEvent]);
+  }, [abConfig, normalizedData, trackABEvent]);
 
   useEffect(() => {
     // Track PDP view
-    if (data) {
-      handleTrackAnalytics('pdp_view', { listing_id: data.id });
+    if (normalizedData) {
+      handleTrackAnalytics('pdp_view', { listing_id: normalizedData.id });
       handleTrackABEvents('view');
     }
-  }, [data, handleTrackAnalytics, handleTrackABEvents]);
+  }, [normalizedData, handleTrackAnalytics, handleTrackABEvents]);
 
   const handleAddToCart = useCallback(async (qtyParam = qty) => {
-    try {
-      const response = await addToCart({
-        listing_id: data.id,
-        quantity: qtyParam,
-        price_per_unit: data.price,
-        timestamp: new Date().toISOString()
-      }).unwrap();
-      
-      console.log('🛒 Cart API response:', response);
-      
-      // Show success message
-      alert(`✅ Added to Cart!
-      
-${data.title}
-Quantity: ${qtyParam}
-Unit Price: R${data.price}
-Total: R${(data.price * qtyParam).toFixed(2)}`);
-      
-      // Track analytics for successful cart addition
-      handleTrackAnalytics('add_to_cart', { quantity: qtyParam, price: data.price });
-      handleTrackABEvents('conversion');
-      
-    } catch (err) {
-      console.error('🚨 Cart API error:', err);
-      
-      // Fallback: Show manual cart addition
-      alert(`ℹ️ Cart Service Unavailable
-      
-Please contact us to place your order:
-📧 info@stocklot.co.za
-📞 0800 123 456
-
-${data.title} - Quantity: ${qtyParam}`);
+    if (!normalizedData) return;
+    
+    // Validate quantity
+    if (qtyParam < 1 || qtyParam > normalizedData.qty_available) {
+      toast({
+        title: "Invalid Quantity",
+        description: `Please enter a quantity between 1 and ${normalizedData.qty_available}`,
+        variant: "destructive",
+      });
+      return;
     }
-  }, [data, qty, addToCart, handleTrackAnalytics, handleTrackABEvents]);
+    
+    setAddingToCart(true);
+    
+    try {
+      // CRITICAL: Strict authentication check - must have user, auth status, AND valid token
+      // This check MUST prevent API calls for guest users
+      const hasValidAuth = Boolean(
+        isAuthenticated && 
+        user && 
+        user.id && 
+        token && 
+        token.trim() !== '' &&
+        token !== 'null' &&
+        token !== 'undefined'
+      );
+      
+      // Only call API if user is fully authenticated
+      // Double-check: Never call API without valid token
+      if (hasValidAuth && token && token.trim() !== '') {
+        // Authenticated user - add to backend cart via API
+        try {
+          // Final safety check before API call
+          const currentToken = localStorage.getItem('token');
+          if (!currentToken || currentToken.trim() === '') {
+            throw new Error('No token available');
+          }
+          
+          const response = await addToCart({
+            listing_id: normalizedData.id,
+            quantity: qtyParam,
+            price_per_unit: normalizedData.price,
+          }).unwrap();
+          
+          console.log('🛒 Cart API response:', response);
+          
+          // Trigger cart refetch for header update
+          // Use both refetch and custom event for reliability
+          try {
+            await refetchCart();
+          } catch (cartError) {
+            // Silently handle cart refetch errors - non-critical
+            if (cartError?.status !== 401 && cartError?.data?.status !== 401) {
+              console.warn('Failed to refetch cart:', cartError);
+            }
+          }
+          // Also dispatch event to trigger header refetch
+          window.dispatchEvent(new CustomEvent('cartRefetch', {}));
+          
+          // Show success toast
+          toast({
+            title: "Added to Cart!",
+            description: `${normalizedData.title} (${qtyParam} ${normalizedData.unit}) added successfully`,
+          });
+          
+          // Track analytics
+          handleTrackAnalytics('add_to_cart', { 
+            quantity: qtyParam, 
+            price: normalizedData.price,
+            listing_id: normalizedData.id,
+            is_guest: false
+          });
+          handleTrackABEvents('conversion');
+          
+        } catch (apiError) {
+          // If API call fails with 401 or any auth error, fall back to guest cart
+          const is401 = apiError?.status === 401 || 
+                       apiError?.data?.status === 401 || 
+                       apiError?.error?.status === 401 ||
+                       (apiError?.error && apiError.error.status === 401) ||
+                       apiError?.message?.includes('401') ||
+                       apiError?.message?.includes('Authentication') ||
+                       apiError?.message?.includes('Unauthorized');
+          
+          if (is401 || apiError?.message === 'No token available') {
+            console.log('🛒 API auth failed, using guest cart instead');
+            // Fall through to guest cart logic - don't throw, just continue
+          } else {
+            // Re-throw non-401 errors to be handled below
+            throw apiError;
+          }
+        }
+      }
+      
+      // Guest user OR auth failed - add to localStorage cart
+      // This runs if user is not authenticated OR if API call failed with 401
+      if (!hasValidAuth) {
+        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+        
+        // Check if item already exists in cart
+        const existingItemIndex = guestCart.findIndex(
+          item => item.listing_id === normalizedData.id
+        );
+        
+        if (existingItemIndex >= 0) {
+          // Update quantity if item exists
+          guestCart[existingItemIndex].qty += qtyParam;
+        } else {
+          // Add new item
+          guestCart.push({
+            listing_id: normalizedData.id,
+            title: normalizedData.title,
+            price: normalizedData.price,
+            qty: qtyParam,
+            unit: normalizedData.unit || 'head',
+            species: normalizedData.species,
+            product_type: normalizedData.product_type,
+            image: normalizedData.media?.[0]?.url || normalizedData.images?.[0],
+            seller_id: normalizedData.seller_id || normalizedData.seller?.id,
+          });
+        }
+        
+        localStorage.setItem('guest_cart', JSON.stringify(guestCart));
+        
+        // Update header cart count by dispatching a custom event
+        const cartCount = guestCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+        window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { count: cartCount } }));
+        
+        // Show success toast for guest cart
+        toast({
+          title: "Added to Cart!",
+          description: `${normalizedData.title} (${qtyParam} ${normalizedData.unit}) added successfully`,
+        });
+        
+        // Track analytics for guest
+        handleTrackAnalytics('add_to_cart', { 
+          quantity: qtyParam, 
+          price: normalizedData.price,
+          listing_id: normalizedData.id,
+          is_guest: true
+        });
+        handleTrackABEvents('conversion');
+      }
+    } catch (err) {
+      // Handle errors - but guest cart operations should never throw errors
+      const is401 = err?.status === 401 || err?.data?.status === 401 || 
+                    err?.error?.status === 401 || err?.message?.includes('401');
+      
+      // Only log non-401 errors
+      if (!is401) {
+        console.error('🚨 Cart error:', err);
+      }
+      
+      // Handle different error types
+      let errorMessage = 'Failed to add item to cart. Please try again.';
+      
+      if (err?.status === 404 || err?.data?.status === 404 || err?.error?.status === 404) {
+        errorMessage = 'Listing not found or no longer available';
+      } else if (err?.status === 400 || err?.data?.status === 400 || err?.error?.status === 400) {
+        errorMessage = err?.data?.detail || err?.error?.data?.detail || 'Invalid request. Please check your input.';
+      } else if (err?.data?.detail) {
+        errorMessage = err.data.detail;
+      } else if (err?.error?.data?.detail) {
+        errorMessage = err.error.data.detail;
+      }
+      
+      // Only show error toast for non-401 errors
+      // 401 errors are handled by falling back to guest cart
+      if (!is401) {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        // For 401, silently use guest cart (already handled above)
+        console.log('🛒 Using guest cart due to authentication issue');
+      }
+    } finally {
+      setAddingToCart(false);
+    }
+  }, [normalizedData, qty, addToCart, handleTrackAnalytics, handleTrackABEvents, isAuthenticated, user, token, toast, refetchCart]);
 
   const buyNow = async () => {
+    if (!normalizedData) return;
+    
     console.log('🛒 PDP BUY NOW: Using proper checkout flow with fees');
     
     try {
       // Create cart item in the format expected by guest checkout
       const cartItem = {
-        listing_id: data.id,
-        title: data.title,
-        price: parseFloat(data.price),
+        listing_id: normalizedData.id,
+        title: normalizedData.title,
+        price: parseFloat(normalizedData.price),
         qty: qty,
-        species: data.species || 'livestock',
-        product_type: data.product_type || 'animal'
+        species: normalizedData.species || 'livestock',
+        product_type: normalizedData.product_type || 'animal'
       };
       
       console.log('🛒 Adding item to localStorage cart:', cartItem);
@@ -138,7 +339,7 @@ ${data.title} - Quantity: ${qtyParam}`);
       const existingCart = JSON.parse(localStorage.getItem('cart') || '[]');
       
       // Remove any existing items with the same listing_id
-      const filteredCart = existingCart.filter(item => item.listing_id !== data.id);
+      const filteredCart = existingCart.filter(item => item.listing_id !== normalizedData.id);
       
       // Add the new item
       filteredCart.push(cartItem);
@@ -153,8 +354,8 @@ ${data.title} - Quantity: ${qtyParam}`);
       // Track analytics
       handleTrackAnalytics('buy_now_click', { 
         quantity: qty, 
-        price: data.price,
-        total_before_fees: data.price * qty
+        price: normalizedData.price,
+        total_before_fees: normalizedData.price * qty
       });
       handleTrackABEvents('conversion');
       
@@ -166,7 +367,7 @@ ${data.title} - Quantity: ${qtyParam}`);
 
 There was an issue processing your request.
 
-Product: ${data.title}
+Product: ${normalizedData.title}
 Quantity: ${qty}
 
 Please try again or add to cart first.`);
@@ -174,6 +375,8 @@ Please try again or add to cart first.`);
   };
 
   const requestDeliveryQuote = async () => {
+    if (!normalizedData) return;
+    
     try {
       handleTrackAnalytics('delivery_quote_request', { quantity: qty });
       
@@ -182,7 +385,7 @@ Please try again or add to cart first.`);
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ listing_id: data.id, qty })
+        body: JSON.stringify({ listing_id: normalizedData.id, qty })
       });
       alert('Delivery quote request sent to transporters.');
     } catch (err) {
@@ -227,9 +430,12 @@ Please try again or add to cart first.`);
     );
   }
 
-  if (!data) return null;
+  if (!normalizedData) return null;
 
-  const seoTitle = `${data.title} | ${data.species} · ${data.breed} · ${data.location?.province} | StockLot`;
+  const seoTitle = `${normalizedData.title} | ${normalizedData.category_group} · ${normalizedData.species} · ${normalizedData.location?.province} | StockLot`;
+
+  // Breadcrumb navigation - Marketplace > Category > Listing Name
+  const showCategoryBreadcrumb = normalizedData.category_group && normalizedData.category_group !== 'Livestock';
 
   return (
     <main className="container mx-auto px-4 py-6">
@@ -237,48 +443,52 @@ Please try again or add to cart first.`);
       <title>{seoTitle}</title>
       
       {/* Breadcrumbs */}
-      <nav className="text-sm text-gray-600 mb-4">
+      <nav className="text-sm text-gray-600 mb-4 flex items-center flex-wrap pt-4">
         <button 
           onClick={() => navigate('/marketplace')}
-          className="hover:underline"
+          className="hover:underline text-emerald-600 hover:text-emerald-700"
         >
           Marketplace
         </button>
-        <span className="mx-2">›</span>
-        <button 
-          onClick={() => navigate(`/marketplace?species=${encodeURIComponent(data.species)}`)}
-          className="hover:underline"
-        >
-          {data.species}
-        </button>
-        <span className="mx-2">›</span>
-        <span className="text-gray-900">{data.breed}</span>
+        {showCategoryBreadcrumb && (
+          <>
+            <span className="mx-2 text-gray-400">›</span>
+            <button 
+              onClick={() => navigate(`/marketplace?category_group_id=${encodeURIComponent(normalizedData.category_group_id || '')}`)}
+              className="hover:underline text-emerald-600 hover:text-emerald-700"
+            >
+              {normalizedData.category_group}
+            </button>
+          </>
+        )}
+        <span className="mx-2 text-gray-400">›</span>
+        <span className="text-gray-900 font-medium line-clamp-1">{normalizedData.title}</span>
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Gallery */}
         <div className="lg:col-span-6">
-          <ImageGallery media={data.media || []} />
+          <ImageGallery media={normalizedData.media || []} />
         </div>
 
         {/* Summary / CTA */}
         <div className="lg:col-span-6 space-y-3 lg:space-y-4">
-          <h1 className="text-3xl font-bold text-gray-900">{data.title}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{normalizedData.title}</h1>
           
           <div className="text-sm text-gray-600">
-            {data.species} • {data.breed} • {data.product_type}
+            {normalizedData.species} {normalizedData.breed && normalizedData.breed !== normalizedData.species && `• ${normalizedData.breed}`} • {normalizedData.product_type}
           </div>
 
           <div className="flex items-end gap-3">
             <div className="text-4xl font-bold text-green-600">
-              {priceFmt.format(data.price)}
+              {priceFmt.format(normalizedData.price)}
             </div>
-            <div className="text-lg text-gray-600">per {data.unit}</div>
+            <div className="text-lg text-gray-600">per {normalizedData.unit}</div>
           </div>
 
           <GeofenceBanner 
-            inRange={data.in_range} 
-            province={data.location?.province} 
+            inRange={normalizedData.in_range} 
+            province={normalizedData.location?.province} 
           />
 
           <div className="flex items-center gap-3 py-2">
@@ -286,13 +496,13 @@ Please try again or add to cart first.`);
             <input 
               type="number" 
               min={1} 
-              max={data.qty_available} 
+              max={normalizedData.qty_available} 
               value={qty}
               onChange={(e) => setQty(parseInt(e.target.value) || 1)}
               className="w-20 border border-gray-300 rounded px-3 py-1"
             />
             <div className="text-sm text-gray-600">
-              {data.qty_available} available
+              {normalizedData.qty_available} available
             </div>
           </div>
 
@@ -304,11 +514,12 @@ Please try again or add to cart first.`);
           }`}>
             <button 
               onClick={() => handleAddToCart()}
-              className={`px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors ${
+              disabled={addingToCart || isAddingToCart || !normalizedData.qty_available}
+              className={`px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 abConfig?.cta_style === 'large' ? 'text-lg py-4' : ''
               }`}
             >
-              Add to Cart
+              {addingToCart || isAddingToCart ? 'Adding...' : 'Add to Cart'}
             </button>
             <button 
               onClick={buyNow}
@@ -323,44 +534,46 @@ Please try again or add to cart first.`);
               Request Quote
             </button>
             <div className="sm:col-span-1">
-              <AskQuestionButton listingId={data.id} />
+              <AskQuestionButton listingId={normalizedData.id} />
             </div>
           </div>
 
           {/* StockLot Differentiator Features */}
           <div className="mt-6 space-y-4">
-            {/* Group Buying Widget */}
-            <GroupBuyWidget 
-              listingId={data.id}
-              sellerId={data.seller_id}
-              targetCents={Math.round(data.price * 100)}
-              onUpdate={(status) => {
-                console.log('Group buy status updated:', status);
-                // Could refresh listing data or show notification
-              }}
-            />
+            {/* Group Buying Widget - Only show if feature is enabled */}
+            <IfFlag flag="ff.group_buy">
+              <GroupBuyWidget 
+                listingId={normalizedData.id}
+                sellerId={normalizedData.seller_id || normalizedData.seller?.id}
+                targetCents={Math.round(normalizedData.price * 100)}
+                onUpdate={(status) => {
+                  // Silently handle updates
+                }}
+              />
+            </IfFlag>
             
-            {/* Auction Widget */}
-            <AuctionWidget 
-              listingId={data.id}
-              sellerId={data.seller_id}
-              startPrice={data.price}
-              currentUserId={data.currentUserId}
-              onUpdate={(status) => {
-                console.log('Auction status updated:', status);
-                // Could refresh listing data or show notification
-              }}
-            />
+            {/* Auction Widget - Only show if feature is enabled */}
+            <IfFlag flag="ff.auction">
+              <AuctionWidget 
+                listingId={normalizedData.id}
+                sellerId={normalizedData.seller_id || normalizedData.seller?.id}
+                startPrice={normalizedData.price}
+                currentUserId={normalizedData.currentUserId}
+                onUpdate={(status) => {
+                  // Silently handle updates
+                }}
+              />
+            </IfFlag>
           </div>
 
           {/* Seller */}
-          <SellerCard seller={data.seller} listingId={data.id} />
+          <SellerCard seller={normalizedData.seller} listingId={normalizedData.id} />
 
           {/* Key attributes - Mobile optimized */}
           <section className="mt-4 lg:mt-6">
             <h2 className="text-lg lg:text-xl font-semibold mb-3">Key Details</h2>
             <div className="grid grid-cols-1 gap-2 lg:gap-4">
-              {Object.entries(data.attributes || {}).map(([key, value]) => (
+              {Object.entries(normalizedData.attributes || {}).map(([key, value]) => (
                 <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 text-sm lg:text-base">
                   <span className="text-gray-600 font-medium">{key}:</span>
                   <span className="text-gray-900 text-right">{String(value)}</span>
@@ -370,7 +583,7 @@ Please try again or add to cart first.`);
           </section>
 
           {/* Certificates */}
-          <Certificates certs={data.certificates} />
+          <Certificates certs={normalizedData.certificates} />
         </div>
       </div>
 
@@ -380,23 +593,23 @@ Please try again or add to cart first.`);
           <div className="bg-white rounded-lg border p-4 lg:p-6 mb-6 lg:mb-8">
             <h2 className="text-xl lg:text-2xl font-semibold mb-3 lg:mb-4">Description</h2>
             <div className="prose prose-gray prose-sm lg:prose-base max-w-none">
-              <p className="whitespace-pre-wrap text-sm lg:text-base leading-relaxed">{data.description}</p>
+              <p className="whitespace-pre-wrap text-sm lg:text-base leading-relaxed">{normalizedData.description}</p>
             </div>
           </div>
 
           {/* Reviews */}
-          <div className="bg-white rounded-lg border p-4 lg:p-6">
-            <RatingSummary summary={data.reviewSummary} />
-            <ReviewsList listingId={data.id} sellerId={data.seller?.id} />
+          <div className="bg-white rounded-lg border p-4 lg:p-6 mb-4">
+            <RatingSummary summary={normalizedData.reviewSummary} />
+            <ReviewsList listingId={normalizedData.id} sellerId={normalizedData.seller?.id} />
           </div>
         </div>
 
         {/* Sidebar - Mobile responsive */}
         <aside className="lg:col-span-4 space-y-4 lg:space-y-6">
-          <RelatedGrid items={data.similar || []} />
+          <RelatedGrid items={normalizedData.similar || []} />
           
           {/* Trust Badge */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
             <div className="flex items-center mb-2">
               <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -417,24 +630,24 @@ Please try again or add to cart first.`);
           __html: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'Product',
-            name: data.title,
-            category: `${data.species} > ${data.breed} > ${data.product_type}`,
-            image: (data.media || []).filter(m => m.type === 'image').map(m => m.url),
+            name: normalizedData.title,
+            category: `${normalizedData.species} > ${normalizedData.breed} > ${normalizedData.product_type}`,
+            image: (normalizedData.media || []).filter(m => m.type === 'image').map(m => m.url),
             offers: {
               '@type': 'Offer',
               priceCurrency: 'ZAR',
-              price: data.price,
-              availability: data.qty_available > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-              url: `https://stocklot.farm/listing/${data.id}`
+              price: normalizedData.price,
+              availability: normalizedData.qty_available > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+              url: `https://stocklot.farm/listing/${normalizedData.id}`
             },
-            aggregateRating: data.reviewSummary?.count ? {
+            aggregateRating: normalizedData.reviewSummary?.count ? {
               '@type': 'AggregateRating',
-              ratingValue: data.reviewSummary.average,
-              reviewCount: data.reviewSummary.count
+              ratingValue: normalizedData.reviewSummary.average,
+              reviewCount: normalizedData.reviewSummary.count
             } : undefined,
             brand: {
               '@type': 'Organization',
-              name: data.seller?.name
+              name: normalizedData.seller?.name
             }
           })
         }}

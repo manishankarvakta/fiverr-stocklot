@@ -1,37 +1,69 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import axios from "axios";
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, useParams } from 'react-router-dom';
-
-// 🚀 API Optimization - Initialize early to catch all API calls
-import SmartAPIInterceptor from './services/SmartAPIInterceptor';
-
-// Initialize API optimization immediately
-if (process.env.NODE_ENV === 'production' || window.location.hostname.includes('preview')) {
-  SmartAPIInterceptor.initialize();
-  console.log('🚀 API Optimization enabled');
-}
+import React, { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Enhanced Auth imports
-import { AuthProvider, AuthGate, useAuth } from './auth/AuthProvider';
-import { FeatureFlagsProvider } from './providers/FeatureFlagsProvider';
+import { AuthProvider, AuthGate } from './auth/AuthProvider';
 import ProtectedRoute from './auth/ProtectedRoute';
 import PublicOnlyRoute from './auth/PublicOnlyRoute';
 import EmailVerificationPage from './components/auth/EmailVerificationPage';
 import PasswordResetPage from './components/auth/PasswordResetPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
-
-import CreateOrganizationPage from './components/orgs/CreateOrganizationPage';
-import OrganizationDashboard from './components/orgs/OrganizationDashboard';
 import EnhancedRegister from './components/auth/EnhancedRegister';
 import TwoFactorManagement from './components/auth/TwoFactorManagement';
-import GuestCheckout from './components/checkout/GuestCheckout';
+import TwoFactorSetup from './components/auth/TwoFactorSetup';
+import LoginGate from './components/auth/LoginGate';
 
-// Import new components
+// Layout Components
+import Header from './components/ui/common/Header';
+import Footer from './components/ui/common/Footer';
+import { Toaster } from './components/ui/toaster';
+
+// Page Components
+import Homepage from '@/pages/static/Homepage';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import HowItWorks from '@/pages/static/HowItWorks';
+import AboutUs from '@/pages/static/AboutUs';
+import Pricing from '@/pages/static/Pricing';
+import Blog from '@/pages/static/Blog';
+import Contact from '@/pages/static/Contact';
+import Dashboard from './pages/dashboard/Dashboard';
+import SellerDashboard from './pages/dashboard/SellerDashboard';
+import AdminDashboardPage from './pages/dashboard/AdminDashboard';
+// import ExoticsPage from './pages/marketplace/ExoticsPage';
+import ExoticsPage from './components/pagesNo/ExoticsPage';
+import ProfilePage from './pages/profile/ProfilePage';
+import PaymentMethodsPage from './pages/profile/PaymentMethodsPage';
+import AddressesPage from './pages/profile/AddressesPage';
+import UserOrders from './pages/orders/UserOrders';
+import SellerOrders from './pages/orders/SellerOrders';
+import BuyRequestsPage from './pages/buy-requests/BuyRequestsPage';
+import CreateBuyRequestPage from './pages/buy-requests/CreateBuyRequestPage';
+import BuyerOffersInbox from './pages/buy-requests/BuyerOffersInbox';
+import UnifiedInbox from './pages/UnifiedInbox';
+import InlineCartPage from './pages/utility/InlineCartPage';
+
+// Existing imported components
+import LocationPicker from './components/location/LocationPicker';
+import GeofenceBanner from './components/geofence/GeofenceBanner';
+import RangeBadge from './components/geofence/RangeBadge';
+import DeliverableFilterBar from './components/geofence/DeliverableFilterBar';
+import ContextSwitcher from './components/seller/ContextSwitcher';
+import CreateOrganizationPage from './components/orgs/CreateOrganizationPage';
+import OrganizationDashboard from './components/orgs/OrganizationDashboard';
+import OrganizationManagement from './components/admin/OrganizationManagement';
+import AdminRoleManagement from './components/admin/AdminRoleManagement';
+import OrganizationDashboardCard from './components/dashboard/OrganizationDashboardCard';
+import GuestCheckout from './components/checkout/GuestCheckout';
+import NotificationBell from './components/notifications/NotificationBell';
 import ReferralDashboard from './components/referrals/ReferralDashboard';
 import BlogList from './components/blog/BlogList';
 import BlogEditor from './components/blog/BlogEditor';
 import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
+import CreateBuyRequestForm from './components/buyRequests/CreateBuyRequestForm';
+import BuyRequestsList from './components/buyRequests/BuyRequestsList';
+import AdminLayoutWithSidebar from './components/admin/AdminLayout';
 import AdminAnalyticsOverview from './components/admin/AdminAnalyticsOverview';
 import AdminAnalyticsPDP from './components/admin/AdminAnalyticsPDP';
 import AdminSellerPerformance from './components/admin/AdminSellerPerformance';
@@ -49,93 +81,44 @@ import SellerCampaigns from './components/seller/SellerCampaigns';
 import SellerOffers from './components/seller/SellerOffers';
 import Wishlist from './components/buyer/Wishlist';
 import PriceAlerts from './components/buyer/PriceAlerts';
-
-// New integrated components
 import SellerShippingRates from './components/seller/SellerShippingRates';
 import MonthlyTradingStatements from './components/analytics/MonthlyTradingStatements';
-
-// Dashboard component imports
 import UniversalDashboard from './components/dashboard/UniversalDashboard';
-
-// Orders components
 import MyOrders from './components/orders/MyOrders';
 import OrderTracking from './components/orders/OrderTracking';
 import OrderHistory from './components/orders/OrderHistory';
-
-// Seller components  
 import MyListings from './components/seller/MyListings';
 import ListingPerformance from './components/seller/ListingPerformance';
 import CustomerReviews from './components/seller/CustomerReviews';
-
-// Settings components
 import NotificationSettings from './components/settings/NotificationSettings';
-
-// Buyer components
 import SavedSearches from './components/buyer/SavedSearches';
-
-// Reports components
 import TaxReports from './components/reports/TaxReports';
-
-// Settings components  
 import AlertPreferences from './components/settings/AlertPreferences';
-
-// KYC components
 import KYCVerification from './components/kyc/KYCVerification';
-
-// Layout Components
 import DashboardLayout from './components/layout/DashboardLayout';
 import SellerProfileLayout from './components/seller/SellerProfileLayout';
 import BasicInfo from './components/seller/profile/BasicInfo';
 import BusinessInfo from './components/seller/profile/BusinessInfo';
 import SidebarDemo from './components/demo/SidebarDemo';
-
-// Wallet Components
-import CreditWallet from './components/wallet/CreditWallet';
-
+import PaymentMethodsForm from './components/PaymentMethodsForm';
+import SuggestButton from './components/suggestions/SuggestButton';
+// import ShoppingCartModal from './components/cart/ShoppingCart';
 import FAQChatbot from './components/support/FAQChatbot';
+import PublicBuyRequestsPage from './pages/PublicBuyRequestsPage';
+import EnhancedPublicBuyRequestsPage from './pages/EnhancedPublicBuyRequestsPage';
+import EnhancedCreateBuyRequestForm from './components/buyRequests/EnhancedCreateBuyRequestForm';
+import BuyerOffersPage from './pages/BuyerOffersPage';
+import InboxPage from './pages/InboxPage';
 import ReviewsTestPage from './pages/ReviewsTestPage';
 import CartPage from './pages/CartPage';
-import LoginGate from './components/auth/LoginGate';
-
-// Import comprehensive PDP component
+import TestCartPage from './pages/TestCartPage';
+import DeliveryRateForm from './components/seller/DeliveryRateForm';
 import ListingPDP from './components/pdp/ListingPDP';
-
-// PDP and Seller Profile imports
-
 import SellerProfile from './components/seller/SellerProfile';
 
 import "./App.css";
-import Homepage from "./components/pages/Home";
-import Header from "./components/ui/common/Header";
-import Footer from "./components/ui/common/Footer";
-import Login from "./components/pages/Login";
-// import CreateListing from "./components/pages/CreateListing";
-import CreateBuyRequestPage from "./components/pages/CreateByRequestPage";
-import PaymentMethodsPage from "./components/pages/PaymentMethodsPage";
-import CreateListing from "./components/pages/CreateListing";
-import ProfilePage from "./components/pages/ProfilePage";
-import AddressesPage from "./components/pages/AddressesPage";
-import SellerDashboard from "./components/pages/SellerDashboard";
-import BuyerOffersInbox from "./components/pages/BuyerOffersInbox";
-import AdminDashboardRoute from "./components/pages/AdminDashboardRoute";
-import UnifiedInboxPage from "./pages/UnifiedInboxPage";
-import Marketplace from "./components/pages/Marketplace";
-import ExoticsPage from "./components/pages/ExoticsPage";
-import BuyRequestsPage from "./components/pages/BuyRequestsPage";
-import HowItWorks from "./components/pages/HowItWorks";
-import AboutUs from "./components/pages/AboutUs";
-import Pricing from "./components/pages/Pricing";
-import Contact from "./components/pages/Contact";
-import RequestDetailModal from "./components/pages/RequestDetailModal";
-import SendOfferModal from "./components/buyRequests/SendOfferModal";
-import LoginDialog from "./components/pages/LoginDialog";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://apilifestock.aamardokan.online';
-const API = `${BACKEND_URL}/api`;
-
-console.log("Backend URL:", BACKEND_URL,API);
-
-
+import CreateListing from "./components/pagesNo/CreateListing";
+import Marketplace from "./components/pagesNo/Marketplace";
 
 // Main App component
 function App() {
@@ -156,18 +139,17 @@ function App() {
   };
 
   return (
-    <FeatureFlagsProvider>
     <AuthProvider>
       <AuthGate>
         <Router>
           <div className="App">
-              <Header/>
+            <Header />
             <main className="min-h-screen">
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Homepage />} />
-                <Route path="/sidebar-demo" element={<SidebarDemo />} />
-                <Route path="/debug-cart" element={<div>Debug cart route working!</div>} />
+                {/* <Route path="/sidebar-demo" element={<SidebarDemo />} /> */}
+                {/* <Route path="/debug-cart" element={<div>Debug cart route working!</div>} /> */}
                 
                 {/* Email verification and password reset routes */}
                 <Route path="/verify-email" element={<EmailVerificationPage />} />
@@ -187,14 +169,13 @@ function App() {
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/payment-methods" element={<PaymentMethodsPage />} />
                   <Route path="/addresses" element={<AddressesPage />} />
-                  <Route path="/account/credit-wallet" element={<CreditWallet />} />
                   <Route path="/dashboard" element={<UniversalDashboard />} />
                   <Route path="/seller-dashboard" element={<SellerDashboard />} />
                   <Route path="/create-organization" element={<CreateOrganizationPage />} />
                   <Route path="/orgs/:handle/dashboard" element={<OrganizationDashboard />} />
                   <Route path="/referrals" element={<ReferralDashboard />} />
                   <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
-                  <Route path="/inbox" element={<UnifiedInboxPage />} />
+                  <Route path="/inbox" element={<UnifiedInbox />} />
                   <Route path="/reviews-test" element={<ReviewsTestPage />} />
                   
                   {/* Orders & Tracking Routes */}
@@ -226,7 +207,7 @@ function App() {
                 
                 {/* Admin-only routes */}
                 <Route element={<ProtectedRoute roles={['admin']} />}>
-                  <Route path="/admin" element={<AdminDashboardRoute />} />
+                  <Route path="/admin" element={<AdminDashboardPage />} />
                   <Route path="/admin/blog/create" element={<BlogEditor />} />
                   <Route path="/admin/blog/edit/:id" element={<BlogEditor />} />
                   <Route path="/create-blog" element={<BlogEditor />} />
@@ -345,18 +326,13 @@ function App() {
             onClose={handleCloseLogin}
             onLogin={handleLoginSuccess}
           />
+          
+          {/* Toast Notifications */}
+          <Toaster />
         </Router>
       </AuthGate>
     </AuthProvider>
-    </FeatureFlagsProvider>
   );
 }
-<>
-<RequestDetailModal />
-<SendOfferModal />
-<LoginDialog />
-</>
-
-
 
 export default App;

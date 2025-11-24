@@ -58,7 +58,11 @@ export const apiCall = async (method, endpoint, data = null, params = null) => {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || errorData.message || `HTTP ${response.status}`);
+      const error = new Error(errorData.detail || errorData.message || `HTTP ${response.status}`);
+      // Attach status code to error for easier handling
+      error.status = response.status;
+      error.data = errorData;
+      throw error;
     }
     
     const contentType = response.headers.get('content-type');
@@ -68,7 +72,13 @@ export const apiCall = async (method, endpoint, data = null, params = null) => {
     
     return response;
   } catch (error) {
-    console.error(`API call failed: ${method} ${endpoint}`, error);
+    // Only log non-404/401 errors to reduce console noise
+    // 404 is expected for missing resources (group buys, trust scores)
+    // 401 is expected for unauthenticated requests
+    const status = error?.status || error?.response?.status;
+    if (status !== 404 && status !== 401) {
+      console.error(`API call failed: ${method} ${endpoint}`, error);
+    }
     throw error;
   }
 };

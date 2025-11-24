@@ -1,31 +1,28 @@
 import { useAuth } from "@/auth/AuthProvider";
-// import { useEffect, useState } from "react";
-// import { useNavigate } from "react-router-dom";
-
-
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import axios from "axios";
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-// 🚀 API Optimization - Initialize early to catch all API calls
-import SmartAPIInterceptor from '@/services/SmartAPIInterceptor';
+// Redux RTK Query hooks
+import { useGetListingsQuery, useLazyGetListingsQuery } from "@/store/api/listings.api";
+import { 
+  useGetTaxonomyCategoriesQuery, 
+  useLazyGetSpeciesQuery,
+  useGetBreedsBySpeciesQuery,
+  useGetProductTypesQuery 
+} from "@/store/api/taxonomy.api";
+import { useSmartSearchMutation } from "@/store/api/search.api";
+
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui";
-import { Brain, CheckCircle, Filter, MapPin, Search, Shield, Star, User } from "lucide-react";
+import { Brain, CheckCircle, Filter, MapPin, Search, Shield, Star, User, X, Bell } from "lucide-react";
 import Header from "../layout/Header";
-// import { Input } from "postcss";
 import DeliverableFilterBar from "../geofence/DeliverableFilterBar";
+import ListingCard from "../listings/ListingCard";
+import OrderModal from "../listings/OrderModal";
+import BiddingModal from "../listings/BiddingModal";
 function Marketplace() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [listings, setListings] = useState([]);
-  const [listingsLoading, setListingsLoading] = useState(false);
-  const [listingsError, setListingsError] = useState(null);
-  const [lastSuccessfulListings, setLastSuccessfulListings] = useState([]); // Backup listings
-  const [categoryGroups, setCategoryGroups] = useState([]);
-  const [species, setSpecies] = useState([]);
-  const [breeds, setBreeds] = useState([]);
-  const [productTypes, setProductTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showExotics, setShowExotics] = useState(false);
   const [filters, setFilters] = useState({
     category_group_id: '',
@@ -54,6 +51,84 @@ function Marketplace() {
     };
   });
 
+  // Redux RTK Query hooks
+  const categoryMode = showExotics ? 'all' : 'core';
+  const { data: categoriesData, isLoading: categoriesLoading } = useGetTaxonomyCategoriesQuery({ mode: categoryMode });
+  const { data: productTypesData, isLoading: productTypesLoading } = useGetProductTypesQuery({});
+  
+  // Fetch all species on mount
+  const [getAllSpecies, { data: allSpeciesData, isLoading: speciesLoading }] = useLazyGetSpeciesQuery();
+  const [getSpeciesByGroup, { data: speciesByGroupData }] = useLazyGetSpeciesQuery();
+  
+  const { data: breedsData, isLoading: breedsLoading } = useGetBreedsBySpeciesQuery(
+    filters.species_id || '',
+    { skip: !filters.species_id }
+  );
+  
+  // Listings query with filters
+  const listingsParams = useMemo(() => {
+    const params = {};
+    if (filters.category_group_id) params.category_group_id = filters.category_group_id;
+    if (filters.species_id) params.species_id = filters.species_id;
+    if (filters.breed_id) params.breed_id = filters.breed_id;
+    if (filters.product_type_id) params.product_type_id = filters.product_type_id;
+    if (filters.province) params.region = filters.province;
+    if (filters.price_min) params.price_min = filters.price_min;
+    if (filters.price_max) params.price_max = filters.price_max;
+    if (filters.listing_type && filters.listing_type !== 'all') params.listing_type = filters.listing_type;
+    params.include_exotics = filters.include_exotics;
+    if (deliverableOnly) params.deliverable_only = true;
+    return params;
+  }, [filters, deliverableOnly]);
+  
+  const { data: listingsData, isLoading: listingsLoading, error: listingsError, refetch: refetchListings } = useGetListingsQuery(listingsParams);
+  const [smartSearch, { isLoading: smartSearchLoading }] = useSmartSearchMutation();
+
+  // Derived state from API responses - handle different response formats
+  const categoryGroups = useMemo(() => {
+    if (!categoriesData) return [];
+    // Handle both array and object with categories property
+    if (Array.isArray(categoriesData)) return categoriesData;
+    if (categoriesData.categories) return categoriesData.categories;
+    return [];
+  }, [categoriesData]);
+  
+  const productTypes = useMemo(() => {
+    if (!productTypesData) return [];
+    if (Array.isArray(productTypesData)) return productTypesData;
+    if (productTypesData.product_types) return productTypesData.product_types;
+    return [];
+  }, [productTypesData]);
+  
+  // Species data - use filtered by group if available, otherwise use all species
+  const allSpecies = useMemo(() => {
+    if (filters.category_group_id && speciesByGroupData) {
+      return Array.isArray(speciesByGroupData) ? speciesByGroupData : [];
+    }
+    if (allSpeciesData) {
+      return Array.isArray(allSpeciesData) ? allSpeciesData : [];
+    }
+    return [];
+  }, [allSpeciesData, speciesByGroupData, filters.category_group_id]);
+  
+  const breeds = useMemo(() => {
+    if (!breedsData) return [];
+    return Array.isArray(breedsData) ? breedsData : [];
+  }, [breedsData]);
+  
+  // Get species filtered by category group (for display)
+  const species = useMemo(() => {
+    if (!filters.category_group_id) return allSpecies;
+    return allSpecies.filter(s => s.category_group_id === filters.category_group_id);
+  }, [allSpecies, filters.category_group_id]);
+
+  const loading = categoriesLoading || productTypesLoading || listingsLoading || smartSearchLoading;
+
+  // Fetch all species on mount
+  useEffect(() => {
+    getAllSpecies({});
+  }, [getAllSpecies]);
+
   // Check URL params for exotic mode
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -65,10 +140,8 @@ function Marketplace() {
     }
   }, []);
 
+  // Set up real-time auction updates
   useEffect(() => {
-    fetchInitialData();
-    
-    // Set up real-time auction updates
     const interval = setInterval(() => {
       updateAuctionTimers();
     }, 1000);
@@ -76,38 +149,72 @@ function Marketplace() {
     return () => clearInterval(interval);
   }, []);
 
-  // Re-fetch categories when exotic toggle changes
+  // Fetch species when category group changes
   useEffect(() => {
-    fetchInitialData();
-  }, [showExotics]);
+    if (filters.category_group_id) {
+      getSpeciesByGroup({ category_group_id: filters.category_group_id });
+    }
+  }, [filters.category_group_id, getSpeciesByGroup]);
 
+  // Update listings when API data changes
   useEffect(() => {
-    fetchListings();
-  }, [filters]);
+    if (listingsData) {
+      // Handle different response formats
+      let listingsArray = [];
+      if (Array.isArray(listingsData)) {
+        listingsArray = listingsData;
+      } else if (listingsData.listings) {
+        listingsArray = listingsData.listings;
+      } else if (listingsData.data) {
+        listingsArray = listingsData.data;
+      }
+      
+      console.log('📊 Listings data received:', {
+        total: listingsArray.length,
+        format: Array.isArray(listingsData) ? 'array' : 'object',
+        hasListings: !!listingsData.listings,
+        hasData: !!listingsData.data
+      });
+      
+      // Enhance listings with auction data and species information
+      const enhancedListings = listingsArray.map(listing => {
+        const listingSpecies = allSpecies.find(s => s.id === listing.species_id);
+        
+        return {
+          ...listing,
+          species: listingSpecies ? listingSpecies.name : null,
+          listing_type: listing.listing_type || 'buy_now',
+          current_bid: listing.current_bid || (
+            listing.listing_type === 'auction' || listing.listing_type === 'hybrid' 
+              ? listing.starting_price || listing.price_per_unit 
+              : null
+          ),
+          auction_end_time: listing.auction_end_time || (
+            listing.listing_type !== 'buy_now' 
+              ? new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
+              : null
+          ),
+          total_bids: listing.total_bids || 0,
+          starting_price: listing.starting_price || listing.price_per_unit,
+          buy_now_price: listing.listing_type === 'hybrid' ? listing.buy_now_price || (listing.price_per_unit * 1.2) : null,
+          reserve_price: listing.reserve_price || null
+        };
+      });
+      
+      console.log(`✅ Processed ${enhancedListings.length} listings`);
+      setListings(enhancedListings);
+    } else if (listingsData === null || listingsData === undefined) {
+      // No data yet, keep existing listings or set empty
+      if (listings.length === 0) {
+        console.log('⚠️ No listings data received');
+      }
+    }
+  }, [listingsData, allSpecies]);
 
+  // Update filters when exotic toggle changes
   useEffect(() => {
-    // Update filters when exotic toggle changes
     setFilters(prev => ({ ...prev, include_exotics: showExotics }));
   }, [showExotics]);
-
-  useEffect(() => {
-    // Fetch species when category group changes
-    if (filters.category_group_id) {
-      fetchSpeciesByGroup(filters.category_group_id);
-    } else {
-      setSpecies([]);
-      setBreeds([]);
-    }
-  }, [filters.category_group_id]);
-
-  useEffect(() => {
-    // Fetch breeds when species changes
-    if (filters.species_id) {
-      fetchBreedsBySpecies(filters.species_id);
-    } else {
-      setBreeds([]);
-    }
-  }, [filters.species_id]);
 
   const updateAuctionTimers = () => {
     setListings(prevListings => 
@@ -171,191 +278,7 @@ function Marketplace() {
     }, 5000);
   };
 
-  const fetchInitialData = async () => {
-    try {
-      // Fetch core categories by default, exotic categories when enabled
-      const categoryMode = showExotics ? 'all' : 'core';
-      const [groupsRes, productTypesRes, speciesRes] = await Promise.all([
-        fetch(`${API}/taxonomy/categories?mode=${categoryMode}`).then(r => r.json()),
-        apiCall('GET', '/product-types'),
-        fetch(`${API}/species`).then(r => r.json()) // Load all species for listing categorization
-      ]);
-      console.log(`${categoryMode} category groups loaded:`, groupsRes || []); // Debug log
-      console.log('Product types loaded:', productTypesRes || []); // Debug log
-      console.log('Species loaded for categorization:', speciesRes || []); // Debug log
-      setCategoryGroups(groupsRes || []);
-      setProductTypes(productTypesRes || []);
-      setSpecies(speciesRes || []); // Set species data for listing enhancement
-    } catch (error) {
-      console.error('Error fetching initial data:', error);
-      // Set empty arrays as fallback
-      setCategoryGroups([]);
-      setProductTypes([]);
-      setSpecies([]);
-    }
-  };
-
-  const fetchSpeciesByGroup = async (groupId) => {
-    try {
-      // Use the correct API endpoint for species by category
-      const response = await fetch(`${API}/species?category_group_id=${groupId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSpecies(data || []);
-      } else {
-        console.error('Failed to fetch species:', response.status);
-        setSpecies([]);
-      }
-    } catch (error) {
-      console.error('Error fetching species:', error);
-      setSpecies([]);
-    }
-  };
-
-  const fetchBreedsBySpecies = async (speciesId) => {
-    try {
-      const response = await fetch(`${API}/species/${speciesId}/breeds`);
-      if (response.ok) {
-        const data = await response.json();
-        setBreeds(data || []);
-      } else {
-        console.error('Failed to fetch breeds:', response.status);
-        setBreeds([]);
-      }
-    } catch (error) {
-      console.error('Error fetching breeds:', error);
-      setBreeds([]);
-    }
-  };
-
-  const fetchListings = async (retryCount = 0) => {
-    // STABILITY: Prevent multiple concurrent requests
-    if (listingsLoading) {
-      console.log('🔒 STABILITY: Listings already loading, skipping duplicate request');
-      return;
-    }
-    
-    try {
-      setListingsLoading(true); // Use separate loading state
-      setLoading(true);
-      console.log(`🔍 STABILITY: Fetching listings (attempt ${retryCount + 1})`);
-      
-      const params = new URLSearchParams();
-      if (filters.category_group_id) params.append('category_group_id', filters.category_group_id);
-      if (filters.species_id) params.append('species_id', filters.species_id);
-      if (filters.breed_id) params.append('breed_id', filters.breed_id);
-      if (filters.product_type_id) params.append('product_type_id', filters.product_type_id);
-      if (filters.province) params.append('region', filters.province);
-      if (filters.price_min) params.append('price_min', filters.price_min);
-      if (filters.price_max) params.append('price_max', filters.price_max);
-      if (filters.listing_type && filters.listing_type !== 'all') params.append('listing_type', filters.listing_type);
-      
-      // CORE/EXOTIC FILTERING - This is the key change!
-      params.append('include_exotics', filters.include_exotics.toString());
-
-      if (deliverableOnly) {
-        params.append('deliverable_only', 'true');
-      }
-
-      // Use direct fetch with timeout for stability
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-
-      const response = await fetch(`${API}/listings?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        if (response.status === 429 && retryCount < 3) {
-          console.log(`⏳ STABILITY: Rate limited, retrying in ${2 + retryCount} seconds...`);
-          setTimeout(() => fetchListings(retryCount + 1), (2 + retryCount) * 1000);
-          return;
-        }
-        throw new Error(`Failed to fetch listings: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // Backend returns listings in response.listings field
-      const listingsArray = Array.isArray(data) ? data : (data.listings || data.data || []);
-      
-      console.log(`📊 Fetched ${listingsArray.length} listings from API`);
-      console.log('🔍 DEBUG: Raw API response:', data);
-      console.log('🔍 DEBUG: Processed listings array:', listingsArray);
-      
-      // If we get empty results but have existing listings, keep the existing ones to prevent disappearing
-      if (listingsArray.length === 0 && listings.length > 0 && retryCount === 0) {
-        console.log('⚠️ Empty response but have existing listings - keeping current state');
-        setLoading(false);
-        return;
-      }
-      
-      // Enhance listings with auction data and species information for proper categorization
-      const enhancedListings = listingsArray.map(listing => {
-        // Find species data for this listing
-        const listingSpecies = species.find(s => s.id === listing.species_id);
-        
-        return {
-          ...listing,
-          // Add species name for string-based filtering
-          species: listingSpecies ? listingSpecies.name : null,
-          listing_type: listing.listing_type || 'buy_now',
-          current_bid: listing.current_bid || (
-            listing.listing_type === 'auction' || listing.listing_type === 'hybrid' 
-              ? listing.starting_price || listing.price_per_unit 
-              : null
-          ),
-          auction_end_time: listing.auction_end_time || (
-            listing.listing_type !== 'buy_now' 
-              ? new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
-              : null
-          ),
-          total_bids: listing.total_bids || 0,
-          starting_price: listing.starting_price || listing.price_per_unit,
-          buy_now_price: listing.listing_type === 'hybrid' ? listing.buy_now_price || (listing.price_per_unit * 1.2) : null,
-          reserve_price: listing.reserve_price || null
-        };
-      });
-      
-      setListings(enhancedListings);
-      console.log(`✅ Loaded ${enhancedListings.length} listings successfully`);
-    } catch (error) {
-      console.error('🚨 Error fetching listings:', error);
-      
-      // CRITICAL FIX: NEVER clear existing listings on error
-      // This prevents the disappearing listings issue
-      if (listings.length > 0) {
-        console.log(`💾 STABILITY: Keeping ${listings.length} existing listings despite error: ${error.message}`);
-        // Don't touch listings state - keep what we have
-      } else {
-        console.log('⚠️ STABILITY: No existing listings to preserve, first load failed');
-        // Only set empty on first load failure
-        setListings([]);
-      }
-      
-      // Enhanced retry logic for network issues
-      if (retryCount < 3 && (
-        error.message.includes('429') || 
-        error.message.includes('503') || 
-        error.message.includes('502') ||
-        error.message.includes('timeout') ||
-        error.message.includes('Failed to fetch')
-      )) {
-        console.log(`🔄 STABILITY: Auto-retry ${retryCount + 1}/3 in ${2 + retryCount} seconds...`);
-        setTimeout(() => fetchListings(retryCount + 1), (2 + retryCount) * 1000);
-        return;
-      }
-    } finally {
-      setLoading(false);
-      setListingsLoading(false); // Clear both loading states
-    }
-  };
+  // Listings are now fetched via Redux hook - no need for fetchListings function
 
   const getSpeciesName = (speciesId) => {
     const spec = species.find(s => s.id === speciesId);
@@ -366,44 +289,26 @@ function Marketplace() {
     if (!smartSearchQuery.trim()) return;
     
     try {
-      setLoading(true);
+      const result = await smartSearch({ query: smartSearchQuery }).unwrap();
       
-      const response = await fetch(`${API}/search/smart`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(localStorage.getItem('token') && { 
-            'Authorization': `Bearer ${localStorage.getItem('token')}` 
-          })
-        },
-        body: JSON.stringify({
-          query: smartSearchQuery
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSmartSearchResults(data.search);
-        
-        // Update listings with search results
-        const searchListings = data.search.results
-          .filter(result => result.type === 'listing')
-          .map(result => result.data);
-        
-        setListings(searchListings);
-        
-        // Show success notification
-        const notification = {
-          id: Date.now(),
-          type: 'success',
-          message: `Found ${searchListings.length} results for "${smartSearchQuery}"${data.search.learned_from_query ? ' (Query learned for improvement!)' : ''}`,
-          duration: 5000
-        };
-        setNotifications(prev => [...prev, notification]);
-        
-      } else {
-        throw new Error('Search failed');
-      }
+      setSmartSearchResults(result.search);
+      
+      // Update listings with search results
+      const searchListings = result.search.results
+        .filter(result => result.type === 'listing')
+        .map(result => result.data);
+      
+      setListings(searchListings);
+      
+      // Show success notification
+      const notification = {
+        id: Date.now(),
+        type: 'success',
+        message: `Found ${searchListings.length} results for "${smartSearchQuery}"${result.search.learned_from_query ? ' (Query learned for improvement!)' : ''}`,
+        duration: 5000
+      };
+      setNotifications(prev => [...prev, notification]);
+      
     } catch (error) {
       console.error('Smart search error:', error);
       
@@ -424,16 +329,13 @@ function Marketplace() {
         duration: 4000
       };
       setNotifications(prev => [...prev, notification]);
-    } finally {
-      setLoading(false);
-      setListingsLoading(false); // Clear both loading states
     }
   };
 
   const clearSmartSearch = () => {
     setSmartSearchQuery('');
     setSmartSearchResults(null);
-    fetchListings(); // Reload all listings
+    refetchListings(); // Reload all listings using Redux
   };
 
   // Enhanced handleFilterChange to clear smart search when filters are used
@@ -553,7 +455,7 @@ function Marketplace() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 py-4">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-emerald-900 mb-2">Browse Livestock</h1>
@@ -729,7 +631,7 @@ function Marketplace() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem alue="all">All Types</SelectItem>
+                    <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="buy_now">Buy Now Only</SelectItem>
                     <SelectItem value="auction">Auctions Only</SelectItem>
                     <SelectItem value="hybrid">Hybrid (Bid + Buy Now)</SelectItem>
@@ -926,7 +828,7 @@ function Marketplace() {
           {(() => {
             // Apply deliverable filtering
             let filteredListings = listings;
-            console.log('🔍 DEBUG: Raw listings state:', listings.length, 'listings:', listings.map(l => l.title || l.id));
+            // console.log('🔍 DEBUG: Raw listings state:', listings.length, 'listings:', listings.map(l => l.title || l.id));
             
             if (deliverableOnly) {
               filteredListings = listings.filter(listing => {
@@ -963,9 +865,9 @@ function Marketplace() {
 
             return sortedListings.length > 0 ? (
               <>
-                {console.log('🔍 DEBUG: Rendering', sortedListings.length, 'listings:', sortedListings.map(l => l.title))}
+                {/* {console.log('🔍 DEBUG: Rendering', sortedListings.length, 'listings:', sortedListings.map(l => l.title))} */}
                 {sortedListings.map(listing => (
-                  <ListingCard 
+                  <ListingCard
                     key={listing.id} 
                     listing={listing} 
                     onViewDetails={handleViewDetails}

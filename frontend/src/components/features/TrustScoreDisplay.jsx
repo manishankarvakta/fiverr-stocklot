@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from '../ui';
 import { Shield, Star, TrendingUp, Award } from 'lucide-react';
-// import { IfFlag } from '../../provide/rs/FeatureFlagsProvider';
+import { IfFlag } from '../../providers/FeatureFlagsProvider';
 
 // import api from '../../api/client';
 
@@ -14,13 +14,28 @@ const TrustScoreDisplay = ({ userId, size = 'sm', showDetails = false }) => {
 
   useEffect(() => {
     const fetchTrustScore = async () => {
-      if (!userId) return;
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
       
       try {
         const response = await api.get(`/trust/score/${userId}`);
         setTrustScore(response.data);
       } catch (error) {
-        console.error('Error fetching trust score:', error);
+        // Silently handle 404 - trust score doesn't exist (expected for new users)
+        // apiHelper throws Error objects, check error message for 404
+        const errorMessage = error?.message || '';
+        const is404 = errorMessage.includes('404') || 
+                      errorMessage.includes('Not Found') ||
+                      error?.response?.status === 404 ||
+                      error?.status === 404;
+        
+        if (!is404) {
+          // Only log non-404 errors
+          console.error('Error fetching trust score:', error);
+        }
+        // Set default trust score for new users or when endpoint doesn't exist
         setTrustScore({ score: 500, level: 'NEW' });
       } finally {
         setLoading(false);

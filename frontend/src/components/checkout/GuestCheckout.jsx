@@ -20,12 +20,14 @@ import api from '../../utils/apiHelper';
 import { handleAPIError } from '../../services/api';
 import { useToast } from '../../hooks/use-toast';
 import PaymentRedirectService from '../../services/PaymentRedirectService';
+import { useAuth } from '../../auth/AuthProvider';
 
 export default function GuestCheckout() {
   console.log('GuestCheckout component rendering...');
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
   
   console.log('Current location:', location.pathname);
   console.log('Location state:', location.state);
@@ -36,6 +38,29 @@ export default function GuestCheckout() {
     phone: '',
     full_name: ''
   });
+  
+  // Pre-fill contact information for authenticated users
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setContact({
+        email: user.email || '',
+        phone: user.phone || '',
+        full_name: user.full_name || user.name || ''
+      });
+      
+      // If user has a default address, pre-fill shipTo
+      if (user.address || user.default_address) {
+        const address = user.address || user.default_address;
+        setShipTo({
+          province: address.province || user.province || '',
+          city: address.city || user.city || '',
+          postal_code: address.postal_code || address.postalCode || '',
+          address_line_1: address.address_line_1 || address.addressLine1 || address.street || '',
+          address_line_2: address.address_line_2 || address.addressLine2 || ''
+        });
+      }
+    }
+  }, [isAuthenticated, user]);
   const [quote, setQuote] = useState(null);
   const [risk, setRisk] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -43,16 +68,37 @@ export default function GuestCheckout() {
   const [step, setStep] = useState('details'); // details, quote, payment
 
   useEffect(() => {
-    // Load cart items from localStorage
+    // Load cart items from localStorage (check both 'guest_cart' and 'cart' for compatibility)
+    const guestCartData = localStorage.getItem('guest_cart');
     const cartData = localStorage.getItem('cart');
-    if (cartData) {
+    
+    let cartItems = [];
+    
+    if (guestCartData) {
       try {
-        const cart = JSON.parse(cartData);
-        setItems(cart);
+        cartItems = JSON.parse(guestCartData);
+      } catch (error) {
+        console.error('Error parsing guest_cart data:', error);
+      }
+    } else if (cartData) {
+      try {
+        cartItems = JSON.parse(cartData);
       } catch (error) {
         console.error('Error parsing cart data:', error);
       }
     }
+    
+    // Convert guest cart format to checkout format if needed
+    const formattedItems = cartItems.map(item => ({
+      listing_id: item.listing_id || item.id,
+      title: item.title,
+      price: item.price || item.price_per_unit,
+      qty: item.qty || item.quantity || 1,
+      species: item.species || 'livestock',
+      product_type: item.product_type || 'animal'
+    }));
+    
+    setItems(formattedItems);
   }, []);
 
   const getQuote = async () => {
@@ -62,7 +108,9 @@ export default function GuestCheckout() {
     setError('');
     
     try {
-      const quoteData = await api.post('/checkout/guest/quote', { 
+      // Use authenticated endpoint if user is logged in, otherwise use guest endpoint
+      const endpoint = isAuthenticated ? '/checkout/quote' : '/checkout/guest/quote';
+      const quoteData = await api.post(endpoint, { 
         items, 
         ship_to: shipTo 
       });
@@ -79,18 +127,31 @@ export default function GuestCheckout() {
   };
 
   const createOrder = async () => {
-    if (!quote || !contact.email) return;
+    if (!quote) return;
+    // For authenticated users, email is not required (comes from profile)
+    if (!isAuthenticated && !contact.email) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const orderData = await api.post('/checkout/guest/order', {
-        contact,
-        ship_to: shipTo,
-        items,
-        quote
-      });
+      // Use authenticated endpoint if user is logged in, otherwise use guest endpoint
+      const endpoint = isAuthenticated ? '/checkout/order' : '/checkout/guest/create';
+      const orderPayload = isAuthenticated 
+        ? {
+            ship_to: shipTo,
+            items,
+            quote
+            // Contact info is not needed for authenticated users - comes from their profile
+          }
+        : {
+            contact,
+            ship_to: shipTo,
+            items,
+            quote
+          };
+      
+      const orderData = await api.post(endpoint, orderPayload);
       
       console.log('Order creation response:', orderData); // Debug log
       
@@ -202,12 +263,24 @@ export default function GuestCheckout() {
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Guest Checkout</h1>
-            <p className="text-gray-600">Complete your livestock purchase without creating an account</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {isAuthenticated ? 'Checkout' : 'Guest Checkout'}
+            </h1>
+            <p className="text-gray-600">
+              {isAuthenticated 
+                ? 'Review your order and complete your purchase'
+                : 'Complete your livestock purchase without creating an account'}
+            </p>
             <div className="flex items-center justify-center space-x-2 mt-4">
               <Badge variant="outline" className="text-emerald-600">🔒 Secure Escrow</Badge>
-              <Badge variant="outline" className="text-emerald-600">📱 No Account Needed</Badge>
-              <Badge variant="outline" className="text-emerald-600">⚡ Quick Checkout</Badge>
+              {isAuthenticated ? (
+                <Badge variant="outline" className="text-emerald-600">⚡ Quick Checkout</Badge>
+              ) : (
+                <>
+                  <Badge variant="outline" className="text-emerald-600">📱 No Account Needed</Badge>
+                  <Badge variant="outline" className="text-emerald-600">⚡ Quick Checkout</Badge>
+                </>
+              )}
             </div>
           </div>
 
@@ -260,19 +333,24 @@ export default function GuestCheckout() {
                     <Label className="text-base font-semibold mb-3 flex items-center">
                       <User className="h-4 w-4 mr-2" />
                       Contact Information
+                      {isAuthenticated && (
+                        <Badge variant="outline" className="ml-2 text-xs">Pre-filled from your profile</Badge>
+                      )}
                     </Label>
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="full_name">Full Name</Label>
+                        <Label htmlFor="full_name">Full Name {isAuthenticated && '(from profile)'}</Label>
                         <Input
                           id="full_name"
                           value={contact.full_name}
                           onChange={(e) => setContact(prev => ({ ...prev, full_name: e.target.value }))}
                           placeholder="John van der Merwe"
+                          readOnly={isAuthenticated}
+                          className={isAuthenticated ? 'bg-gray-50 cursor-not-allowed' : ''}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email *</Label>
+                        <Label htmlFor="email">Email * {isAuthenticated && '(from profile)'}</Label>
                         <Input
                           id="email"
                           type="email"
@@ -280,23 +358,33 @@ export default function GuestCheckout() {
                           onChange={(e) => setContact(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="john@example.com"
                           required
+                          readOnly={isAuthenticated}
+                          className={isAuthenticated ? 'bg-gray-50 cursor-not-allowed' : ''}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
+                        <Label htmlFor="phone">Phone {isAuthenticated && '(from profile)'}</Label>
                         <Input
                           id="phone"
                           value={contact.phone}
                           onChange={(e) => setContact(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="+27 12 345 6789"
+                          readOnly={isAuthenticated}
+                          className={isAuthenticated ? 'bg-gray-50 cursor-not-allowed' : ''}
                         />
                       </div>
                     </div>
+                    {isAuthenticated && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        To update your contact information, please visit your{' '}
+                        <a href="/profile" className="text-emerald-600 hover:underline">profile page</a>
+                      </p>
+                    )}
                   </div>
 
                   <Button 
                     onClick={getQuote}
-                    disabled={!shipTo || !contact.email || loading}
+                    disabled={!shipTo || (!isAuthenticated && !contact.email) || loading}
                     className="w-full bg-emerald-600 hover:bg-emerald-700"
                   >
                     {loading ? (

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { Button, Card, CardContent } from "@/components/ui";
 import { Shield, CheckCircle, Search, MapPin, User, Star } from "lucide-react";
+import { useGetListingsQuery } from "@/store/api/listings.api";
+import { useAdminStatsQuery, useGetModerationStatsQuery } from "@/store/api/admin.api";
 
 // API helper with auth token (keeping for backward compatibility)
 const apiCall = async (method, url, data = null) => {
@@ -52,18 +54,49 @@ function Homepage() {
   const [showFlash, setShowFlash] = useState(true);
   const [featuredListings, setFeaturedListings] = useState([]);
 
+
+
+  // FETCH LISTINGS
+  const {data: featuredListingsData, isSuccess: isFeaturedListingsSuccess, isError: isFeaturedListingsError} = useGetListingsQuery();
+
+  // console.log('isFeaturedListingsError', isFeaturedListingsError);
   useEffect(() => {
-    // Load stats from API
-    loadStats();
-    loadFeaturedListings();
-    
+    // console.log('featuredListings', featuredListingsData);
+    if (featuredListings) {
+      setFeaturedListings(featuredListingsData);
+    }
+  }, [featuredListingsData, isFeaturedListingsSuccess]);
+
+
+  // Only fetch admin stats if user is admin
+  const isAdmin = user?.roles?.includes('admin');
+  const {data: statsData, isSuccess: isStatsSuccess, isError: isStatsError} = useAdminStatsQuery(undefined, {
+    skip: !isAdmin, // Skip query if user is not admin
+  });
+  useEffect(() => {
+    // console.log('statsData', statsData);
+    if (statsData) {
+      // console.log(statsData);
+      setStats({
+        total_listings: 15,
+        total_users: 50,
+        total_orders: 25
+      });
+    }
     // Hide flash screen after 3 seconds
     const timer = setTimeout(() => {
       setShowFlash(false);
     }, 3000);
-
+  
     return () => clearTimeout(timer);
-  }, []);
+  }, [statsData, isStatsSuccess]);
+
+  // useEffect(() => {
+  //   // Load stats from API
+  //   loadStats();
+  //   // loadFeaturedListings();
+    
+  // }, []);
 
   const loadStats = async () => {
     try {
@@ -79,18 +112,18 @@ function Homepage() {
     }
   };
 
-  const loadFeaturedListings = async () => {
-    try {
-      const response = await apiCall('GET', '/listings');
-      setFeaturedListings((response.data || []).slice(0, 3)); // Get first 3 listings with fallback
-    } catch (error) {
-      console.error('Error loading featured listings:', error);
-      setFeaturedListings([]); // Set empty array as fallback
-    }
-  };
+  // const loadFeaturedListings = async () => {
+  //   try {
+  //     const response = await apiCall('GET', '/listings');
+  //     setFeaturedListings((response.data || []).slice(0, 3)); // Get first 3 listings with fallback
+  //   } catch (error) {
+  //     console.error('Error loading featured listings:', error);
+  //     setFeaturedListings([]); // Set empty array as fallback
+  //   }
+  // };
 
   const handleCategoryClick = (category) => {
-    navigate('/marketplace');
+    navigate(`/marketplace?category=${category}`);
   };
 
   const handleSearch = (searchTerm) => {
@@ -293,11 +326,11 @@ function Homepage() {
       {/* Featured Stock Section */}
       <section className="featured-stock">
         <div className="container">
-          <h2 className="section-title">Featured Stock</h2>
+          <h2 className="section-title">Featured Stock 0</h2>
           <p className="section-subtitle">Check out some of our premium livestock available for sale</p>
           <div className="stock-grid">
-            {featuredListings.length > 0 ? (
-              featuredListings.map((listing, index) => (
+            {featuredListings?.length > 0 ? (
+              featuredListings?.map((listing, index) => (
                 <Card key={listing.id} className="stock-card border-emerald-200 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/listing/${listing.id}`)}>
                   <div className="stock-badge">
                     {index === 0 ? 'Premium' : index === 1 ? 'New' : 'Popular'}

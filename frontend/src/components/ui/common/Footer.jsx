@@ -28,7 +28,7 @@ function Footer() {
           const config = await response.json();
           const settings = config.settings || {};
           const socialMedia = settings.social_media || {};
-          console.log('Loaded social settings:', socialMedia);
+          // console.log('Loaded social settings:', socialMedia);
           setSocialSettings({
             facebookUrl: socialMedia.facebook || socialMedia.facebook_url || 'https://facebook.com/stocklot',
             twitterUrl: socialMedia.twitter || socialMedia.x_url || 'https://x.com/stocklotmarket',
@@ -63,7 +63,7 @@ function Footer() {
   }, []);
 
   return (
-    <footer className="bg-emerald-900 text-white">
+    <footer className="bg-emerald-900 text-white pb-3 pt-6">
       <div className="container mx-auto px-4 py-12">
         <div className="grid md:grid-cols-4 gap-8">
           {/* Company Info */}

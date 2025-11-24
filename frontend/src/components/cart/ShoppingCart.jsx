@@ -48,30 +48,48 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
     try {
       const token = localStorage.getItem('token');
       
-      if (token) {
+      if (token && token.trim() !== '' && token !== 'null' && token !== 'undefined') {
         // Authenticated user - fetch from backend
-        const response = await fetch(`${API}/cart`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setCart(data);
-          onCartUpdate?.(data.item_count);
+        try {
+          const response = await fetch(`${API}/cart`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setCart(data);
+            onCartUpdate?.(data.item_count);
+          } else if (response.status === 401) {
+            // Token invalid, fall back to guest cart
+            throw new Error('Unauthorized');
+          }
+        } catch (apiError) {
+          // If API fails, fall back to guest cart
+          console.log('🛒 API cart fetch failed, using guest cart');
+          const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+          const cartData = {
+            items: guestCart,
+            total: guestCart.reduce((sum, item) => sum + ((item.price || 0) * (item.qty || 1)), 0),
+            item_count: guestCart.reduce((sum, item) => sum + (item.qty || 1), 0)
+          };
+          setCart(cartData);
+          onCartUpdate?.(cartData.item_count);
         }
       } else {
         // Guest user - load from localStorage
         const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
         const cartData = {
           items: guestCart,
-          total: guestCart.reduce((sum, item) => sum + (item.price * item.qty), 0),
-          item_count: guestCart.reduce((sum, item) => sum + item.qty, 0)
+          total: guestCart.reduce((sum, item) => sum + ((item.price || 0) * (item.qty || 1)), 0),
+          item_count: guestCart.reduce((sum, item) => sum + (item.qty || 1), 0)
         };
         setCart(cartData);
         onCartUpdate?.(cartData.item_count);
       }
     } catch (error) {
       console.error('Error fetching cart:', error);
+      // Fallback to empty cart on error
+      setCart({ items: [], total: 0, item_count: 0 });
     } finally {
       setLoading(false);
     }
@@ -94,8 +112,16 @@ export default function ShoppingCartModal({ isOpen, onClose, onCartUpdate }) {
       } else {
         // Guest user - remove from localStorage
         const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
-        const updatedCart = guestCart.filter(item => item.listing_id !== itemId);
+        // Handle both item.id and item.listing_id for guest cart
+        const updatedCart = guestCart.filter(item => 
+          item.id !== itemId && item.listing_id !== itemId
+        );
         localStorage.setItem('guest_cart', JSON.stringify(updatedCart));
+        
+        // Update header cart count
+        const cartCount = updatedCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+        window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { count: cartCount } }));
+        
         await fetchCart(); // Refresh cart display
       }
     } catch (error) {
@@ -234,12 +260,20 @@ Your cart has been saved. Please try payment again later.`);
             <div className="bg-emerald-50 p-4 rounded-lg">
               <h3 className="font-medium text-emerald-900 mb-2">Order Summary</h3>
               <div className="space-y-2">
-                {cart.items?.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span>{item.listing.title} x{item.quantity}</span>
-                    <span>{formatPrice(item.item_total + item.shipping_cost)}</span>
-                  </div>
-                ))}
+                {cart.items?.map((item, index) => {
+                  const itemId = item.id || item.listing_id || `item-${index}`;
+                  const itemTitle = item.listing?.title || item.title || 'Untitled Item';
+                  const itemQuantity = item.quantity || item.qty || 1;
+                  const itemTotal = item.item_total || ((item.price || item.listing?.price_per_unit || 0) * itemQuantity);
+                  const shippingCost = item.shipping_cost || 0;
+                  
+                  return (
+                    <div key={itemId} className="flex justify-between text-sm">
+                      <span>{itemTitle} x{itemQuantity}</span>
+                      <span>{formatPrice(itemTotal + shippingCost)}</span>
+                    </div>
+                  );
+                })}
                 <Separator />
                 <div className="flex justify-between font-medium">
                   <span>Total</span>
@@ -409,47 +443,59 @@ Your cart has been saved. Please try payment again later.`);
             </div>
           ) : (
             <div className="space-y-4">
-              {cart.items?.map((item) => (
-                <Card key={item.id} className="border-emerald-100">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{item.listing.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Seller: {item.listing.user_name || 'StockLot Seller'}
-                        </p>
-                        <div className="flex items-center mt-2 space-x-4">
-                          <span className="text-sm text-gray-600">
-                            Qty: {item.quantity}
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            {formatPrice(item.price)} each
-                          </span>
-                          {item.shipping_cost > 0 && (
-                            <span className="text-sm text-emerald-600 flex items-center">
-                              <Truck className="h-3 w-3 mr-1" />
-                              Shipping: {formatPrice(item.shipping_cost)}
+              {cart.items?.map((item, index) => {
+                // Handle both authenticated (API) and guest (localStorage) cart item formats
+                const itemId = item.id || item.listing_id || `item-${index}`;
+                const itemTitle = item.listing?.title || item.title || 'Untitled Item';
+                const itemQuantity = item.quantity || item.qty || 1;
+                const itemPrice = item.price || item.listing?.price_per_unit || 0;
+                const itemTotal = item.item_total || (itemPrice * itemQuantity);
+                const shippingCost = item.shipping_cost || 0;
+                const sellerName = item.listing?.seller_name || item.listing?.user_name || 'StockLot Seller';
+                const itemImage = item.listing?.images?.[0] || item.image || item.listing?.media?.[0]?.url;
+                
+                return (
+                  <Card key={itemId} className="border-emerald-100">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{itemTitle}</h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Seller: {sellerName}
+                          </p>
+                          <div className="flex items-center mt-2 space-x-4">
+                            <span className="text-sm text-gray-600">
+                              Qty: {itemQuantity}
                             </span>
-                          )}
+                            <span className="text-sm text-gray-600">
+                              {formatPrice(itemPrice)} each
+                            </span>
+                            {shippingCost > 0 && (
+                              <span className="text-sm text-emerald-600 flex items-center">
+                                <Truck className="h-3 w-3 mr-1" />
+                                Shipping: {formatPrice(shippingCost)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium text-emerald-600">
+                            {formatPrice(itemTotal + shippingCost)}
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeFromCart(itemId)}
+                            className="mt-2 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-emerald-600">
-                          {formatPrice(item.item_total + item.shipping_cost)}
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeFromCart(item.id)}
-                          className="mt-2 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
               
               {/* Cart Total */}
               <Card className="bg-emerald-50 border-emerald-200">
@@ -466,18 +512,30 @@ Your cart has been saved. Please try payment again later.`);
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Continue Shopping
           </Button>
           {cart.items?.length > 0 && (
-            <Button 
-              onClick={proceedToCheckout}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Checkout {formatPrice(cart.total)}
-            </Button>
+            <>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                  window.location.href = '/cart';
+                }}
+                className="w-full sm:w-auto"
+              >
+                View Full Cart
+              </Button>
+              <Button 
+                onClick={proceedToCheckout}
+                className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Checkout {formatPrice(cart.total)}
+              </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

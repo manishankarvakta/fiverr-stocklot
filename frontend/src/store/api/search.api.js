@@ -67,6 +67,15 @@ export const searchApi = baseApi.injectEndpoints({
     getUserAISuggestions: builder.query({
       query: (userId) => `/ai/listing-suggestions/${userId}`,
     }),
+    
+    // Smart search endpoint
+    smartSearch: builder.mutation({
+      query: (data) => ({
+        url: '/search/smart',
+        method: 'POST',
+        body: data,
+      }),
+    }),
   }),
   overrideExisting: false,
 });
@@ -85,5 +94,6 @@ export const {
   useSubmitAIFeedbackMutation,
   useGetUserAISuggestionsQuery,
   useLazyGetUserAISuggestionsQuery,
+  useSmartSearchMutation,
 } = searchApi;
 

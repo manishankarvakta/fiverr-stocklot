@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Progress } from '../ui';
 import { Users, Clock, DollarSign, Target } from 'lucide-react';
-// import { IfFlag } from '../../providers/FeatureFlagsProvider';
-
-// import api from '../../api/client';
+import { IfFlag } from '../../providers/FeatureFlagsProvider';
 
 import api from '../../utils/apiHelper';
 
@@ -24,7 +22,16 @@ const GroupBuyWidget = ({ listingId, sellerId, targetCents, onUpdate }) => {
       const response = await api.get(`/group-buys/by-listing/${listingId}`);
       setGroup(response.data);
     } catch (error) {
-      if (error.response?.status !== 404) {
+      // Silently handle 404 - group buy doesn't exist for this listing (expected)
+      // apiHelper throws Error objects, check error message for 404
+      const errorMessage = error?.message || '';
+      const is404 = errorMessage.includes('404') || 
+                    errorMessage.includes('Not Found') ||
+                    error?.response?.status === 404 ||
+                    error?.status === 404;
+      
+      if (!is404) {
+        // Only log non-404 errors
         console.error('Error loading group buy:', error);
       }
       setGroup(null);

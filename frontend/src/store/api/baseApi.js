@@ -84,6 +84,7 @@ export const baseApi = createApi({
     'KYC',
     'Wishlist',
     'PriceAlert',
+    'Taxonomy',
   ],
   endpoints: () => ({}),
 });

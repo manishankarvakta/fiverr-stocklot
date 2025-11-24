@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { Input } from '@/components/ui';
@@ -17,25 +17,186 @@ import {
 function CartPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [updating, setUpdating] = useState({});
   const [guestCartItems, setGuestCartItems] = useState([]);
 
   // Use Redux RTK Query hooks for authenticated users
-  const { data: cartData, isLoading: loading, refetch } = useGetCartQuery(undefined, {
+  const { data: cartData, isLoading: loading, isError: cartError, refetch } = useGetCartQuery(undefined, {
     skip: !user, // Skip query if user is not authenticated
   });
+  
+  // Also load guest cart items as fallback (in case API cart is empty but localStorage has items)
+  const [fallbackGuestCart, setFallbackGuestCart] = useState([]);
+  
+  useEffect(() => {
+    // Load guest cart from localStorage as fallback for authenticated users
+    const loadFallbackCart = () => {
+      try {
+        const guestCartStr = localStorage.getItem('guest_cart');
+        if (guestCartStr) {
+          const guestCart = JSON.parse(guestCartStr);
+          setFallbackGuestCart(Array.isArray(guestCart) ? guestCart : []);
+        } else {
+          setFallbackGuestCart([]);
+        }
+      } catch (error) {
+        console.error('Error loading fallback guest cart:', error);
+        setFallbackGuestCart([]);
+      }
+    };
+    
+    // Load on mount
+    loadFallbackCart();
+    
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      loadFallbackCart();
+    };
+    
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'guest_cart') {
+        loadFallbackCart();
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, []);
   const [updateCartItem] = useUpdateCartItemMutation();
   const [removeFromCart] = useRemoveFromCartMutation();
 
   // Load guest cart from localStorage for non-authenticated users
   useEffect(() => {
     if (!user) {
-      const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
-      setGuestCartItems(guestCart);
+      const loadGuestCart = () => {
+        try {
+          const guestCartStr = localStorage.getItem('guest_cart');
+          console.log('🛒 CartPage: Loading guest cart from localStorage:', guestCartStr);
+          const guestCart = guestCartStr ? JSON.parse(guestCartStr) : [];
+          console.log('🛒 CartPage: Parsed guest cart:', guestCart);
+          setGuestCartItems(Array.isArray(guestCart) ? guestCart : []);
+        } catch (error) {
+          console.error('🛒 CartPage: Error loading guest cart:', error);
+          setGuestCartItems([]);
+        }
+      };
+      
+      // Load on mount
+      loadGuestCart();
+      
+      // Listen for cart updates
+      const handleCartUpdate = () => {
+        console.log('🛒 CartPage: cartUpdated event received');
+        loadGuestCart();
+      };
+      
+      window.addEventListener('cartUpdated', handleCartUpdate);
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'guest_cart') {
+          console.log('🛒 CartPage: Storage event for guest_cart');
+          loadGuestCart();
+        }
+      });
+      
+      return () => {
+        window.removeEventListener('cartUpdated', handleCartUpdate);
+      };
+    } else {
+      // Clear guest cart items when user is authenticated
+      setGuestCartItems([]);
     }
   }, [user]);
+  
+  // Refresh authenticated user's cart when component mounts, user changes, or location changes
+  useEffect(() => {
+    if (user && refetch) {
+      refetch();
+    }
+  }, [user, refetch, location.pathname]);
+  
+  // Listen for cart refetch events for authenticated users
+  useEffect(() => {
+    if (user) {
+      const handleCartRefetch = () => {
+        if (refetch) {
+          refetch();
+        }
+      };
+      
+      window.addEventListener('cartRefetch', handleCartRefetch);
+      
+      return () => {
+        window.removeEventListener('cartRefetch', handleCartRefetch);
+      };
+    }
+  }, [user, refetch]);
 
-  const cartItems = user ? (cartData?.items || []) : guestCartItems;
+  // Normalize cart items to handle both authenticated and guest formats
+  const cartItems = useMemo(() => {
+    if (user) {
+      // Authenticated user - check API cart first, fallback to localStorage if API cart is empty
+      const apiItems = cartData?.items || [];
+      console.log('🛒 CartPage: Authenticated cart data:', cartData);
+      console.log('🛒 CartPage: Authenticated cart items from API:', apiItems);
+      console.log('🛒 CartPage: Fallback guest cart items:', fallbackGuestCart);
+      
+      // If API cart has items, use them
+      if (apiItems.length > 0) {
+        return apiItems.map(item => ({
+          id: item.id,
+          listing_id: item.listing_id || item.listing?.id,
+          title: item.listing?.title || item.title || 'Unknown Item',
+          price: item.price || item.price_per_unit || item.listing?.price_per_unit || 0,
+          quantity: item.quantity || item.qty || 1,
+          qty: item.quantity || item.qty || 1,
+          image: item.listing?.images?.[0] || item.listing?.media?.[0]?.url || item.image,
+          location: item.listing?.location?.province || item.location,
+          seller_name: item.listing?.seller_name || item.listing?.user_name,
+        }));
+      }
+      
+      // If API cart is empty but localStorage has items, use localStorage (fallback)
+      if (fallbackGuestCart.length > 0) {
+        console.log('🛒 CartPage: Using fallback guest cart items from localStorage');
+        return fallbackGuestCart.map(item => ({
+          id: item.id || item.listing_id,
+          listing_id: item.listing_id,
+          title: item.title || 'Unknown Item',
+          price: item.price || item.price_per_unit || 0,
+          quantity: item.qty || item.quantity || 1,
+          qty: item.qty || item.quantity || 1,
+          image: item.image,
+          location: item.location,
+          seller_name: item.seller_name,
+        }));
+      }
+      
+      return [];
+    } else {
+      // Guest user - normalize localStorage items
+      console.log('🛒 CartPage: Guest cart items:', guestCartItems);
+      return guestCartItems.map(item => ({
+        id: item.id || item.listing_id,
+        listing_id: item.listing_id,
+        title: item.title || 'Unknown Item',
+        price: item.price || item.price_per_unit || 0,
+        quantity: item.qty || item.quantity || 1,
+        qty: item.qty || item.quantity || 1,
+        image: item.image,
+        location: item.location,
+        seller_name: item.seller_name,
+      }));
+    }
+  }, [user, cartData, guestCartItems, fallbackGuestCart]);
+  
+  // Debug log
+  useEffect(() => {
+    console.log('🛒 CartPage: Final cartItems:', cartItems);
+    console.log('🛒 CartPage: cartItems.length:', cartItems.length);
+  }, [cartItems]);
 
   const updateQuantity = async (itemId, newQuantity) => {
     if (newQuantity < 1) return;
@@ -47,13 +208,22 @@ function CartPage() {
         // Update authenticated user's cart using Redux
         await updateCartItem({ itemId, quantity: newQuantity }).unwrap();
         refetch();
+        // Trigger header cart update
+        window.dispatchEvent(new CustomEvent('cartRefetch', {}));
       } else {
         // Update guest cart in localStorage
-        const updatedCart = guestCartItems.map(item => 
-          item.listing_id === itemId ? { ...item, quantity: newQuantity } : item
-        );
+        const updatedCart = guestCartItems.map(item => {
+          const matchId = item.id || item.listing_id;
+          if (matchId === itemId || item.listing_id === itemId) {
+            return { ...item, qty: newQuantity, quantity: newQuantity };
+          }
+          return item;
+        });
         localStorage.setItem('guest_cart', JSON.stringify(updatedCart));
         setGuestCartItems(updatedCart);
+        // Update header cart count
+        const cartCount = updatedCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+        window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { count: cartCount } }));
       }
     } catch (error) {
       console.error('Error updating quantity:', error);
@@ -68,11 +238,19 @@ function CartPage() {
         // Remove from authenticated user's cart using Redux
         await removeFromCart(itemId).unwrap();
         refetch();
+        // Trigger header cart update
+        window.dispatchEvent(new CustomEvent('cartRefetch', {}));
       } else {
         // Remove from guest cart in localStorage
-        const updatedCart = guestCartItems.filter(item => item.listing_id !== itemId);
+        const updatedCart = guestCartItems.filter(item => {
+          const matchId = item.id || item.listing_id;
+          return matchId !== itemId && item.listing_id !== itemId;
+        });
         localStorage.setItem('guest_cart', JSON.stringify(updatedCart));
         setGuestCartItems(updatedCart);
+        // Update header cart count
+        const cartCount = updatedCart.reduce((sum, item) => sum + (item.qty || 1), 0);
+        window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { count: cartCount } }));
       }
     } catch (error) {
       console.error('Error removing item:', error);
@@ -103,7 +281,8 @@ function CartPage() {
     );
   }
 
-  if (cartItems.length === 0) {
+  // Show empty state only if we're sure there are no items
+  if (cartItems.length === 0 && !loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4">
