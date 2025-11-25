@@ -9,6 +9,7 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../ui/card';
 import { DollarSign, FileText, ShoppingCart, TrendingUp, Upload, Image as ImageIcon, X } from "lucide-react";
+import { useSelector } from "react-redux";
 
 // Get backend URL
 const getBackendUrl = () => {
@@ -63,6 +64,10 @@ function CreateListing() {
   const [filteredSpecies, setFilteredSpecies] = useState([]);
   const [filteredBreeds, setFilteredBreeds] = useState([]);
   const [filteredProductTypes, setFilteredProductTypes] = useState([]);
+  
+const authData = useSelector((state) => state.auth);
+// console.log('Auth Data:', authData);
+
 
   useEffect(() => {
     if (user && user.roles?.includes('seller')) {
@@ -166,56 +171,84 @@ function CreateListing() {
     setImagePreviews(newPreviews);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  console.log('handleSubmit called');
+  setSubmitting(true);
+  setError(null);
 
-    try {
-      // Get current context
-      const currentContext = localStorage.getItem('currentContext') || 'user';
-      
-      // Create FormData for file uploads
-      const submitData = new FormData();
-      
-      // Add all form fields
-      Object.keys(formData).forEach(key => {
-        if (key === 'images' || key === 'certificates') {
-          // Handle files separately
-          return;
-        }
-        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
-          submitData.append(key, formData[key]);
-        }
-      });
+  try {
+    // Get current context
+    const currentContext = 'seller'; 
+    const token = localStorage.getItem('token');
+    console.log('Token:', token);
 
-      // Append images
-      formData.images.forEach((image, index) => {
-        submitData.append(`images`, image);
-      });
-
-      // Append certificates
-      formData.certificates.forEach((cert, index) => {
-        submitData.append(`certificates`, cert);
-      });
-
-      // Create listing with FormData and organization context
-      const result = await createListing({
-        data: submitData,
-        headers: {
-          'X-Org-Context': currentContext
-        }
-      }).unwrap();
-      
-      // Success - navigate to dashboard
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Error creating listing:', error);
-      setError(error?.data?.detail || error?.message || 'Failed to create listing. Please try again.');
-    } finally {
+    if (!token) {
+      setError('You must be logged in as a seller.');
       setSubmitting(false);
+      return;
     }
-  };
+
+    // Create FormData for file uploads
+    const submitData = new FormData();
+
+    // Add all form fields (except files)
+    Object.keys(formData).forEach((key) => {
+      if (key === 'images' || key === 'certificates') return;
+      if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
+        submitData.append(key, formData[key]);
+      }
+    });
+
+    // Append images
+    if (formData.images && formData.images.length > 0) {
+      formData.images.forEach((image) => {
+         console.log('Appending image:', image);
+        submitData.append('images', image);
+      });
+    }
+
+    // Append certificates
+    if (formData.certificates && formData.certificates.length > 0) {
+      formData.certificates.forEach((cert) => {
+        console.log('Appending certificate:', cert);
+        submitData.append('certificates', cert);
+      });
+    }
+
+    // Call createListing mutation
+    const result = await createListing({
+      data: submitData,
+      headers: {
+        'X-Org-Context': currentContext,
+        Authorization: `Bearer  ${localStorage.getItem('token')}`
+      }
+    }).unwrap();
+
+    console.log('Create Listing Result:', result);
+    console.log('API result:', result);
+    navigate('/dashboard');
+  } catch (error) {
+    console.error('Error creating listing:', error);
+
+    // Safe error handling for React rendering
+    let message = 'Failed to create listing. Please try again.';
+    if (typeof error === 'string') {
+      message = error;
+    } else if (error?.data?.detail) {
+      message = error.data.detail;
+    } else if (error?.message) {
+      message = error.message;
+    } else if (error) {
+      message = JSON.stringify(error);
+    }
+
+    setError(message);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
   if (!user || !user.roles?.includes('seller')) {
     return (

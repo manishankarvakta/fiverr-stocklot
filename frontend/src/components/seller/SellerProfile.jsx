@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ContactSellerButton from './ContactSellerButton';
+import { useGetSellerOffersQuery } from '@/store/api/seller.api';
 
 const SellerProfile = () => {
   const { handle } = useParams();
@@ -9,31 +10,46 @@ const SellerProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // useEffect(() => {
+  //   fetchSellerProfile();
+  // }, [handle]);
+
+  // const fetchSellerProfile = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+  //     const response = await fetch(`${backendUrl}/api/sellers/${handle}`, {
+  //       credentials: 'include'
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  //     }
+
+  //     const sellerData = await response.json();
+  //     setData(sellerData);
+  //   } catch (err) {
+  //     console.error('Error fetching seller profile:', err);
+  //     setError(err.message);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const {data: sellerData , isError, isLoading} = useGetSellerOffersQuery(handle);
+  console.log("sellerData:", sellerData);
+
   useEffect(() => {
-    fetchSellerProfile();
-  }, [handle]);
-
-  const fetchSellerProfile = async () => {
-    try {
+    if (isLoading) {
       setLoading(true);
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-      const response = await fetch(`${backendUrl}/api/sellers/${handle}`, {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const sellerData = await response.json();
+    } else if (isError) {
+      setError('Failed to load seller profile.');
+      setLoading(false);
+    } else {
       setData(sellerData);
-    } catch (err) {
-      console.error('Error fetching seller profile:', err);
-      setError(err.message);
-    } finally {
       setLoading(false);
     }
-  };
+  }, [sellerData, isError, isLoading]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-ZA', { 
