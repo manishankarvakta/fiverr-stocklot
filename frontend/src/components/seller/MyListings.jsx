@@ -8,7 +8,7 @@ import {
   Package, DollarSign, Calendar, TrendingUp, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
-import { useGetMyListingsQuery } from '@/store/api/listings.api';
+import { useGetMyListingsQuery } from '@/store/api/listings.api';  
 
 const MyListings = () => {
   const { user } = useAuth();
