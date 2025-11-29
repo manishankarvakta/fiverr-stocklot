@@ -179,6 +179,7 @@ export default function EnhancedRegister() {
         // Store token if present
         if (loginResponse.access_token) {
           localStorage.setItem('token', loginResponse.access_token);
+           console.log("Saved token:", localStorage.getItem('token'))
         }
         if (loginResponse.user) {
           localStorage.setItem('user', JSON.stringify(loginResponse.user));

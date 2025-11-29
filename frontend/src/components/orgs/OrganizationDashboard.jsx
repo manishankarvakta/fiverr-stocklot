@@ -21,32 +21,32 @@ export default function OrganizationDashboard() {
   const [userRole, setUserRole] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => {
-    fetchOrganization();
-  }, [handle]);
+  // useEffect(() => {
+  //   fetchOrganization();
+  // }, [handle]);
 
-  const fetchOrganization = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/orgs/${handle}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  // const fetchOrganization = async () => {
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     const response = await fetch(`/api/orgs/${handle}`, {
+  //       headers: { 'Authorization': `Bearer ${token}` }
+  //     });
 
-      if (response.ok) {
-        const data = await response.json();
-        setOrganization(data);
-        // Get user role from context or API
-        setUserRole('ADMIN'); // Placeholder - should come from membership data
-      } else {
-        setError('Failed to load organization');
-      }
-    } catch (error) {
-      console.error('Error fetching organization:', error);
-      setError('Failed to load organization');
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       setOrganization(data);
+  //       // Get user role from context or API
+  //       setUserRole('ADMIN'); // Placeholder - should come from membership data
+  //     } else {
+  //       setError('Failed to load organization');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error fetching organization:', error);
+  //     setError('Failed to load organization');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const getOrgTypeColor = (type) => {
     switch (type) {

@@ -8,6 +8,7 @@ import {
   Package, DollarSign, Calendar, TrendingUp, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { useGetMyListingsQuery } from '@/store/api/listings.api';
 
 const MyListings = () => {
   const { user } = useAuth();
@@ -15,6 +16,16 @@ const MyListings = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+      // const {data, error, isLoading} = useGetMyListingsQuery();
+      // console.log("MyListings user:", data, error, isLoading);
+  const { data, error, isLoading } = useGetMyListingsQuery({});
+  console.log("MyListings data:", data, error, isLoading);
+
+  // useEffect(() => {
+  //   if (data && data.listings) {
+  //     setListings(data.listings);
+  //   }
+  // }, [data]);
 
   useEffect(() => {
     fetchListings();
@@ -43,6 +54,8 @@ const MyListings = () => {
       setLoading(false);
     }
   };
+
+
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {

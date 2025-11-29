@@ -14,6 +14,8 @@ import {
   FileText, Image, Video, Play, Pause, BarChart3, PieChart, Zap, Globe, Shield, CreditCard, 
   LayoutDashboard, MessageCircle, Ban, Check, Copy, Heart, Award, Truck, LogIn, Brain
 } from "lucide-react";
+import { getBackendUrl } from '@/utils/apiHelper';
+
 function ListingCard({ listing, onViewDetails, onBidPlaced, showNotification, onAddToCart }) {
   console.log('🎯 ListingCard rendering:', listing.title); // Debug log
   
@@ -30,14 +32,9 @@ function ListingCard({ listing, onViewDetails, onBidPlaced, showNotification, on
 
     setAddingToCart(true);
     try {
-      // Fix environment variable access for different React setups
-      const backendUrl = window.REACT_APP_BACKEND_URL || 
-                        process.env.REACT_APP_BACKEND_URL || 
-                        import.meta?.env?.REACT_APP_BACKEND_URL ||
-                        'https://stockdiff-app.preview.emergentagent.com';
-      
+      const backendUrl = getBackendUrl();
       console.log('🛒 Adding to cart:', listing.id, 'Backend URL:', backendUrl); // Debug log
-      
+
       const response = await fetch(`${backendUrl}/api/cart/add`, {
         method: 'POST',
         headers: {

@@ -37,7 +37,7 @@ function Login() {
         email: email, 
         password: password 
       }).unwrap();
-      
+      console.log('Login response:', response);
       // Handle token storage if present
       if (response.access_token) {
         localStorage.setItem('token', response.access_token);
