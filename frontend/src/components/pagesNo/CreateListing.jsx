@@ -1,7 +1,9 @@
 import { useAuth } from "@/auth/AuthProvider";
+import { getBackendUrl } from '@/utils/apiHelper';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCreateListingMutation } from "@/store/api/listings.api";
+import { useUpdateRoleMutation } from '@/store/api/user.api';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -11,13 +13,10 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../ui
 import { DollarSign, FileText, ShoppingCart, TrendingUp, Upload, Image as ImageIcon, X } from "lucide-react";
 import { useSelector } from "react-redux";
 
-// Get backend URL
-const getBackendUrl = () => {
-  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
-};
+// Backend URL helper imported from utils
 
 function CreateListing() {
-  const { user } = useAuth();
+  const { user, refetch } = useAuth();
   const navigate = useNavigate();
   const [createListing, { isLoading: isCreating }] = useCreateListingMutation();
   const [taxonomy, setTaxonomy] = useState([]);
@@ -25,41 +24,22 @@ function CreateListing() {
   const [exoticCategories, setExoticCategories] = useState([]);
   const [showExoticCategories, setShowExoticCategories] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [imagePreviews, setImagePreviews] = useState([]);
-  
+
+  // Form state
   const [formData, setFormData] = useState({
-    category_group_id: '',
-    species_id: '',
-    breed_id: '',
-    product_type_id: '',
-    title: '',
-    description: '',
-    quantity: 1,
-    unit: 'head',
-    price_per_unit: '',
-    listing_type: 'buy_now',
-    starting_price: '',
-    reserve_price: '',
-    buy_now_price: '',
-    auction_duration: '24',
-    delivery_available: false,
-    has_vet_certificate: false,
-    health_notes: '',
-    region: '',
-    city: '',
     images: [],
     certificates: [],
-    age: '',
-    sex: '',
-    weight: '',
-    vaccination_status: '',
-    health_status: 'healthy',
-    veterinary_certificate: false,
-    animal_type: '',
-    survival_rate: ''
+    quantity: 1,
+    listing_type: 'buy_now',
+    unit: 'head'
   });
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [showRoleCTA, setShowRoleCTA] = useState(false);
+  const [roleRequesting, setRoleRequesting] = useState(false);
+  const [roleError, setRoleError] = useState(null);
+
 
   const [filteredSpecies, setFilteredSpecies] = useState([]);
   const [filteredBreeds, setFilteredBreeds] = useState([]);
@@ -173,60 +153,94 @@ const authData = useSelector((state) => state.auth);
 
  const handleSubmit = async (e) => {
   e.preventDefault();
-  console.log('handleSubmit called');
   setSubmitting(true);
   setError(null);
 
   try {
     // Get current context
-    const currentContext = 'seller'; 
-    const token = localStorage.getItem('token');
-    console.log('Token:', token);
+    const currentContext = 'user'; 
+    const token = localStorage.getItem('token'); // ← এটা ঠিক
 
-    if (!token) {
-      setError('You must be logged in as a seller.');
+    // Upload files first (images) to get hosted URLs, then submit JSON
+    const backendUrl = getBackendUrl();
+
+    const imageUrls = [];
+    if (formData.images && formData.images.length > 0) {
+      for (const file of formData.images) {
+        try {
+          const uploadForm = new FormData();
+          uploadForm.append('file', file);
+
+          const uploadHeaders = {};
+          if (token) uploadHeaders.Authorization = `Bearer ${token}`;
+
+          const uploadRes = await fetch(`${backendUrl}/api/upload/listing-image`, {
+            method: 'POST',
+            body: uploadForm,
+            headers: uploadHeaders,
+            credentials: 'include'
+          });
+
+          if (!uploadRes.ok) {
+            const errText = await uploadRes.text();
+            throw new Error(`Image upload failed: ${uploadRes.status} ${errText}`);
+          }
+
+          const uploadData = await uploadRes.json();
+          if (uploadData && uploadData.image_url) {
+            imageUrls.push(uploadData.image_url);
+          } else if (uploadData && uploadData.image && uploadData.image.secure_url) {
+            imageUrls.push(uploadData.image.secure_url);
+          } else {
+            console.warn('Unexpected upload response:', uploadData);
+          }
+        } catch (err) {
+          console.error('Failed to upload image', err);
+          throw err; // stop submission if image upload fails
+        }
+      }
+    }
+
+    // Build JSON payload from formData (exclude File objects)
+    const payload = {};
+    Object.keys(formData).forEach((key) => {
+      if (key === 'images' || key === 'certificates') return;
+      const val = formData[key];
+      if (val !== null && val !== undefined && val !== '') {
+        payload[key] = val;
+      }
+    });
+
+    // Client-side validation: ensure required ListingCreate fields exist
+    const requiredFields = ['species_id', 'product_type_id', 'title', 'quantity', 'price_per_unit'];
+    const missing = requiredFields.filter(f => payload[f] === undefined || payload[f] === null || payload[f] === '');
+    if (missing.length > 0) {
+      setError(`Missing required fields: ${missing.join(', ')}`);
       setSubmitting(false);
       return;
     }
 
-    // Create FormData for file uploads
-    const submitData = new FormData();
+    if (imageUrls.length > 0) payload.images = imageUrls;
 
-    // Add all form fields (except files)
-    Object.keys(formData).forEach((key) => {
-      if (key === 'images' || key === 'certificates') return;
-      if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
-        submitData.append(key, formData[key]);
-      }
-    });
+    // Ensure numeric fields are numbers
+    if (payload.quantity) payload.quantity = Number(payload.quantity);
+    if (payload.price_per_unit) payload.price_per_unit = Number(payload.price_per_unit);
+    if (payload.starting_price) payload.starting_price = Number(payload.starting_price);
+    if (payload.reserve_price) payload.reserve_price = Number(payload.reserve_price);
+    if (payload.buy_now_price) payload.buy_now_price = Number(payload.buy_now_price);
 
-    // Append images
-    if (formData.images && formData.images.length > 0) {
-      formData.images.forEach((image) => {
-         console.log('Appending image:', image);
-        submitData.append('images', image);
-      });
-    }
+    // Only pass X-Org-Context header; Authorization will be injected by baseApi's prepareHeaders
+    const headers = {
+      'X-Org-Context': localStorage.getItem('currentContext') || 'user'
+    };
 
-    // Append certificates
-    if (formData.certificates && formData.certificates.length > 0) {
-      formData.certificates.forEach((cert) => {
-        console.log('Appending certificate:', cert);
-        submitData.append('certificates', cert);
-      });
-    }
+    // console.log('Create listing payload:', payload);
+    // console.log('Create listing headers:', headers);
 
-    // Call createListing mutation
-    const result = await createListing({
-      data: submitData,
-      headers: {
-        'X-Org-Context': currentContext,
-        Authorization: `Bearer  ${localStorage.getItem('token')}`
-      }
-    }).unwrap();
-
+    // Call createListing mutation with JSON body
+    // baseApi's prepareHeaders will automatically add Authorization Bearer token
+    const result = await createListing({ data: payload, headers }).unwrap();
     console.log('Create Listing Result:', result);
-    console.log('API result:', result);
     navigate('/dashboard');
   } catch (error) {
     console.error('Error creating listing:', error);
@@ -237,15 +251,58 @@ const authData = useSelector((state) => state.auth);
       message = error;
     } else if (error?.data?.detail) {
       message = error.data.detail;
+      // If backend reports seller access required, surface CTA
+      if (error?.status === 403 || error.data.detail === 'Seller access required') {
+        setShowRoleCTA(true);
+      }
     } else if (error?.message) {
       message = error.message;
     } else if (error) {
       message = JSON.stringify(error);
     }
 
+    // If FastAPI validation errors are present, surface them
+    try {
+      const serverDetail = error?.data?.detail || error?.data || error;
+      if (serverDetail) {
+        console.error('Server detail:', serverDetail);
+        if (Array.isArray(serverDetail)) {
+          setError(JSON.stringify(serverDetail, null, 2));
+        } else if (typeof serverDetail === 'object') {
+          setError(JSON.stringify(serverDetail, null, 2));
+        } else {
+          setError(String(serverDetail));
+        }
+        return;
+      }
+    } catch (e) {
+      // fallthrough to generic
+    }
+
     setError(message);
   } finally {
     setSubmitting(false);
+  }
+};
+
+// Request seller role (front-end action using RTK mutation)
+const [updateRole] = useUpdateRoleMutation();
+const handleRequestSeller = async () => {
+  setRoleError(null);
+  setRoleRequesting(true);
+  try {
+    const res = await updateRole({ role: 'seller' }).unwrap();
+    // Refresh auth state from AuthProvider / Redux
+    if (refetch) {
+      try { await refetch(); } catch (e) { /* ignore */ }
+    }
+    setShowRoleCTA(false);
+    setRoleRequesting(false);
+    setError('Your role was updated to seller. Please try creating the listing again.');
+  } catch (e) {
+    console.error('Failed to request seller role:', e);
+    setRoleError(e?.data?.detail || e?.message || 'Failed to request seller role');
+    setRoleRequesting(false);
   }
 };
 
@@ -309,7 +366,29 @@ const authData = useSelector((state) => state.auth);
           <CardContent>
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {error}
+                {JSON.stringify(error)} 
+              </div>
+            )}
+            {showRoleCTA && (
+              <div className="mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <strong>Seller access required.</strong> You need seller privileges to create listings. You can request the seller role for your account (dev/test only).
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      onClick={handleRequestSeller}
+                      disabled={roleRequesting}
+                      className="bg-yellow-400 hover:bg-yellow-500 text-white"
+                    >
+                      {roleRequesting ? 'Requesting...' : 'Request seller role'}
+                    </Button>
+                  </div>
+                </div>
+                {roleError && (
+                  <div className="mt-2 text-red-600 text-sm">{roleError}</div>
+                )}
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -989,7 +1068,7 @@ const authData = useSelector((state) => state.auth);
                 >
                   Cancel
                 </Button>
-                <Button
+                 <Button
                   type="submit"
                   disabled={submitting || isCreating}
                   className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"

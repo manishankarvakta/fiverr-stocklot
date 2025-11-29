@@ -2,10 +2,19 @@
 // TODO: Migrate all endpoints to Redux RTK Query
 // This is a temporary solution until all endpoints are added to store/api/
 
-const getBackendUrl = () => {
+// Remove this line because we are defining getBackendUrl locally
+// import { getBackendUrl } from '@/utils/apiHelper';
+// import { getBackendUrl } from '@/utils/apiHelper';
+
+
+// const getBackendUrl = () => {
+//   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+// };
+
+
+export const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 };
-
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   const headers = {
@@ -44,9 +53,8 @@ export const apiCall = async (method, endpoint, data = null, params = null) => {
   };
   
   if (data && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
-    // Handle FormData
     if (data instanceof FormData) {
-      delete config.headers['Content-Type']; // Let browser set it
+      delete config.headers['Content-Type'];
       config.body = data;
     } else {
       config.body = JSON.stringify(data);
@@ -59,7 +67,6 @@ export const apiCall = async (method, endpoint, data = null, params = null) => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const error = new Error(errorData.detail || errorData.message || `HTTP ${response.status}`);
-      // Attach status code to error for easier handling
       error.status = response.status;
       error.data = errorData;
       throw error;
@@ -72,9 +79,6 @@ export const apiCall = async (method, endpoint, data = null, params = null) => {
     
     return response;
   } catch (error) {
-    // Only log non-404/401 errors to reduce console noise
-    // 404 is expected for missing resources (group buys, trust scores)
-    // 401 is expected for unauthenticated requests
     const status = error?.status || error?.response?.status;
     if (status !== 404 && status !== 401) {
       console.error(`API call failed: ${method} ${endpoint}`, error);
@@ -83,7 +87,6 @@ export const apiCall = async (method, endpoint, data = null, params = null) => {
   }
 };
 
-// Convenience methods
 export const api = {
   get: (endpoint, config = {}) => apiCall('GET', endpoint, null, config.params),
   post: (endpoint, data, config = {}) => apiCall('POST', endpoint, data, config.params),
@@ -93,4 +96,3 @@ export const api = {
 };
 
 export default api;
-
