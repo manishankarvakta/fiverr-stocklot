@@ -164,7 +164,7 @@ export default function EnhancedRegister() {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: formData.user_type // Use 'role' instead of 'user_type'
+        role: formData.user_type.toUpperCase() // Use 'role' instead of 'user_type'
       };
 
       const userResponse = await register(registerData).unwrap();
