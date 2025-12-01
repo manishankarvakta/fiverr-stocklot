@@ -48,6 +48,10 @@ function Login() {
         dispatch(setUser(response.user));
         localStorage.setItem('user', JSON.stringify(response.user));
       }
+      console.log('local token:', localStorage.getItem('token'));
+      console.log('local user:', localStorage.getItem('user'));
+      console.log('user.roles:', JSON.parse(localStorage.getItem('user')||'null')?.roles);
+      
       
       // Refresh auth state to get latest user data from API
       await dispatch(loadUserProfile(true));
