@@ -6627,9 +6627,36 @@ async def get_seller_listings(
                 else:
                     doc["org_name"] = "Unknown Organization"
             
-            listings.append(Listing(**doc))
+            # Convert to dict for JSON serialization
+            listing_dict = doc.copy()
+            # Ensure images are in the right format
+            if listing_dict.get("images"):
+                if isinstance(listing_dict["images"], list):
+                    # Convert image objects to strings if needed
+                    listing_dict["images"] = [
+                        img if isinstance(img, str) else (img.get("url") or img.get("secure_url") or str(img))
+                        for img in listing_dict["images"]
+                    ]
+            
+            # Convert Decimal to float for JSON serialization
+            if listing_dict.get("price_per_unit"):
+                listing_dict["price_per_unit"] = float(listing_dict["price_per_unit"])
+            
+            # Remove MongoDB _id if present
+            listing_dict.pop("_id", None)
+            
+            listings.append(listing_dict)
         
-        return listings
+        # Return with pagination info
+        return {
+            "listings": listings,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total_count,
+                "pages": (total_count + limit - 1) // limit if limit > 0 else 0
+            }
+        }
     except Exception as e:
         logger.error(f"Error fetching seller listings: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch seller listings")

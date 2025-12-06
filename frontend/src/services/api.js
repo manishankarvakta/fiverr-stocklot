@@ -59,5 +59,67 @@ export const CheckoutService = {
 };
 
 export const NotificationService = {
-  // Use useGetNotificationsQuery from store/api/notifications.api instead
+  async getNotifications(limit = 20) {
+    const token = localStorage.getItem('token');
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+    
+    const response = await fetch(`${backendUrl}/api/notifications?limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch notifications: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return {
+      notifications: data.notifications || data || [],
+      unread_count: data.unread_count || (data || []).filter(n => !n.read_at).length
+    };
+  },
+  
+  async markAsRead(notificationIds) {
+    const token = localStorage.getItem('token');
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+    
+    // Backend expects array directly in body (FastAPI List[str] parameter)
+    const body = Array.isArray(notificationIds) ? notificationIds : [notificationIds];
+    
+    const response = await fetch(`${backendUrl}/api/notifications/mark-read`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to mark notifications as read: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+  
+  async markAllAsRead() {
+    const token = localStorage.getItem('token');
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+    
+    const response = await fetch(`${backendUrl}/api/notifications/mark-all-read`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to mark all notifications as read: ${response.status}`);
+    }
+    
+    return await response.json();
+  }
 };

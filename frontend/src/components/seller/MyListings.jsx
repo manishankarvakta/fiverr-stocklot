@@ -34,8 +34,9 @@ const MyListings = () => {
   const fetchListings = async () => {
     try {
       const token = localStorage.getItem('token');
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
       const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/seller/listings`,
+        `${backendUrl}/api/seller/listings`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -46,7 +47,15 @@ const MyListings = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setListings(data.listings || []);
+        // Handle both array response (old) and object response (new with pagination)
+        if (Array.isArray(data)) {
+          setListings(data);
+        } else {
+          setListings(data.listings || []);
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error fetching listings:', errorData);
       }
     } catch (error) {
       console.error('Error fetching listings:', error);
@@ -206,7 +215,7 @@ const MyListings = () => {
               <div className="relative">
                 {listing.images?.[0] ? (
                   <img 
-                    src={listing.images[0].url} 
+                    src={typeof listing.images[0] === 'string' ? listing.images[0] : (listing.images[0]?.url || listing.images[0]?.secure_url || listing.images[0] || '')} 
                     alt={listing.title}
                     className="w-full h-48 object-cover rounded-t-lg"
                   />
@@ -231,11 +240,13 @@ const MyListings = () => {
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Price:</span>
-                    <span className="font-semibold">R{((listing.price_per_unit || 0) / 100).toFixed(2)}</span>
+                    <span className="font-semibold">
+                      R{listing.price_per_unit ? (typeof listing.price_per_unit === 'number' ? listing.price_per_unit.toFixed(2) : parseFloat(listing.price_per_unit).toFixed(2)) : '0.00'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Quantity:</span>
-                    <span className="font-semibold">{listing.qty_available || 0}</span>
+                    <span className="font-semibold">{listing.quantity || listing.qty_available || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Views:</span>
