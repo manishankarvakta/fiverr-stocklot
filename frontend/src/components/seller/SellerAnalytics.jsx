@@ -31,17 +31,42 @@ const SellerAnalytics = () => {
   });
   const [timeRange, setTimeRange] = useState('30days');
 
-  // Use Redux Toolkit Query hook
-  const { data: analyticsData, isLoading: loading, error } = useGetSellerAnalyticsQuery(
+  // Use Redux Toolkit Query hook - refetch when timeRange changes
+  const { data: analyticsData, isLoading: loading, error, refetch } = useGetSellerAnalyticsQuery(
     { period: timeRange },
     { skip: !user }
   );
+
+  // Refetch when time range changes
+  useEffect(() => {
+    if (user) {
+      refetch();
+    }
+  }, [timeRange, user, refetch]);
   console.log("Analytics Data:", analyticsData);
 
   // Update analytics state when data changes
   useEffect(() => {
     if (analyticsData) {
-      setAnalytics(analyticsData);
+      // Ensure all required fields exist with defaults
+      setAnalytics({
+        overview: {
+          total_revenue: analyticsData.overview?.total_revenue || 0,
+          total_listings: analyticsData.overview?.total_listings || 0,
+          total_views: analyticsData.overview?.total_views || 0,
+          conversion_rate: analyticsData.overview?.conversion_rate || 0,
+          active_listings: analyticsData.overview?.active_listings || 0,
+          sold_listings: analyticsData.overview?.sold_listings || 0
+        },
+        performance: {
+          revenue_growth: analyticsData.performance?.revenue_growth || 0,
+          listing_growth: analyticsData.performance?.listing_growth || 0,
+          view_growth: analyticsData.performance?.view_growth || 0
+        },
+        top_listings: analyticsData.top_listings || [],
+        monthly_revenue: analyticsData.monthly_revenue || [],
+        category_breakdown: analyticsData.category_breakdown || []
+      });
     } else if (error) {
       // Fallback to mock data on error
       setAnalytics({
@@ -237,26 +262,35 @@ const SellerAnalytics = () => {
           <CardTitle>Monthly Revenue</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {analytics.monthly_revenue.map((month, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">{month.month}</span>
-                <div className="flex items-center gap-4">
-                  <div className="w-48 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-emerald-600 h-2 rounded-full"
-                      style={{
-                        width: `${(month.revenue / Math.max(...analytics.monthly_revenue.map(m => m.revenue))) * 100}%`
-                      }}
-                    ></div>
+          {analytics.monthly_revenue.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>No revenue data available for this period</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {analytics.monthly_revenue.map((month, index) => {
+                const maxRevenue = Math.max(...analytics.monthly_revenue.map(m => m.revenue || 0), 1);
+                return (
+                  <div key={index} className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">{month.month}</span>
+                    <div className="flex items-center gap-4">
+                      <div className="w-48 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-emerald-600 h-2 rounded-full"
+                          style={{
+                            width: `${((month.revenue || 0) / maxRevenue) * 100}%`
+                          }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-semibold text-emerald-900 w-20 text-right">
+                        {formatCurrency(month.revenue || 0)}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold text-emerald-900 w-20 text-right">
-                    {formatCurrency(month.revenue)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -267,20 +301,26 @@ const SellerAnalytics = () => {
             <CardTitle>Top Performing Listings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {analytics.top_listings.map((listing, index) => (
-                <div key={listing.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{listing.title}</h4>
-                    <p className="text-sm text-gray-600">{listing.views} views</p>
+            {analytics.top_listings.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No listing data available</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {analytics.top_listings.map((listing, index) => (
+                  <div key={listing.id || index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{listing.title || 'Untitled Listing'}</h4>
+                      <p className="text-sm text-gray-600">{listing.views || 0} views</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-emerald-900">{formatCurrency(listing.revenue || 0)}</p>
+                      <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-emerald-900">{formatCurrency(listing.revenue)}</p>
-                    <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -290,24 +330,30 @@ const SellerAnalytics = () => {
             <CardTitle>Revenue by Category</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {analytics.category_breakdown.map((category, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">{category.category}</span>
-                    <span className="text-sm font-semibold text-emerald-900">
-                      {formatCurrency(category.revenue)} ({category.percentage}%)
-                    </span>
+            {analytics.category_breakdown.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No category data available</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {analytics.category_breakdown.map((category, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">{category.category}</span>
+                      <span className="text-sm font-semibold text-emerald-900">
+                        {formatCurrency(category.revenue || 0)} ({category.percentage || 0}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-emerald-600 h-2 rounded-full"
+                        style={{ width: `${category.percentage || 0}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-emerald-600 h-2 rounded-full"
-                      style={{ width: `${category.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

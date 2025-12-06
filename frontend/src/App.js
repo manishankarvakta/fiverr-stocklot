@@ -188,12 +188,6 @@ function App() {
                   <Route path="/orders/tracking" element={<OrderTracking />} />
                   <Route path="/orders/history" element={<OrderHistory />} />
                   
-                  {/* Seller Routes */}
-                  <Route path="/seller/listings" element={<MyListings />} />
-                  <Route path="/seller/analytics" element={<SellerAnalytics />} />
-                  <Route path="/seller/performance" element={<ListingPerformance />} />
-                  <Route path="/seller/reviews" element={<CustomerReviews />} />
-                  
                   {/* Buyer Routes */}
                   <Route path="/buyer/saved-searches" element={<SavedSearches />} />
                   
@@ -237,7 +231,10 @@ function App() {
                 
                 {/* Seller Growth Tools Routes */}
                 <Route element={<ProtectedRoute roles={['seller']} />}>
+                  <Route path="/seller/listings" element={<MyListings />} />
                   <Route path="/seller/analytics" element={<SellerAnalytics />} />
+                  <Route path="/seller/performance" element={<ListingPerformance />} />
+                  <Route path="/seller/reviews" element={<CustomerReviews />} />
                   <Route path="/seller/inventory/bulk" element={<InventoryBulkUpdate />} />
                   <Route path="/seller/promotions" element={<SellerCampaigns />} />
                   <Route path="/seller/offers" element={<SellerOffers />} />
@@ -266,7 +263,7 @@ function App() {
                   <Route path="/seller/dashboard/*" element={<DashboardLayout userRole="seller" />}>
                     <Route index element={<SellerAnalytics />} />
                     <Route path="analytics" element={<SellerAnalytics />} />
-                    <Route path="listings" element={<div>Seller Listings</div>} />
+                    <Route path="listings" element={<MyListings />} />
                     <Route path="orders" element={<div>Seller Orders</div>} />
                     <Route path="shipping-rates" element={<SellerShippingRates />} />
                     <Route path="trading-statements" element={<MonthlyTradingStatements />} />
