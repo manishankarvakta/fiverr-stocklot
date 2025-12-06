@@ -13,8 +13,6 @@ import {
   useUpdateCartItemMutation,
   useRemoveFromCartMutation
 } from '../store/api/cart.api';
-import Header from '@/components/ui/common/Header';
-import Footer from '@/components/ui/common/Footer';
 
 function CartPage() {
   const { user } = useAuth();
@@ -308,7 +306,6 @@ function CartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <Header />
       <div className="max-w-6xl mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
@@ -496,7 +493,6 @@ function CartPage() {
           </div>
         </div>
       </div>
-      <Footer/>
     </div>
   );
 }
