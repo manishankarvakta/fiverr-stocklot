@@ -6541,6 +6541,100 @@ async def get_listing(listing_id: str):
         logger.error(f"Error fetching listing: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch listing")
 
+# Get all listings for the current seller (personal and organization listings)
+@api_router.get("/seller/listings")
+async def get_seller_listings(
+    current_user: User = Depends(get_current_user),
+    status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """Get all listings for the current seller (personal and organization listings)"""
+    try:
+        # Check if user has seller role
+        if not current_user or UserRole.SELLER not in current_user.roles:
+            raise HTTPException(status_code=403, detail="Seller access required")
+        
+        # Build filter query - get listings where seller_id matches OR org_id matches and user is member
+        filter_query = {
+            "$or": [
+                {"seller_id": current_user.id},
+            ]
+        }
+        
+        # Also include organization listings where user is a member
+        org_memberships = await db.org_memberships.find({
+            "user_id": current_user.id,
+            "role": {"$in": ["OWNER", "ADMIN", "MANAGER", "MEMBER"]}
+        }).to_list(length=None)
+        
+        org_ids = [membership["org_id"] for membership in org_memberships]
+        if org_ids:
+            filter_query["$or"].append({"org_id": {"$in": org_ids}})
+        
+        # Add status filter if provided
+        if status:
+            filter_query["status"] = status
+        
+        # Get total count for pagination
+        total_count = await db.listings.count_documents(filter_query)
+        
+        # Get listings with pagination
+        skip = (page - 1) * limit
+        listings_docs = await db.listings.find(filter_query).sort("created_at", -1).skip(skip).limit(limit).to_list(length=limit)
+        
+        # Enhance listings with additional data
+        listings = []
+        for doc in listings_docs:
+            # Convert price back to Decimal
+            if doc.get("price_per_unit"):
+                doc["price_per_unit"] = Decimal(str(doc["price_per_unit"]))
+            
+            # Resolve breed name if breed_id exists
+            if doc.get("breed_id"):
+                try:
+                    breed_doc = await db.breeds.find_one({"id": doc["breed_id"]})
+                    if breed_doc:
+                        doc["breed"] = breed_doc.get("name", "Unknown Breed")
+                except Exception as e:
+                    logger.warning(f"Failed to resolve breed for listing {doc.get('id')}: {e}")
+                    doc["breed"] = "Unknown Breed"
+            
+            # Resolve species name
+            if doc.get("species_id"):
+                try:
+                    species_doc = await db.species.find_one({"id": doc["species_id"]})
+                    if species_doc:
+                        doc["species"] = species_doc.get("name", "Unknown Species")
+                except Exception as e:
+                    logger.warning(f"Failed to resolve species for listing {doc.get('id')}: {e}")
+                    doc["species"] = "Unknown Species"
+            
+            # Resolve product type name
+            if doc.get("product_type_id"):
+                try:
+                    product_type_doc = await db.product_types.find_one({"id": doc["product_type_id"]})
+                    if product_type_doc:
+                        doc["product_type"] = product_type_doc.get("label", "Unknown Product Type")
+                except Exception as e:
+                    logger.warning(f"Failed to resolve product type for listing {doc.get('id')}: {e}")
+            
+            # Add org_id to listings
+            if doc.get("org_id"):
+                org_doc = await db.organizations.find_one({"id": doc["org_id"]})
+                if org_doc:
+                    doc["org_name"] = org_doc.get("name", "Unknown Organization")
+                else:
+                    doc["org_name"] = "Unknown Organization"
+            
+            listings.append(Listing(**doc))
+        
+        return listings
+    except Exception as e:
+        logger.error(f"Error fetching seller listings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch seller listings")
+
+
 @api_router.get("/listings/{listing_id}/pdp")
 async def get_listing_pdp(
     listing_id: str, 
