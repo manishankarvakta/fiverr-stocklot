@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent, Button, Input, Label, Textarea } from '@/components/ui';
 import { Mail, Clock } from 'lucide-react';
+import Header from '@/components/ui/common/Header';
+import Footer from '@/components/ui/common/Footer';
 
 function Contact() {
   const [contactForm, setContactForm] = useState({
@@ -57,6 +59,7 @@ function Contact() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+      <Header />
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -159,6 +162,7 @@ function Contact() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
