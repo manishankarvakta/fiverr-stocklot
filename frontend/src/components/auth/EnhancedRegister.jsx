@@ -132,6 +132,20 @@ export default function EnhancedRegister() {
     }
   };
 
+  // Map front-end user_type to backend role (backend expects 'buyer'|'seller'|'admin')
+  const mapUserTypeToRole = (userType) => {
+    if (!userType) return 'buyer';
+    const ut = userType.toString().toLowerCase();
+    if (ut === 'buyer') return 'buyer';
+    if (ut === 'seller') return 'seller';
+    if (ut === 'both') {
+      // backend doesn't accept 'both' — choose 'seller' as safe default (change if you prefer)
+      return 'seller';
+    }
+    // fallback
+    return 'buyer';
+  };
+
   // Handle social login success
   const handleSocialSuccess = (data) => {
     try {
@@ -164,8 +178,12 @@ export default function EnhancedRegister() {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: formData.user_type.toUpperCase() // Use 'role' instead of 'user_type'
+        // IMPORTANT: map front-end user_type to backend 'role' string (lowercase)
+        role: mapUserTypeToRole(formData.user_type)
       };
+
+      // debug: see what we're sending
+      console.log('Register payload:', registerData);
 
       const userResponse = await register(registerData).unwrap();
 
@@ -262,7 +280,9 @@ export default function EnhancedRegister() {
         // Handle detail field (could be string or array)
         else if (error.data.detail) {
           if (Array.isArray(error.data.detail)) {
-            errorMessage = error.data.detail[0]?.msg || error.data.detail[0]?.message || errorMessage;
+            // often detail is an array of objects
+            const first = error.data.detail[0];
+            errorMessage = first?.msg || first?.message || JSON.stringify(first) || errorMessage;
           } else if (typeof error.data.detail === 'string') {
             errorMessage = error.data.detail;
           }
