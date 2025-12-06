@@ -1,126 +1,113 @@
-import { baseApi } from './baseApi';
+import { baseApi } from "./baseApi";
 
 export const listingsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Public endpoints
+
+    // -----------------------------
+    // PUBLIC ENDPOINTS
+    // -----------------------------
     getListings: builder.query({
       query: (params = {}) => ({
-        url: '/listings',
+        url: "/listings",
         params,
       }),
-      providesTags: ['Listing'],
+      providesTags: ["Listing"],
     }),
-    
+
     getListingById: builder.query({
       query: (listingId) => `/listings/${listingId}`,
-      providesTags: (result, error, listingId) => [{ type: 'Listing', id: listingId }],
+      providesTags: (result, error, listingId) => [
+        { type: "Listing", id: listingId },
+      ],
     }),
-    
+
     searchListings: builder.query({
       query: (params = {}) => ({
-        url: '/listings/search',
+        url: "/listings/search",
         params,
       }),
-      providesTags: ['Listing'],
+      providesTags: ["Listing"],
     }),
-    
-    // Seller endpoints
-    // createListing: builder.mutation({
-    //   query: (args) => {
-    //     // Handle both direct data and object with data/headers
-    //     const data = args?.data || args;
-    //     const customHeaders = args?.headers || {};
-        
-    //     // Get organization context from headers or localStorage
-    //     const orgContext = customHeaders['X-Org-Context'] || localStorage.getItem('currentContext') || 'user';
-        
-    //     // Build headers object (don't include Content-Type for FormData - browser sets it)
-    //     const headers = {
-    //       'X-Org-Context': orgContext,
-    //       ...customHeaders
-    //     };
-        
-    //     // Remove Content-Type if data is FormData (browser will set it with boundary)
-    //     if (data instanceof FormData && headers['Content-Type']) {
-    //       delete headers['Content-Type'];
-    //     }
-        
-    //     return {
-    //       url: '/listings',
-    //       method: 'POST',
-    //       body: data,
-    //       credentials: 'include',
-    //       headers
-    //     };
-    //   },
-    //   invalidatesTags: ['Listing'],
-    // }),
+
+    // -----------------------------
+    // SELLER PROTECTED ENDPOINTS
+    // -----------------------------
 
     createListing: builder.mutation({
       query: (args) => {
         const data = args?.data || args;
-        // Only pass X-Org-Context; let baseApi's prepareHeaders inject Authorization
         const customHeaders = args?.headers || {};
-        
+
+        // X-Org-Context always included
+        const orgContext =
+          customHeaders["X-Org-Context"] ||
+          localStorage.getItem("currentContext") ||
+          "user";
+
         return {
-          url: '/listings',
-          method: 'POST',
+          url: "/listings",
+          method: "POST",
           body: data,
-          credentials: 'include',
-          // Spread custom headers and let baseApi's prepareHeaders merge them properly
+          credentials: "include",
           headers: {
-            'X-Org-Context': customHeaders['X-Org-Context'] || localStorage.getItem('currentContext') || 'user'
-          }
+            "X-Org-Context": orgContext,
+          },
         };
       },
-      invalidatesTags: ['Listing'],
+      invalidatesTags: ["Listing"],
     }),
 
-    
     updateListing: builder.mutation({
       query: ({ listingId, ...data }) => ({
         url: `/listings/${listingId}`,
-        method: 'PUT',
+        method: "PUT",
         body: data,
       }),
       invalidatesTags: (result, error, { listingId }) => [
-        { type: 'Listing', id: listingId },
-        'Listing',
+        { type: "Listing", id: listingId },
+        "Listing",
       ],
     }),
-    
+
     deleteListing: builder.mutation({
       query: (listingId) => ({
         url: `/listings/${listingId}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
-      invalidatesTags: ['Listing'],
+      invalidatesTags: ["Listing"],
     }),
-    
+
+    // -----------------------------
+    // MY LISTINGS (SELLER)
+    // -----------------------------
     getMyListings: builder.query({
       query: (params = {}) => ({
-        url: '/listings/my',
+        url: "/seller/listings",
         params,
       }),
-      providesTags: ['Listing'],
+      providesTags: ["Listing"],
     }),
-    
+
     enhanceListing: builder.mutation({
       query: ({ listingId, ...data }) => ({
         url: `/listings/${listingId}/enhance`,
-        method: 'POST',
+        method: "POST",
         body: data,
       }),
       invalidatesTags: (result, error, { listingId }) => [
-        { type: 'Listing', id: listingId },
-        'Listing',
+        { type: "Listing", id: listingId },
+        "Listing",
       ],
     }),
-    
-    // PDP endpoint
+
+    // -----------------------------
+    // PDP ENDPOINT
+    // -----------------------------
     getListingPDP: builder.query({
       query: (listingId) => `/listings/${listingId}/pdp`,
-      providesTags: (result, error, listingId) => [{ type: 'Listing', id: listingId }],
+      providesTags: (result, error, listingId) => [
+        { type: "Listing", id: listingId },
+      ],
     }),
   }),
   overrideExisting: false,
@@ -142,4 +129,3 @@ export const {
   useGetListingPDPQuery,
   useLazyGetListingPDPQuery,
 } = listingsApi;
-

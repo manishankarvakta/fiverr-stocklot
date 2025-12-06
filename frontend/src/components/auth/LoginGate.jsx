@@ -45,7 +45,7 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
 
     try {
       const data = await loginMutation({
-        email: loginData.email,
+        email: loginData.email.trim(),
         password: loginData.password
       }).unwrap();
       

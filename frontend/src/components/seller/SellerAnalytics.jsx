@@ -36,6 +36,7 @@ const SellerAnalytics = () => {
     { period: timeRange },
     { skip: !user }
   );
+  console.log("Analytics Data:", analyticsData);
 
   // Update analytics state when data changes
   useEffect(() => {
