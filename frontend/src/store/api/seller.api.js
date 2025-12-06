@@ -5,10 +5,12 @@ export const sellerApi = baseApi.injectEndpoints({
     // Seller Analytics
     getSellerAnalytics: builder.query({
       query: (params = {}) => ({
-        url: '/seller/analytics/performance',
-        params,
+        url: '/seller/analytics',
+        params: {
+          period: params.period || '30days',
+        },
       }),
-      providesTags: ['Admin'],
+      providesTags: ['SellerAnalytics'],
     }),
     
     // Seller Campaigns

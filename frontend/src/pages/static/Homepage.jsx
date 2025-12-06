@@ -5,6 +5,10 @@ import { Button, Card, CardContent } from "@/components/ui";
 import { Shield, CheckCircle, Search, MapPin, User, Star } from "lucide-react";
 import { useGetListingsQuery } from "@/store/api/listings.api";
 import { useAdminStatsQuery, useGetModerationStatsQuery } from "@/store/api/admin.api";
+import Header from "@/components/ui/common/Header";
+import Footer from "@/components/ui/common/Footer";
+// import Header from "@/components/layout/Header";
+
 
 // API helper with auth token (keeping for backward compatibility)
 const apiCall = async (method, url, data = null) => {
@@ -134,6 +138,8 @@ function Homepage() {
 
   return (
     <div className="homepage">
+      <Header />
+
       {/* Flash Screen */}
       {showFlash && (
         <div className="flash-screen">
@@ -557,6 +563,7 @@ function Homepage() {
           </Button>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }

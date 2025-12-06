@@ -8248,7 +8248,7 @@ async def get_seller_own_analytics(
     period: str = "30days",
     current_user: User = Depends(get_current_user)
 ):
-    """Get analytics for the authenticated seller"""
+    """Get comprehensive analytics for the authenticated seller"""
     if not current_user or "seller" not in current_user.roles:
         raise HTTPException(status_code=403, detail="Seller access required")
     
@@ -8257,14 +8257,138 @@ async def get_seller_own_analytics(
         period_days = {
             "7days": 7,
             "30days": 30,
-            "90days": 90,
+            "3months": 90,
+            "6months": 180,
             "1year": 365
         }.get(period, 30)
         
-        from services.analytics_service import AnalyticsService
-        analytics = AnalyticsService(db)
-        data = await analytics.get_seller_analytics(current_user.id, period_days)
-        return data
+        start_date = datetime.now(timezone.utc) - timedelta(days=period_days)
+        seller_id = current_user.id
+        
+        # Get seller's listings
+        listings = await db.listings.find({"seller_id": seller_id}).to_list(length=None)
+        total_listings = len(listings)
+        active_listings = len([l for l in listings if l.get("status") == "active"])
+        sold_listings = len([l for l in listings if l.get("status") == "sold"])
+        
+        # Get orders for this seller
+        orders = await db.orders.find({
+            "seller_id": seller_id,
+            "created_at": {"$gte": start_date}
+        }).to_list(length=None)
+        
+        # Calculate revenue from completed orders
+        total_revenue = sum(
+            float(order.get("total_amount", 0)) 
+            for order in orders 
+            if order.get("status") in ["completed", "delivered"]
+        )
+        
+        # Get listing views
+        listing_views_data = await db.analytics_events.aggregate([
+            {"$match": {
+                "event_type": "pdp_view",
+                "timestamp": {"$gte": start_date}
+            }},
+            {"$lookup": {
+                "from": "listings",
+                "localField": "listing_id",
+                "foreignField": "id",
+                "as": "listing"
+            }},
+            {"$unwind": "$listing"},
+            {"$match": {"listing.seller_id": seller_id}},
+            {"$group": {
+                "_id": "$listing_id",
+                "views": {"$sum": 1},
+                "title": {"$first": "$listing.title"},
+                "listing": {"$first": "$listing"}
+            }},
+            {"$sort": {"views": -1}},
+            {"$limit": 10}
+        ]).to_list(length=10)
+        
+        total_views = sum(item["views"] for item in listing_views_data)
+        
+        # Calculate conversion rate (orders / views)
+        conversion_rate = (len(orders) / total_views * 100) if total_views > 0 else 0
+        
+        # Get previous period for growth calculation
+        previous_start = start_date - timedelta(days=period_days)
+        previous_orders = await db.orders.find({
+            "seller_id": seller_id,
+            "created_at": {"$gte": previous_start, "$lt": start_date}
+        }).to_list(length=None)
+        previous_revenue = sum(
+            float(order.get("total_amount", 0)) 
+            for order in previous_orders 
+            if order.get("status") in ["completed", "delivered"]
+        )
+        
+        # Calculate growth percentages
+        revenue_growth = ((total_revenue - previous_revenue) / previous_revenue * 100) if previous_revenue > 0 else 0
+        listing_growth = 0  # Can be calculated if needed
+        view_growth = 0  # Can be calculated if needed
+        
+        # Monthly revenue breakdown
+        monthly_revenue = []
+        current = start_date
+        month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        while current < datetime.now(timezone.utc):
+            month_end = min(current + timedelta(days=30), datetime.now(timezone.utc))
+            month_orders = await db.orders.find({
+                "seller_id": seller_id,
+                "created_at": {"$gte": current, "$lt": month_end},
+                "status": {"$in": ["completed", "delivered"]}
+            }).to_list(length=None)
+            month_revenue = sum(float(order.get("total_amount", 0)) for order in month_orders)
+            monthly_revenue.append({
+                "month": month_names[current.month - 1],
+                "revenue": month_revenue * 100  # Convert to cents for frontend
+            })
+            current = month_end
+        
+        # Top listings
+        top_listings = []
+        for item in listing_views_data[:5]:
+            listing_id = item["_id"]
+            listing_orders = [o for o in orders if o.get("listing_id") == listing_id]
+            listing_revenue = sum(float(o.get("total_amount", 0)) for o in listing_orders) * 100  # Convert to cents
+            top_listings.append({
+                "id": listing_id,
+                "title": item.get("title", "Untitled"),
+                "views": item["views"],
+                "revenue": listing_revenue
+            })
+        
+        # Category breakdown (simplified - can be enhanced)
+        category_breakdown = []
+        if top_listings:
+            # For now, use a simple breakdown
+            category_breakdown = [
+                {"category": "Livestock", "percentage": 100, "revenue": total_revenue * 100}
+            ]
+        
+        return {
+            "overview": {
+                "total_revenue": total_revenue * 100,  # Convert to cents
+                "total_listings": total_listings,
+                "total_views": total_views,
+                "conversion_rate": round(conversion_rate, 2),
+                "active_listings": active_listings,
+                "sold_listings": sold_listings
+            },
+            "performance": {
+                "revenue_growth": round(revenue_growth, 2),
+                "listing_growth": listing_growth,
+                "view_growth": view_growth
+            },
+            "top_listings": top_listings,
+            "monthly_revenue": monthly_revenue if monthly_revenue else [
+                {"month": "No Data", "revenue": 0}
+            ],
+            "category_breakdown": category_breakdown
+        }
     except Exception as e:
         logger.error(f"Error fetching seller analytics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch analytics")
