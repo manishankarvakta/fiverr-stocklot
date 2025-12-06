@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui';
 import { Button } from '@/components/ui';
@@ -8,13 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import SendOfferModal from '../components/buyRequests/SendOfferModal';
 import Header from '@/components/ui/common/Header';
 import Footer from "@/components/ui/common/Footer";
+import { useGetPublicBuyRequestsQuery } from '@/store/api/buyRequests.api';
 // import AdvancedFiltersPanel from '../components/buyRequests/AdvancedFiltersPanel';
 import { 
   MapPin, Clock, Package, Eye, Heart, Shield, FileText, 
   ImageIcon, Truck, CheckCircle, AlertCircle, Filter, Search
 } from 'lucide-react';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Image Gallery Component
 const ImageGallery = ({ images, alt = "Buy Request Images" }) => {
@@ -64,15 +63,59 @@ const ImageGallery = ({ images, alt = "Buy Request Images" }) => {
 const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
   const [imageError, setImageError] = useState(false);
   
+  // Check if request has meaningful data
+  const hasData = request && (
+    request.species || 
+    request.breed || 
+    request.product_type || 
+    (request.qty && request.qty > 0) ||
+    request.province ||
+    request.notes ||
+    request.target_price
+  );
+  
+  // If no meaningful data, show placeholder
+  if (!hasData) {
+    return (
+      <Card className="hover:shadow-lg transition-all duration-200 border-gray-200 touch-manipulation opacity-60">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold text-gray-500 line-clamp-2">
+            No Data Available
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="text-center py-8 text-gray-400">
+            <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">This buy request has no details available</p>
+            <p className="text-xs mt-2 text-gray-500">ID: {request?.id}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const timeRemaining = () => {
-    const deadline = new Date(request.deadline_at);
-    const now = new Date();
-    const diff = deadline - now;
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    if (!request.deadline_at && !request.expires_at) {
+      return { text: 'No deadline', color: 'text-gray-500' };
+    }
     
-    if (days < 0) return { text: 'Expired', color: 'text-red-600' };
-    if (days < 3) return { text: `${days} days left`, color: 'text-orange-600' };
-    return { text: `${days} days left`, color: 'text-green-600' };
+    const deadline = request.deadline_at || request.expires_at;
+    if (!deadline) {
+      return { text: 'No deadline', color: 'text-gray-500' };
+    }
+    
+    try {
+      const deadlineDate = new Date(deadline);
+      const now = new Date();
+      const diff = deadlineDate - now;
+      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      
+      if (days < 0) return { text: 'Expired', color: 'text-red-600' };
+      if (days < 3) return { text: `${days} days left`, color: 'text-orange-600' };
+      return { text: `${days} days left`, color: 'text-green-600' };
+    } catch (e) {
+      return { text: 'Invalid date', color: 'text-gray-500' };
+    }
   };
 
   const remaining = timeRemaining();
@@ -83,27 +126,38 @@ const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0"> {/* Prevent text overflow */}
             <CardTitle className="text-lg font-semibold text-emerald-900 line-clamp-2">
-              {request.title}
+              {request.title || `${request.breed || ''} ${request.species || 'Buy Request'}`.trim() || 'Buy Request'}
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
-                {request.species}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                {request.product_type}
-              </Badge>
+              {request.species && (
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                  {request.species}
+                </Badge>
+              )}
+              {request.breed && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                  {request.breed}
+                </Badge>
+              )}
+              {request.product_type && (
+                <Badge variant="secondary" className="text-xs">
+                  {request.product_type}
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right ml-2 flex-shrink-0">
-            {request.has_target_price && (
+            {(request.has_target_price || request.target_price) && (
               <div className="text-base md:text-lg font-bold text-emerald-600">
-                R{request.target_price || 'TBD'}/unit
+                R{request.target_price ? request.target_price.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'TBD'}/unit
               </div>
             )}
-            <div className={`text-xs md:text-sm ${remaining.color}`}>
-              <Clock className="inline h-3 w-3 mr-1" />
-              {remaining.text}
-            </div>
+            {(request.deadline_at || request.expires_at) && (
+              <div className={`text-xs md:text-sm ${remaining.color}`}>
+                <Clock className="inline h-3 w-3 mr-1" />
+                {remaining.text}
+              </div>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -126,13 +180,24 @@ const EnhancedBuyRequestCard = ({ request, onViewDetails, onSendOffer }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-            <span className="font-medium">{request.qty} {request.unit}</span>
+            <span className="font-medium">
+              {request.qty || 0} {request.unit || 'units'}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-            <span className="truncate">{request.province}</span>
+            <span className="truncate">
+              {request.province || request.country || 'Location not specified'}
+            </span>
           </div>
         </div>
+
+        {/* Notes Excerpt - Show if available */}
+        {request.notes_excerpt && (
+          <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+            <p className="line-clamp-2">{request.notes_excerpt}</p>
+          </div>
+        )}
 
         {/* Enhanced Features - Mobile Scrollable */}
         <div className="flex flex-wrap gap-1 md:gap-2 overflow-x-auto pb-1">
@@ -230,14 +295,18 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
               <div>
                 <h3 className="font-semibold mb-3">Basic Information</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Species:</span>
-                    <span>{request.species}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Product Type:</span>
-                    <span className="text-right">{request.product_type}</span>
-                  </div>
+                  {request.species && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Species:</span>
+                      <span>{request.species}</span>
+                    </div>
+                  )}
+                  {request.product_type && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Product Type:</span>
+                      <span className="text-right">{request.product_type}</span>
+                    </div>
+                  )}
                   {request.breed && (
                     <div className="flex justify-between">
                       <span className="font-medium">Breed:</span>
@@ -250,12 +319,22 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Location:</span>
-                    <span>{request.province}</span>
+                    <span>{request.province || request.country || 'Not specified'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Deadline:</span>
-                    <span className="text-right">{new Date(request.deadline_at).toLocaleDateString()}</span>
-                  </div>
+                  {request.country && request.province && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Country:</span>
+                      <span>{request.country}</span>
+                    </div>
+                  )}
+                  {(request.deadline_at || request.expires_at) && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Deadline:</span>
+                      <span className="text-right">
+                        {new Date(request.deadline_at || request.expires_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -285,11 +364,11 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
               </div>
             </div>
 
-            {request.notes_excerpt && (
+            {(request.notes || request.notes_excerpt) && (
               <div>
                 <h3 className="font-semibold mb-2">Additional Notes</h3>
                 <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
-                  {request.notes_excerpt}
+                  {request.notes || request.notes_excerpt}
                 </p>
               </div>
             )}
@@ -396,9 +475,6 @@ const RequestDetailModal = ({ request, isOpen, onClose, onSendOffer }) => {
 };
 
 const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
@@ -409,51 +485,83 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
   
   const navigate = useNavigate();
 
-  const loadBuyRequests = useCallback(async () => {
-    try {
-      console.log('Loading enhanced buy requests from:', `${BACKEND_URL}/api/public/buy-requests`);
-      
-      const queryParams = new URLSearchParams(currentFilters);
-      queryParams.append('limit', '20');
-      
-      if (searchTerm) {
-        queryParams.append('search', searchTerm);
-      }
-      
-      const response = await fetch(`${BACKEND_URL}/api/public/buy-requests?${queryParams.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('Enhanced buy requests loaded:', data);
-      
-      setRequests(data.items || []);
-      setError(null);
-      
-    } catch (error) {
-      console.error('Error loading buy requests:', error);
-      setError(error.message || 'Unable to load buy requests');
-    } finally {
-      setLoading(false);
+  // Build query parameters for RTK Query
+  const queryParams = useMemo(() => {
+    const params = {
+      limit: 20,
+    };
+    
+    if (searchTerm) {
+      params.search = searchTerm;
     }
+    
+    // Parse currentFilters if it's a URLSearchParams string
+    if (currentFilters) {
+      try {
+        const filterParams = new URLSearchParams(currentFilters);
+        filterParams.forEach((value, key) => {
+          params[key] = value;
+        });
+      } catch (e) {
+        console.warn('Error parsing currentFilters:', e);
+      }
+    }
+    
+    return params;
   }, [searchTerm, currentFilters]);
 
-  // Load buy requests
+  // Use RTK Query hook
+  const { 
+    data: buyRequestsData, 
+    isLoading: loading, 
+    error: queryError,
+    refetch 
+  } = useGetPublicBuyRequestsQuery(queryParams, {
+    // Refetch on mount and when params change
+    refetchOnMountOrArgChange: true,
+  });
+
+  console.log('Buy requests data:', buyRequestsData);
+
+  // Extract requests from RTK Query response
+  const requests = useMemo(() => {
+    return buyRequestsData?.items || [];
+  }, [buyRequestsData]);
+
+  // Extract error message
+  const error = useMemo(() => {
+    if (queryError) {
+      if ('data' in queryError && queryError.data) {
+        return typeof queryError.data === 'string' 
+          ? queryError.data 
+          : queryError.data.message || queryError.data.detail || 'Unable to load buy requests';
+      }
+      if ('message' in queryError) {
+        return queryError.message;
+      }
+      return 'Unable to load buy requests';
+    }
+    return null;
+  }, [queryError]);
+
+  // Log data for debugging
   useEffect(() => {
-    loadBuyRequests();
-  }, [loadBuyRequests]);
+    if (buyRequestsData) {
+      console.log('Enhanced buy requests loaded via RTK Query:', buyRequestsData);
+      console.log('Requests count:', requests.length);
+    }
+  }, [buyRequestsData, requests.length]);
 
   const handleFiltersChange = (filterParams) => {
     setCurrentFilters(filterParams);
-    setLoading(true);
+    // RTK Query will automatically refetch when queryParams change
   };
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' || e.type === 'click') {
-      setLoading(true);
-      loadBuyRequests();
+      // RTK Query will automatically refetch when searchTerm changes
+      // Optionally trigger manual refetch
+      refetch();
     }
   };
 
@@ -486,8 +594,8 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
   const handleOfferSuccess = () => {
     setShowOfferModal(false);
     setSelectedRequest(null);
-    // Refresh the requests to update offer counts
-    window.location.reload();
+    // Refresh the requests to update offer counts using RTK Query
+    refetch();
   };
 
   if (loading) {
@@ -515,10 +623,11 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
   }
 
   return (
+    <>
+    <Header />
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <Header />
       {/* Header - Mobile Responsive */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex flex-col pt-6 sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex-1">
           <h1 className="text-2xl md:text-3xl font-bold text-emerald-900">Buy Requests</h1>
           <p className="text-gray-600 mt-1 text-sm md:text-base">
@@ -594,7 +703,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
 
       {/* Results Grid - Mobile Responsive */}
       {requests.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 mb-6">
           {requests.map(request => (
             <EnhancedBuyRequestCard
               key={request.id}
@@ -605,7 +714,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
+        <div className="text-center py-12 mb-6">
           <div className="text-4xl md:text-6xl mb-4">🎯</div>
           <h3 className="text-lg md:text-xl font-semibold mb-2">No buy requests found</h3>
           <p className="text-gray-600 mb-4 text-sm md:text-base px-4">
@@ -646,8 +755,9 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         onFiltersChange={handleFiltersChange}
       /> */}
 
-      <Footer />
     </div>
+      <Footer />
+    </>
   );
 };
 

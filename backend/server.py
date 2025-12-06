@@ -13535,13 +13535,41 @@ async def get_public_buy_requests(
     try:
         # Build query for open, non-expired requests
         # Handle both "open" and "OPEN" status values
+        now = datetime.now(timezone.utc)
+        
+        # First, let's check what we have in the database
+        total_open = await db.buy_requests.count_documents({"status": {"$in": ["open", "OPEN"]}})
+        logger.info(f"Total open buy requests in DB: {total_open}")
+        
+        # Count with expires_at > now
+        future_expires = await db.buy_requests.count_documents({
+            "status": {"$in": ["open", "OPEN"]},
+            "expires_at": {"$ne": None, "$gt": now}
+        })
+        logger.info(f"Open requests with future expires_at: {future_expires}")
+        
+        # Count with no expires_at
+        no_expires = await db.buy_requests.count_documents({
+            "status": {"$in": ["open", "OPEN"]},
+            "$or": [
+                {"expires_at": None},
+                {"expires_at": {"$exists": False}}
+            ]
+        })
+        logger.info(f"Open requests with no expires_at: {no_expires}")
+        
+        # Build query - include requests without expires_at or with future expires_at
+        # Simplified: status must be open, and either no expires_at or expires_at in future
         query = {
-            "status": {"$in": ["open", "OPEN"]},  # Accept both lowercase and uppercase
-            "expires_at": {
-                "$ne": None,  # Not null
-                "$gt": datetime.now(timezone.utc)  # And greater than now
-            }
+            "status": {"$in": ["open", "OPEN"]}  # Accept both lowercase and uppercase
         }
+        
+        # Add expires_at condition - either missing/null or in the future
+        query["$or"] = [
+            {"expires_at": {"$gt": now}},  # Has expires_at and it's in the future
+            {"expires_at": None},  # No expires_at
+            {"expires_at": {"$exists": False}}  # expires_at field doesn't exist
+        ]
         
         # Apply basic filters
         if species:
@@ -13702,10 +13730,18 @@ async def get_public_buy_requests(
             sort_field = [("created_at", -1)]
         
         # Fetch requests
-        logger.info(f"Querying buy_requests with: status={query.get('status')}, expires_at filter active")
+        logger.info(f"Querying buy_requests with query: {query}")
+        logger.info(f"Query status filter: {query.get('status')}")
+        logger.info(f"Query expires_at filter: {query.get('$or')}")
+        
         cursor = db.buy_requests.find(query).sort(sort_field).limit(limit + 1)
         requests = await cursor.to_list(length=None)
         logger.info(f"Found {len(requests)} buy requests matching query")
+        
+        # Log sample request if found
+        if requests and len(requests) > 0:
+            sample = requests[0]
+            logger.info(f"Sample request: id={sample.get('id')}, status={sample.get('status')}, expires_at={sample.get('expires_at')}")
         
         # Check if there are more results
         has_more = len(requests) > limit
@@ -13734,10 +13770,29 @@ async def get_public_buy_requests(
             if max_distance_km and distance_km and distance_km > max_distance_km:
                 continue
             
-            # Build public item
+            # Build public item - use exact field names from database
+            # Log raw request for debugging (first request only)
+            if len(result_items) == 0:
+                logger.info(f"Raw request keys: {list(req.keys())}")
+                logger.info(f"Full raw request data: {req}")
+                logger.info(f"Sample request fields: species={req.get('species')}, breed={req.get('breed')}, product_type={req.get('product_type')}, qty={req.get('qty')}, province={req.get('province')}, notes={req.get('notes')}")
+            
+            # Get ALL fields directly from database - return exactly what's stored
             target_price = req.get("target_price")
             expires_at = req.get("expires_at")
             created_at = req.get("created_at")
+            species = req.get("species")  # Return None if not in DB
+            breed = req.get("breed")  # Return None if not in DB
+            product_type = req.get("product_type")  # Return None if not in DB
+            qty = req.get("qty")  # Return None if not in DB
+            unit = req.get("unit")  # Return None if not in DB
+            province = req.get("province")  # Return None if not in DB
+            country = req.get("country")  # Return None if not in DB
+            notes = req.get("notes")  # Return None if not in DB
+            
+            # Log if critical fields are missing
+            if not species and not breed and not product_type:
+                logger.warning(f"Request {req.get('id')} has no species, breed, or product_type - returning as-is from DB")
             
             # Handle datetime conversion
             if expires_at and not isinstance(expires_at, str):
@@ -13756,33 +13811,43 @@ async def get_public_buy_requests(
             else:
                 created_at_str = created_at
             
+            # Build title from available data
+            title_parts = []
+            if breed:
+                title_parts.append(breed)
+            if species:
+                title_parts.append(species)
+            title = " ".join(title_parts).strip() if title_parts else (species or product_type or "Buy Request")
+            
+            # Return all fields matching the create API structure
             item = {
                 "id": req.get("id"),
-                "title": f"{req.get('breed', '')} {req.get('species', '')}".strip() or req.get('species', 'Unknown'),
-                "species": req.get("species"),
-                "product_type": req.get("product_type"),
-                "breed": req.get("breed"),  # Add breed for frontend
-                "qty": req.get("qty", 0),
-                "unit": req.get("unit", "units"),
-                "province": req.get("province"),
+                "title": title,
+                "species": species,  # From database
+                "product_type": product_type,  # From database
+                "breed": breed,  # From database
+                "qty": int(qty) if qty is not None else 0,  # Convert to int, default 0
+                "unit": unit or "head",  # Default to "head" if not specified
+                "province": province,  # From database
+                "country": country or "ZA",  # Default to "ZA" if not specified
                 "deadline_at": expires_at_str,  # Frontend expects deadline_at
                 "expires_at": expires_at_str,  # Also include expires_at
                 "has_target_price": bool(target_price and target_price > 0),
-                "target_price": float(target_price) if target_price else None,  # Include actual price
+                "target_price": float(target_price) if target_price is not None else None,
                 "offers_count": offers_count,
                 "created_at": created_at_str,
-                "notes": req.get("notes"),  # Add notes for frontend
-                "notes_excerpt": (req.get("notes", "")[:200] + "...") if req.get("notes") and len(req.get("notes", "")) > 200 else req.get("notes"),  # Truncated notes
-                "additional_requirements": req.get("additional_requirements"),  # Add additional requirements
+                "notes": notes,  # From database
+                "notes_excerpt": (notes[:200] + "...") if notes and len(notes) > 200 else notes,
+                "additional_requirements": req.get("additional_requirements"),
                 # Enhanced content fields (public safe)
-                "images": req.get("images", [])[:3] if req.get("images") else [],  # Limit to first 3 images for list view
+                "images": req.get("images", [])[:3] if req.get("images") else [],
                 "has_vet_certificates": bool(req.get("vet_certificates")),
-                "vet_certificates": req.get("vet_certificates", []),  # Include vet certificates
+                "vet_certificates": req.get("vet_certificates", []),
                 "weight_range": req.get("weight_range"),
                 "age_requirements": req.get("age_requirements"),
                 "vaccination_requirements": req.get("vaccination_requirements", []),
-                "delivery_preferences": req.get("delivery_preferences", "both"),
-                "inspection_allowed": req.get("inspection_allowed", True)
+                "delivery_preferences": req.get("delivery_preferences", "both"),  # Default to "both"
+                "inspection_allowed": req.get("inspection_allowed", True)  # Default to True
             }
             
             if distance_km is not None:

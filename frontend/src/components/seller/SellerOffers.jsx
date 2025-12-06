@@ -8,6 +8,24 @@ import {
   // useCreateCounterOfferMutation, // Not applicable
 } from '../../store/api/seller.api';
 
+// Helper function for offer status badge - shared between components
+const getOfferStatusBadge = (status) => {
+  const statusConfig = {
+    pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    accepted: { label: 'Accepted', className: 'bg-green-100 text-green-800 border-green-200' },
+    declined: { label: 'Declined', className: 'bg-red-100 text-red-800 border-red-200' },
+    expired: { label: 'Expired', className: 'bg-gray-100 text-gray-800 border-gray-200' },
+    cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-800 border-gray-200' },
+  };
+  
+  const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
+  
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.className}`}>
+      {config.label}
+    </span>
+  );
+};
 
 const SellerOffers = () => {
   const [selectedOffer, setSelectedOffer] = useState(null);
@@ -57,23 +75,6 @@ const SellerOffers = () => {
   const createCounterOffer = async (offerId, counterOfferData) => {
     console.warn('Counter offers from sellers are not currently supported.');
     // This functionality doesn't exist in the current API
-  };
-
-  const getOfferStatusBadge = (status) => {
-    const statusConfig = {
-      pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
-      accepted: { label: 'Accepted', color: 'bg-green-100 text-green-800' },
-      rejected: { label: 'Rejected', color: 'bg-red-100 text-red-800' },
-      countered: { label: 'Countered', color: 'bg-blue-100 text-blue-800' },
-      expired: { label: 'Expired', color: 'bg-gray-100 text-gray-800' }
-    };
-    
-    const config = statusConfig[status] || statusConfig.pending;
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
-    );
   };
 
   const getOfferTypeIcon = () => {
@@ -139,13 +140,16 @@ const SellerOffers = () => {
   if (filters.search) {
     const searchLower = filters.search.toLowerCase();
     filteredOffers = filteredOffers.filter(offer => {
-      const request = offer.request || {};
-      return (
-        request.species?.toLowerCase().includes(searchLower) ||
-        request.breed?.toLowerCase().includes(searchLower) ||
-        offer.notes?.toLowerCase().includes(searchLower) ||
-        offer.id?.toLowerCase().includes(searchLower)
-      );
+          const request = offer.request || {};
+          return (
+            request.species?.toLowerCase().includes(searchLower) ||
+            request.breed?.toLowerCase().includes(searchLower) ||
+            request.product_type?.toLowerCase().includes(searchLower) ||
+            request.province?.toLowerCase().includes(searchLower) ||
+            request.city?.toLowerCase().includes(searchLower) ||
+            (offer.notes || offer.message)?.toLowerCase().includes(searchLower) ||
+            offer.id?.toLowerCase().includes(searchLower)
+          );
     });
   }
   
@@ -319,7 +323,14 @@ const SellerOffers = () => {
         {filteredOffers.map((offer) => {
           const timeRemaining = calculateTimeRemaining(offer.expires_at);
           const request = offer.request || {};
-          const totalValue = (offer.price_per_unit || 0) * (offer.quantity_available || 0);
+          const pricePerUnit = offer.price_per_unit || offer.offer_price || 0;
+          const quantity = offer.quantity_available || offer.qty || 0;
+          const totalValue = pricePerUnit * quantity;
+          const location = request.province 
+            ? `${request.province}${request.city ? `, ${request.city}` : ''}${request.country ? `, ${request.country}` : ''}`
+            : request.city 
+            ? `${request.city}${request.country ? `, ${request.country}` : ''}`
+            : request.country || 'N/A';
           
           return (
             <Card key={offer.id} className="hover:shadow-md transition-shadow">
@@ -343,16 +354,24 @@ const SellerOffers = () => {
                           {request.species || 'N/A'} {request.breed ? `- ${request.breed}` : ''}
                         </span>
                       </div>
+                      {request.product_type && (
+                        <p className="text-xs text-gray-500">
+                          Type: {request.product_type}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-600">
                         Buyer wants: {request.qty || 0} {request.unit || 'units'}
                       </p>
                       {request.target_price && (
                         <p className="text-xs text-gray-500">
-                          Target: R{request.target_price.toLocaleString()}
+                          Target: R{request.target_price.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per {request.unit || 'unit'}
                         </p>
                       )}
-                      {request.province && (
-                        <p className="text-xs text-blue-600">📍 {request.province}</p>
+                      <p className="text-xs text-blue-600">📍 {location}</p>
+                      {(request.deadline_at || request.expires_at) && (
+                        <p className="text-xs text-gray-500">
+                          Deadline: {new Date(request.deadline_at || request.expires_at).toLocaleDateString('en-ZA')}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -364,19 +383,24 @@ const SellerOffers = () => {
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-4 w-4 text-green-600" />
                         <span className="font-bold text-green-600">
-                          R{(offer.price_per_unit || 0).toLocaleString()}
+                          R{pricePerUnit.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span className="text-xs text-gray-500">per {request.unit || 'unit'}</span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Quantity: {offer.quantity_available || 0} {request.unit || 'units'}
+                        Quantity: {quantity} {request.unit || 'units'}
                       </p>
                       <p className="text-sm font-medium text-gray-900">
-                        Total: R{totalValue.toLocaleString()}
+                        Total: R{totalValue.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                       {offer.delivery_cost && (
                         <p className="text-xs text-blue-600">
-                          + R{offer.delivery_cost.toLocaleString()} delivery
+                          + R{offer.delivery_cost.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} delivery
+                        </p>
+                      )}
+                      {offer.delivery_days && (
+                        <p className="text-xs text-gray-500">
+                          Delivery: {offer.delivery_days} days
                         </p>
                       )}
                     </div>
@@ -387,8 +411,13 @@ const SellerOffers = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-xs text-gray-500">
                         <Calendar className="h-3 w-3" />
-                        <span>{new Date(offer.created_at).toLocaleDateString()}</span>
+                        <span>Created: {offer.created_at ? new Date(offer.created_at).toLocaleDateString('en-ZA') : 'N/A'}</span>
                       </div>
+                      {request.created_at && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <span>Request: {new Date(request.created_at).toLocaleDateString('en-ZA')}</span>
+                        </div>
+                      )}
                       {timeRemaining && (
                         <div className="flex items-center gap-1 text-xs">
                           <Clock className="h-3 w-3" />
@@ -396,11 +425,6 @@ const SellerOffers = () => {
                             {timeRemaining}
                           </span>
                         </div>
-                      )}
-                      {offer.delivery_days && (
-                        <p className="text-xs text-blue-600">
-                          Delivery: {offer.delivery_days} days
-                        </p>
                       )}
                     </div>
                   </div>
@@ -436,11 +460,11 @@ const SellerOffers = () => {
                 </div>
                 
                 {/* Offer Notes */}
-                {offer.notes && (
+                {(offer.notes || offer.message) && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <p className="text-xs font-medium text-gray-500 mb-1">Your Message:</p>
                     <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
-                      "{offer.notes}"
+                      "{offer.notes || offer.message}"
                     </p>
                   </div>
                 )}
@@ -485,8 +509,8 @@ const OfferDetailsModal = ({ offer, onClose, onRespond, onCounter }) => {
     : null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="flex justify-between items-start mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Offer Details</h2>
           <button
@@ -511,6 +535,12 @@ const OfferDetailsModal = ({ offer, onClose, onRespond, onCounter }) => {
                 <span className="font-medium">{request.breed}</span>
               </div>
             )}
+            {request.product_type && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Product Type:</span>
+                <span className="font-medium">{request.product_type}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-600">Quantity Needed:</span>
               <span className="font-medium">{request.qty || 0} {request.unit || 'units'}</span>
@@ -518,13 +548,37 @@ const OfferDetailsModal = ({ offer, onClose, onRespond, onCounter }) => {
             {request.target_price && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Target Price:</span>
-                <span className="font-medium">R{request.target_price.toLocaleString()}</span>
+                <span className="font-medium">R{request.target_price.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per {request.unit || 'unit'}</span>
               </div>
             )}
-            {request.province && (
+            {(request.province || request.country) && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Location:</span>
-                <span className="font-medium">{request.province}</span>
+                <span className="font-medium">
+                  {request.province ? `${request.province}${request.country ? `, ${request.country}` : ''}` : request.country || 'N/A'}
+                </span>
+              </div>
+            )}
+            {request.city && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">City:</span>
+                <span className="font-medium">{request.city}</span>
+              </div>
+            )}
+            {(request.deadline_at || request.expires_at) && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Deadline:</span>
+                <span className="font-medium">
+                  {new Date(request.deadline_at || request.expires_at).toLocaleDateString('en-ZA')}
+                </span>
+              </div>
+            )}
+            {request.created_at && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Request Created:</span>
+                <span className="font-medium">
+                  {new Date(request.created_at).toLocaleDateString('en-ZA')}
+                </span>
               </div>
             )}
             {request.notes && (
@@ -542,28 +596,36 @@ const OfferDetailsModal = ({ offer, onClose, onRespond, onCounter }) => {
           <div className="bg-green-50 p-4 rounded-lg space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Price per Unit:</span>
-              <span className="font-bold text-green-600">R{(offer.price_per_unit || 0).toLocaleString()}</span>
+              <span className="font-bold text-green-600">
+                R{((offer.price_per_unit || offer.offer_price || 0)).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Quantity Available:</span>
-              <span className="font-medium">{offer.quantity_available || 0} {request.unit || 'units'}</span>
+              <span className="font-medium">{offer.quantity_available || offer.qty || 0} {request.unit || 'units'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Total Value:</span>
               <span className="font-bold text-green-600">
-                R{((offer.price_per_unit || 0) * (offer.quantity_available || 0)).toLocaleString()}
+                R{(((offer.price_per_unit || offer.offer_price || 0) * (offer.quantity_available || offer.qty || 0))).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
             {offer.delivery_cost && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Delivery Cost:</span>
-                <span className="font-medium">R{offer.delivery_cost.toLocaleString()}</span>
+                <span className="font-medium">R{offer.delivery_cost.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             )}
             {offer.delivery_days && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Delivery Time:</span>
                 <span className="font-medium">{offer.delivery_days} days</span>
+              </div>
+            )}
+            {offer.created_at && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Created:</span>
+                <span className="font-medium">{new Date(offer.created_at).toLocaleDateString('en-ZA')}</span>
               </div>
             )}
             {timeRemaining !== null && (
@@ -582,11 +644,11 @@ const OfferDetailsModal = ({ offer, onClose, onRespond, onCounter }) => {
         </div>
         
         {/* Your Message */}
-        {offer.notes && (
+        {(offer.notes || offer.message) && (
           <div className="mb-6">
             <h3 className="font-medium text-gray-900 mb-2">Your Message to Buyer</h3>
             <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-gray-700">"{offer.notes}"</p>
+              <p className="text-gray-700">"{offer.notes || offer.message}"</p>
             </div>
           </div>
         )}
