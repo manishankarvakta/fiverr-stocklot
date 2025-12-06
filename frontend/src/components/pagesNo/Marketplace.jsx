@@ -14,11 +14,12 @@ import { useSmartSearchMutation } from "@/store/api/search.api";
 
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui";
 import { Brain, CheckCircle, Filter, MapPin, Search, Shield, Star, User, X, Bell } from "lucide-react";
-import Header from "../layout/Header";
 import DeliverableFilterBar from "../geofence/DeliverableFilterBar";
 import ListingCard from "../listings/ListingCard";
 import OrderModal from "../listings/OrderModal";
 import BiddingModal from "../listings/BiddingModal";
+import Header from '@/components/ui/common/Header';
+import Footer from '@/components/ui/common/Footer';
 function Marketplace() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -456,6 +457,7 @@ function Marketplace() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 py-4">
+      <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-emerald-900 mb-2">Browse Livestock</h1>
@@ -924,6 +926,7 @@ function Marketplace() {
           onBidPlaced={handleBidPlaced}
         />
       )}
+      <Footer />
     </div>
   );
 }

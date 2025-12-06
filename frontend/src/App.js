@@ -148,7 +148,7 @@ function App() {
       <AuthGate>
         <Router>
           <div className="App">
-            <Header />
+            {/* <Header /> */}
             <main className="min-h-screen">
               <Routes>
                 {/* Public routes */}
@@ -187,6 +187,12 @@ function App() {
                   <Route path="/orders" element={<MyOrders />} />
                   <Route path="/orders/tracking" element={<OrderTracking />} />
                   <Route path="/orders/history" element={<OrderHistory />} />
+                  
+                  {/* Seller Routes */}
+                  <Route path="/seller/listings" element={<MyListings />} />
+                  <Route path="/seller/analytics" element={<SellerAnalytics />} />
+                  <Route path="/seller/performance" element={<ListingPerformance />} />
+                  <Route path="/seller/reviews" element={<CustomerReviews />} />
                   
                   {/* Buyer Routes */}
                   <Route path="/buyer/saved-searches" element={<SavedSearches />} />
@@ -231,9 +237,9 @@ function App() {
                 
                 {/* Seller Growth Tools Routes */}
                 <Route element={<ProtectedRoute roles={['seller']} />}>
-                  {/* <Route path="/seller/listings" element={<MyListings />} /> */}
-                  {/* <Route path="/seller/analytics" element={<SellerAnalytics />} /> */}
-                  {/* <Route path="/seller/performance" element={<ListingPerformance />} /> */}
+                  <Route path="/seller/listings" element={<MyListings />} />
+                  <Route path="/seller/analytics" element={<SellerAnalytics />} />
+                  <Route path="/seller/performance" element={<ListingPerformance />} />
                   <Route path="/seller/reviews" element={<CustomerReviews />} />
                   <Route path="/seller/inventory/bulk" element={<InventoryBulkUpdate />} />
                 </Route>
@@ -261,7 +267,7 @@ function App() {
                   <Route path="/seller/dashboard/*" element={<DashboardLayout userRole="seller" />}>
                     <Route index element={<SellerAnalytics />} />
                     <Route path="analytics" element={<SellerAnalytics />} />
-                    <Route path="listings" element={<MyListings />} />
+                    <Route path="listings" element={<div>Seller Listings</div>} />
                     <Route path="orders" element={<div>Seller Orders</div>} />
                     <Route path="shipping-rates" element={<SellerShippingRates />} />
                     <Route path="trading-statements" element={<MonthlyTradingStatements />} />
@@ -277,7 +283,7 @@ function App() {
                     <Route path="expertise" element={<div>Expertise Section</div>} />
                     <Route path="photos" element={<div>Photos Section</div>} />
                     <Route path="policies" element={<div>Policies Section</div>} />
-                    <Route path="preferences" element={<div>Preferences Section</div>} />
+                    <Route path="pref/abouterences" element={<div>Preferences Section</div>} />
                     <Route path="facility" element={<div>Facility Info Section</div>} />
                     <Route path="experience" element={<div>Experience Section</div>} />
                   </Route>
@@ -316,7 +322,7 @@ function App() {
                 <Route path="*" element={<div className="text-center p-8"><h1 className="text-2xl font-bold">Page Not Found</h1></div>} />
               </Routes>
             </main>
-            <Footer />
+            {/* <Footer /> */}
           </div>
           
           {/* Global FAQ Chatbot */}
