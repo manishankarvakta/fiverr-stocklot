@@ -280,7 +280,7 @@ function App() {
                     <Route path="expertise" element={<div>Expertise Section</div>} />
                     <Route path="photos" element={<div>Photos Section</div>} />
                     <Route path="policies" element={<div>Policies Section</div>} />
-                    <Route path="preferences" element={<div>Preferences Section</div>} />
+                    <Route path="pref/abouterences" element={<div>Preferences Section</div>} />
                     <Route path="facility" element={<div>Facility Info Section</div>} />
                     <Route path="experience" element={<div>Experience Section</div>} />
                   </Route>

@@ -1,12 +1,15 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Shield, FileText, Users, AlertTriangle, Gavel, Clock } from 'lucide-react';
+import Header from '@/components/ui/common/Header';
+import Footer from '@/components/ui/common/Footer';
 
 const TermsOfService = () => {
   const lastUpdated = "January 2, 2025";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      <Header />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -392,6 +395,7 @@ const TermsOfService = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
