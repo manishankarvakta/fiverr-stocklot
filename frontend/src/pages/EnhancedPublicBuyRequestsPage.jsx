@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import SendOfferModal from '../components/buyRequests/SendOfferModal';
+import Header from '@/components/ui/common/Header';
+import Footer from "@/components/ui/common/Footer";
 // import AdvancedFiltersPanel from '../components/buyRequests/AdvancedFiltersPanel';
 import { 
   MapPin, Clock, Package, Eye, Heart, Shield, FileText, 
@@ -514,6 +516,7 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <Header />
       {/* Header - Mobile Responsive */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex-1">
@@ -642,6 +645,8 @@ const EnhancedPublicBuyRequestsPage = ({ user, onLogin }) => {
         onClose={() => setShowFilters(false)}
         onFiltersChange={handleFiltersChange}
       /> */}
+
+      <Footer />
     </div>
   );
 };

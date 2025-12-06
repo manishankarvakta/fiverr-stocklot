@@ -21,6 +21,8 @@ import { handleAPIError } from '../../services/api';
 import { useToast } from '../../hooks/use-toast';
 import PaymentRedirectService from '../../services/PaymentRedirectService';
 import { useAuth } from '../../auth/AuthProvider';
+import Header from '@/components/ui/common/Header';
+import Footer from '@/components/ui/common/Footer';
 
 export default function GuestCheckout() {
   console.log('GuestCheckout component rendering...');
@@ -259,6 +261,7 @@ export default function GuestCheckout() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+      <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -613,6 +616,7 @@ export default function GuestCheckout() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

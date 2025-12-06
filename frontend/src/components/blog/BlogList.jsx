@@ -7,6 +7,8 @@ import {
   Calendar, User, Eye, Search, Filter, ChevronRight, Clock,
   BookOpen, Tag, TrendingUp
 } from 'lucide-react';
+import Header from '@/components/ui/common/Header';
+import Footer from '@/components/ui/common/Footer';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -199,6 +201,7 @@ const BlogList = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <Header />
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
         <div className="container mx-auto px-4 py-16">
@@ -410,6 +413,7 @@ const BlogList = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { User, Package, Star, Eye, FileText, Heart, Settings, TrendingUp, Save, ArrowLeft } from 'lucide-react';
+import Header from '@/components/ui/common/Header';
+import Footer from '@/components/ui/common/Footer';
 
 const SellerProfileLayout = () => {
   const location = useLocation();
@@ -95,6 +97,7 @@ const SellerProfileLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Header />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -243,6 +246,7 @@ const SellerProfileLayout = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

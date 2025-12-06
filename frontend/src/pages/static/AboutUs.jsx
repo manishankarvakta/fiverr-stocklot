@@ -2,12 +2,15 @@ import React from 'react';
 import { Card, CardContent, Button } from '@/components/ui';
 import { CheckCircle } from 'lucide-react';
 import { useGetAllUsersQuery } from '../../store/api/admin.api';
+import Header from '@/components/ui/common/Header';
+import Footer from '@/components/ui/common/Footer';
 
 function AboutUs() {
   const users = useGetAllUsersQuery();
   console.log(users);
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+      <Header />
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -71,6 +74,7 @@ function AboutUs() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
