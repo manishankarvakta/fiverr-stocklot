@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { MessageSquare, Clock, DollarSign, TrendingUp, Check, X, Eye, Filter, Search, Calendar, Package, User } from 'lucide-react';
 import {
   useGetSellerOffersQuery,
-  useGetSellerOfferStatsQuery,
-  useRespondToOfferMutation,
-  useCreateCounterOfferMutation,
+  // useGetSellerOfferStatsQuery, // Endpoint doesn't exist
+  // useRespondToOfferMutation, // Not applicable - sellers can't respond to their own offers
+  // useCreateCounterOfferMutation, // Not applicable
 } from '../../store/api/seller.api';
 
 
@@ -20,39 +20,43 @@ const SellerOffers = () => {
   const [respondingToId, setRespondingToId] = useState(null);
 
   // Redux Toolkit Query hooks
-  const { data: offersData, isLoading: loading, refetch: refetchOffers } = useGetSellerOffersQuery({
+  // Note: API only supports status and species filters, not type/search/sort
+  const { data: offersData, isLoading: loading, error, refetch: refetchOffers } = useGetSellerOffersQuery({
     status: filters.status !== 'all' ? filters.status : undefined,
-    type: filters.type !== 'all' ? filters.type : undefined,
-    search: filters.search || undefined,
-    sort: filters.sort
+    species: filters.type !== 'all' ? filters.type : undefined,
+    // type, search, and sort are not supported by the API - filtering done client-side
   });
   
-  const { data: statsData } = useGetSellerOfferStatsQuery();
-  const [respondToOfferMutation] = useRespondToOfferMutation();
-  const [createCounterOfferMutation] = useCreateCounterOfferMutation();
+  // Stats endpoint doesn't exist - calculating from offers data instead
+  // const { data: statsData } = useGetSellerOfferStatsQuery();
+  // Sellers cannot respond to their own offers - only buyers can accept/reject
+  // const [respondToOfferMutation] = useRespondToOfferMutation();
+  // const [createCounterOfferMutation] = useCreateCounterOfferMutation();
 
-  const offers = offersData?.offers || offersData?.data?.offers || [];
-  const stats = statsData?.data || statsData || {};
+  // Extract offers from API response - API returns { offers: [...], total_count: ..., has_more: ... }
+  // or { items: [...] } depending on which endpoint is used
+  const offers = offersData?.offers || offersData?.data?.offers || offersData?.items || [];
+  
+  // Calculate stats from offers data
+  const stats = {
+    pending_offers: offers.filter(o => o.status === 'pending').length,
+    accepted_offers: offers.filter(o => o.status === 'accepted').length,
+    total_offers: offers.length,
+    acceptance_rate: offers.length > 0 
+      ? offers.filter(o => o.status === 'accepted').length / offers.length 
+      : 0
+  };
 
+  // Note: Sellers cannot respond to their own offers - only buyers can accept/reject offers
+  // These functions are kept for potential future use but won't work with current API
   const respondToOffer = async (offerId, response, message = '') => {
-    try {
-      setRespondingToId(offerId);
-      await respondToOfferMutation({ offerId, response, message: message || undefined }).unwrap();
-      refetchOffers();
-    } catch (error) {
-      console.error('Error responding to offer:', error);
-    } finally {
-      setRespondingToId(null);
-    }
+    console.warn('Seller cannot respond to their own offers. Only buyers can accept/reject offers.');
+    // This functionality doesn't exist in the current API
   };
 
   const createCounterOffer = async (offerId, counterOfferData) => {
-    try {
-      await createCounterOfferMutation({ offerId, ...counterOfferData }).unwrap();
-      refetchOffers();
-    } catch (error) {
-      console.error('Error creating counter offer:', error);
-    }
+    console.warn('Counter offers from sellers are not currently supported.');
+    // This functionality doesn't exist in the current API
   };
 
   const getOfferStatusBadge = (status) => {
@@ -72,16 +76,9 @@ const SellerOffers = () => {
     );
   };
 
-  const getOfferTypeIcon = (type) => {
-    const typeConfig = {
-      buy_request: MessageSquare,
-      direct_offer: DollarSign,
-      bulk_order: Package,
-      negotiation: TrendingUp
-    };
-    
-    const Icon = typeConfig[type] || MessageSquare;
-    return <Icon className="h-4 w-4" />;
+  const getOfferTypeIcon = () => {
+    // All offers are on buy requests
+    return <MessageSquare className="h-4 w-4" />;
   };
 
   const calculateTimeRemaining = (expiresAt) => {
@@ -116,6 +113,68 @@ const SellerOffers = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-red-900 mb-2">Error Loading Offers</h3>
+          <p className="text-red-700 mb-4">
+            {error?.data?.detail || error?.message || 'Failed to load offers. Please try again.'}
+          </p>
+          <button
+            onClick={() => refetchOffers()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Client-side filtering for search and sort (since API doesn't support these)
+  let filteredOffers = [...offers];
+  
+  // Search filter (client-side)
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase();
+    filteredOffers = filteredOffers.filter(offer => {
+      const request = offer.request || {};
+      return (
+        request.species?.toLowerCase().includes(searchLower) ||
+        request.breed?.toLowerCase().includes(searchLower) ||
+        offer.notes?.toLowerCase().includes(searchLower) ||
+        offer.id?.toLowerCase().includes(searchLower)
+      );
+    });
+  }
+  
+  // Sort filter (client-side)
+  if (filters.sort === 'oldest') {
+    filteredOffers.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  } else if (filters.sort === 'highest_value') {
+    filteredOffers.sort((a, b) => {
+      const aValue = (a.price_per_unit || 0) * (a.quantity_available || 0);
+      const bValue = (b.price_per_unit || 0) * (b.quantity_available || 0);
+      return bValue - aValue;
+    });
+  } else if (filters.sort === 'lowest_value') {
+    filteredOffers.sort((a, b) => {
+      const aValue = (a.price_per_unit || 0) * (a.quantity_available || 0);
+      const bValue = (b.price_per_unit || 0) * (b.quantity_available || 0);
+      return aValue - bValue;
+    });
+  } else if (filters.sort === 'expiring_soon') {
+    filteredOffers.sort((a, b) => {
+      const aExpiry = a.expires_at ? new Date(a.expires_at) : new Date(0);
+      const bExpiry = b.expires_at ? new Date(b.expires_at) : new Date(0);
+      return aExpiry - bExpiry;
+    });
+  } else {
+    // Default: newest first
+    filteredOffers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -126,14 +185,16 @@ const SellerOffers = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Calculate from offers data */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending Offers</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.pending_offers || 0}</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {offers.filter(o => o.status === 'pending').length}
+                </p>
               </div>
               <div className="p-3 rounded-full bg-yellow-100">
                 <Clock className="h-6 w-6 text-yellow-600" />
@@ -146,8 +207,10 @@ const SellerOffers = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Accepted This Month</p>
-                <p className="text-2xl font-bold text-green-600">{stats.accepted_this_month || 0}</p>
+                <p className="text-sm font-medium text-gray-600">Accepted Offers</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {offers.filter(o => o.status === 'accepted').length}
+                </p>
               </div>
               <div className="p-3 rounded-full bg-green-100">
                 <Check className="h-6 w-6 text-green-600" />
@@ -160,8 +223,8 @@ const SellerOffers = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Average Offer Value</p>
-                <p className="text-2xl font-bold text-blue-600">R{(stats.average_offer_value || 0).toLocaleString()}</p>
+                <p className="text-sm font-medium text-gray-600">Total Offers</p>
+                <p className="text-2xl font-bold text-blue-600">{offers.length}</p>
               </div>
               <div className="p-3 rounded-full bg-blue-100">
                 <DollarSign className="h-6 w-6 text-blue-600" />
@@ -175,7 +238,11 @@ const SellerOffers = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Acceptance Rate</p>
-                <p className="text-2xl font-bold text-purple-600">{((stats.acceptance_rate || 0) * 100).toFixed(1)}%</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {offers.length > 0 
+                    ? ((offers.filter(o => o.status === 'accepted').length / offers.length) * 100).toFixed(1)
+                    : 0}%
+                </p>
               </div>
               <div className="p-3 rounded-full bg-purple-100">
                 <TrendingUp className="h-6 w-6 text-purple-600" />
@@ -218,11 +285,11 @@ const SellerOffers = () => {
               onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
             >
-              <option value="all">All Types</option>
-              <option value="buy_request">Buy Request</option>
-              <option value="direct_offer">Direct Offer</option>
-              <option value="bulk_order">Bulk Order</option>
-              <option value="negotiation">Negotiation</option>
+              <option value="all">All Species</option>
+              <option value="Cattle">Cattle</option>
+              <option value="Goats">Goats</option>
+              <option value="Sheep">Sheep</option>
+              <option value="Poultry">Poultry</option>
             </select>
             
             <select
@@ -240,7 +307,7 @@ const SellerOffers = () => {
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-600">
-                {offers.length} offers
+                {filteredOffers.length} of {offers.length} offers
               </span>
             </div>
           </div>
@@ -249,69 +316,69 @@ const SellerOffers = () => {
 
       {/* Offers List */}
       <div className="space-y-4">
-        {offers.map((offer) => {
+        {filteredOffers.map((offer) => {
           const timeRemaining = calculateTimeRemaining(offer.expires_at);
-          const isResponding = respondingToId === offer.id;
+          const request = offer.request || {};
+          const totalValue = (offer.price_per_unit || 0) * (offer.quantity_available || 0);
           
           return (
             <Card key={offer.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                  {/* Offer Type & Status */}
+                  {/* Status */}
                   <div className="lg:col-span-2">
                     <div className="flex items-center gap-2 mb-2">
-                      {getOfferTypeIcon(offer.type)}
-                      <span className="text-sm font-medium text-gray-900">
-                        {offer.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </span>
+                      {getOfferTypeIcon()}
+                      <span className="text-sm font-medium text-gray-900">Buy Request</span>
                     </div>
                     {getOfferStatusBadge(offer.status)}
                   </div>
                   
-                  {/* Buyer Info */}
-                  <div className="lg:col-span-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium text-gray-900">{offer.buyer_name}</span>
-                    </div>
-                    <p className="text-xs text-gray-500">{offer.buyer_email}</p>
-                    {offer.buyer_rating && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-xs text-yellow-600">★</span>
-                        <span className="text-xs text-gray-600">{offer.buyer_rating.toFixed(1)}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Listing Info */}
+                  {/* Buy Request Info */}
                   <div className="lg:col-span-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Package className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium text-gray-900 truncate">{offer.listing_title}</span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Package className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium text-gray-900">
+                          {request.species || 'N/A'} {request.breed ? `- ${request.breed}` : ''}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Buyer wants: {request.qty || 0} {request.unit || 'units'}
+                      </p>
+                      {request.target_price && (
+                        <p className="text-xs text-gray-500">
+                          Target: R{request.target_price.toLocaleString()}
+                        </p>
+                      )}
+                      {request.province && (
+                        <p className="text-xs text-blue-600">📍 {request.province}</p>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600">
-                      Quantity: {offer.quantity} {offer.unit}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      ID: {offer.listing_id?.slice(0, 8)}...
-                    </p>
                   </div>
                   
-                  {/* Offer Details */}
-                  <div className="lg:col-span-2">
+                  {/* Your Offer Details */}
+                  <div className="lg:col-span-3">
                     <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-500 mb-1">Your Offer:</p>
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-4 w-4 text-green-600" />
                         <span className="font-bold text-green-600">
-                          R{offer.offered_price.toLocaleString()}
+                          R{(offer.price_per_unit || 0).toLocaleString()}
                         </span>
+                        <span className="text-xs text-gray-500">per {request.unit || 'unit'}</span>
                       </div>
-                      <p className="text-xs text-gray-600">
-                        per {offer.unit}
+                      <p className="text-sm text-gray-600">
+                        Quantity: {offer.quantity_available || 0} {request.unit || 'units'}
                       </p>
                       <p className="text-sm font-medium text-gray-900">
-                        Total: R{(offer.offered_price * offer.quantity).toLocaleString()}
+                        Total: R{totalValue.toLocaleString()}
                       </p>
+                      {offer.delivery_cost && (
+                        <p className="text-xs text-blue-600">
+                          + R{offer.delivery_cost.toLocaleString()} delivery
+                        </p>
+                      )}
                     </div>
                   </div>
                   
@@ -330,59 +397,50 @@ const SellerOffers = () => {
                           </span>
                         </div>
                       )}
-                      {offer.delivery_required && (
-                        <p className="text-xs text-blue-600">Delivery Required</p>
+                      {offer.delivery_days && (
+                        <p className="text-xs text-blue-600">
+                          Delivery: {offer.delivery_days} days
+                        </p>
                       )}
                     </div>
                   </div>
                   
                   {/* Actions */}
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-2">
                     <div className="flex flex-col gap-2">
                       <button
                         onClick={() => setSelectedOffer(offer)}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm px-3 py-1.5 border border-blue-200 rounded hover:bg-blue-50"
                       >
                         <Eye className="h-4 w-4" />
-                        View
+                        View Details
                       </button>
                       
                       {offer.status === 'pending' && (
-                        <>
-                          <button
-                            onClick={() => respondToOffer(offer.id, 'accepted')}
-                            disabled={isResponding}
-                            className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm disabled:opacity-50"
-                          >
-                            <Check className="h-4 w-4" />
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => respondToOffer(offer.id, 'rejected')}
-                            disabled={isResponding}
-                            className="flex items-center gap-1 text-red-600 hover:text-red-700 text-sm disabled:opacity-50"
-                          >
-                            <X className="h-4 w-4" />
-                            Decline
-                          </button>
-                          <button
-                            onClick={() => setSelectedOffer(offer)}
-                            className="flex items-center gap-1 text-orange-600 hover:text-orange-700 text-sm"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                            Counter
-                          </button>
-                        </>
+                        <p className="text-xs text-gray-500 italic">
+                          Waiting for buyer response
+                        </p>
+                      )}
+                      {offer.status === 'accepted' && (
+                        <p className="text-xs text-green-600 font-medium">
+                          ✓ Accepted by buyer
+                        </p>
+                      )}
+                      {offer.status === 'declined' && (
+                        <p className="text-xs text-red-600 font-medium">
+                          ✗ Declined by buyer
+                        </p>
                       )}
                     </div>
                   </div>
                 </div>
                 
-                {/* Offer Message */}
-                {offer.message && (
+                {/* Offer Notes */}
+                {offer.notes && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-xs font-medium text-gray-500 mb-1">Your Message:</p>
                     <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
-                      "{offer.message}"
+                      "{offer.notes}"
                     </p>
                   </div>
                 )}
@@ -392,7 +450,7 @@ const SellerOffers = () => {
         })}
       </div>
 
-      {offers.length === 0 && (
+      {filteredOffers.length === 0 && offers.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">
             <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -400,7 +458,7 @@ const SellerOffers = () => {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No offers yet</h3>
             <p className="text-gray-500">
-              Your offers from buyers will appear here
+              Offers you make on buy requests will appear here
             </p>
           </CardContent>
         </Card>
@@ -421,41 +479,7 @@ const SellerOffers = () => {
 
 // Offer Details Modal Component
 const OfferDetailsModal = ({ offer, onClose, onRespond, onCounter }) => {
-  const [responseType, setResponseType] = useState('');
-  const [responseMessage, setResponseMessage] = useState('');
-  const [counterOffer, setCounterOffer] = useState({
-    price: offer.offered_price,
-    quantity: offer.quantity,
-    message: ''
-  });
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleResponse = async () => {
-    if (!responseType) return;
-    
-    setSubmitting(true);
-    try {
-      await onRespond(offer.id, responseType, responseMessage);
-      onClose();
-    } catch (error) {
-      console.error('Error responding to offer:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCounterOffer = async () => {
-    setSubmitting(true);
-    try {
-      await onCounter(offer.id, counterOffer);
-      onClose();
-    } catch (error) {
-      console.error('Error creating counter offer:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+  const request = offer.request || {};
   const timeRemaining = offer.expires_at 
     ? Math.max(0, Math.floor((new Date(offer.expires_at) - new Date()) / (1000 * 60 * 60)))
     : null;
@@ -473,206 +497,137 @@ const OfferDetailsModal = ({ offer, onClose, onRespond, onCounter }) => {
           </button>
         </div>
         
-        {/* Offer Information */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          <div>
-            <h3 className="font-medium text-gray-900 mb-3">Buyer Information</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Name:</span>
-                <span>{offer.buyer_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Email:</span>
-                <span>{offer.buyer_email}</span>
-              </div>
-              {offer.buyer_rating && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Rating:</span>
-                  <span>{offer.buyer_rating.toFixed(1)} ⭐</span>
-                </div>
-              )}
+        {/* Buy Request Information */}
+        <div className="mb-6">
+          <h3 className="font-medium text-gray-900 mb-3">Buy Request Details</h3>
+          <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Species:</span>
+              <span className="font-medium">{request.species || 'N/A'}</span>
             </div>
+            {request.breed && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Breed:</span>
+                <span className="font-medium">{request.breed}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-600">Quantity Needed:</span>
+              <span className="font-medium">{request.qty || 0} {request.unit || 'units'}</span>
+            </div>
+            {request.target_price && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Target Price:</span>
+                <span className="font-medium">R{request.target_price.toLocaleString()}</span>
+              </div>
+            )}
+            {request.province && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Location:</span>
+                <span className="font-medium">{request.province}</span>
+              </div>
+            )}
+            {request.notes && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-gray-600 mb-1">Buyer Notes:</p>
+                <p className="text-gray-700">"{request.notes}"</p>
+              </div>
+            )}
           </div>
-          
-          <div>
-            <h3 className="font-medium text-gray-900 mb-3">Offer Details</h3>
-            <div className="space-y-2 text-sm">
+        </div>
+        
+        {/* Your Offer Details */}
+        <div className="mb-6">
+          <h3 className="font-medium text-gray-900 mb-3">Your Offer</h3>
+          <div className="bg-green-50 p-4 rounded-lg space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Price per Unit:</span>
+              <span className="font-bold text-green-600">R{(offer.price_per_unit || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Quantity Available:</span>
+              <span className="font-medium">{offer.quantity_available || 0} {request.unit || 'units'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total Value:</span>
+              <span className="font-bold text-green-600">
+                R{((offer.price_per_unit || 0) * (offer.quantity_available || 0)).toLocaleString()}
+              </span>
+            </div>
+            {offer.delivery_cost && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Offered Price:</span>
-                <span className="font-medium">R{offer.offered_price.toLocaleString()}</span>
+                <span className="text-gray-600">Delivery Cost:</span>
+                <span className="font-medium">R{offer.delivery_cost.toLocaleString()}</span>
               </div>
+            )}
+            {offer.delivery_days && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Quantity:</span>
-                <span>{offer.quantity} {offer.unit}</span>
+                <span className="text-gray-600">Delivery Time:</span>
+                <span className="font-medium">{offer.delivery_days} days</span>
               </div>
+            )}
+            {timeRemaining !== null && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Total Value:</span>
-                <span className="font-bold text-green-600">
-                  R{(offer.offered_price * offer.quantity).toLocaleString()}
+                <span className="text-gray-600">Expires:</span>
+                <span className={timeRemaining > 0 ? 'text-orange-600' : 'text-red-600'}>
+                  {timeRemaining > 0 ? `${timeRemaining}h remaining` : 'Expired'}
                 </span>
               </div>
-              {timeRemaining && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Expires:</span>
-                  <span className="text-orange-600">{timeRemaining}h remaining</span>
-                </div>
-              )}
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-600">Status:</span>
+              {getOfferStatusBadge(offer.status)}
             </div>
           </div>
         </div>
         
-        {/* Offer Message */}
-        {offer.message && (
+        {/* Your Message */}
+        {offer.notes && (
           <div className="mb-6">
-            <h3 className="font-medium text-gray-900 mb-2">Buyer Message</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-gray-700">"{offer.message}"</p>
+            <h3 className="font-medium text-gray-900 mb-2">Your Message to Buyer</h3>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-gray-700">"{offer.notes}"</p>
             </div>
           </div>
         )}
         
-        {/* Response Options */}
+        {/* Status Message */}
         {offer.status === 'pending' && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-medium text-gray-900 mb-3">Response Options</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  onClick={() => setResponseType('accepted')}
-                  className={`p-3 border rounded-lg text-center transition-colors ${
-                    responseType === 'accepted'
-                      ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-300 hover:border-green-300'
-                  }`}
-                >
-                  <Check className="h-5 w-5 mx-auto mb-1" />
-                  Accept Offer
-                </button>
-                
-                <button
-                  onClick={() => setResponseType('rejected')}
-                  className={`p-3 border rounded-lg text-center transition-colors ${
-                    responseType === 'rejected'
-                      ? 'border-red-500 bg-red-50 text-red-700'
-                      : 'border-gray-300 hover:border-red-300'
-                  }`}
-                >
-                  <X className="h-5 w-5 mx-auto mb-1" />
-                  Decline Offer
-                </button>
-                
-                <button
-                  onClick={() => setResponseType('counter')}
-                  className={`p-3 border rounded-lg text-center transition-colors ${
-                    responseType === 'counter'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 hover:border-blue-300'
-                  }`}
-                >
-                  <MessageSquare className="h-5 w-5 mx-auto mb-1" />
-                  Counter Offer
-                </button>
-              </div>
-            </div>
-            
-            {/* Response Message */}
-            {(responseType === 'accepted' || responseType === 'rejected') && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Message to Buyer (Optional)
-                </label>
-                <textarea
-                  value={responseMessage}
-                  onChange={(e) => setResponseMessage(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  rows={3}
-                  placeholder="Add a message to the buyer..."
-                />
-              </div>
-            )}
-            
-            {/* Counter Offer Form */}
-            {responseType === 'counter' && (
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">Counter Offer Details</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Counter Price (R)
-                    </label>
-                    <input
-                      type="number"
-                      value={counterOffer.price}
-                      onChange={(e) => setCounterOffer(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Quantity
-                    </label>
-                    <input
-                      type="number"
-                      value={counterOffer.quantity}
-                      onChange={(e) => setCounterOffer(prev => ({ ...prev, quantity: parseInt(e.target.value) }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Counter Offer Message
-                  </label>
-                  <textarea
-                    value={counterOffer.message}
-                    onChange={(e) => setCounterOffer(prev => ({ ...prev, message: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    rows={3}
-                    placeholder="Explain your counter offer..."
-                  />
-                </div>
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-700">
-                    Total Counter Offer: R{(counterOffer.price * counterOffer.quantity).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              
-              {responseType === 'counter' ? (
-                <button
-                  onClick={handleCounterOffer}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Sending...' : 'Send Counter Offer'}
-                </button>
-              ) : responseType && (
-                <button
-                  onClick={handleResponse}
-                  disabled={submitting}
-                  className={`px-4 py-2 rounded-lg text-white disabled:opacity-50 ${
-                    responseType === 'accepted' 
-                      ? 'bg-green-600 hover:bg-green-700' 
-                      : 'bg-red-600 hover:bg-red-700'
-                  }`}
-                >
-                  {submitting ? 'Sending...' : `${responseType === 'accepted' ? 'Accept' : 'Decline'} Offer`}
-                </button>
-              )}
-            </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-yellow-800">
+              <Clock className="h-4 w-4 inline mr-2" />
+              This offer is pending buyer response. You will be notified when the buyer accepts or declines.
+            </p>
           </div>
         )}
+        
+        {offer.status === 'accepted' && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-green-800">
+              <Check className="h-4 w-4 inline mr-2" />
+              This offer has been accepted by the buyer. An order should be created automatically.
+            </p>
+          </div>
+        )}
+        
+        {offer.status === 'declined' && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-red-800">
+              <X className="h-4 w-4 inline mr-2" />
+              This offer was declined by the buyer.
+            </p>
+          </div>
+        )}
+        
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

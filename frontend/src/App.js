@@ -231,13 +231,11 @@ function App() {
                 
                 {/* Seller Growth Tools Routes */}
                 <Route element={<ProtectedRoute roles={['seller']} />}>
-                  <Route path="/seller/listings" element={<MyListings />} />
-                  <Route path="/seller/analytics" element={<SellerAnalytics />} />
-                  <Route path="/seller/performance" element={<ListingPerformance />} />
+                  {/* <Route path="/seller/listings" element={<MyListings />} /> */}
+                  {/* <Route path="/seller/analytics" element={<SellerAnalytics />} /> */}
+                  {/* <Route path="/seller/performance" element={<ListingPerformance />} /> */}
                   <Route path="/seller/reviews" element={<CustomerReviews />} />
                   <Route path="/seller/inventory/bulk" element={<InventoryBulkUpdate />} />
-                  <Route path="/seller/promotions" element={<SellerCampaigns />} />
-                  <Route path="/seller/offers" element={<SellerOffers />} />
                 </Route>
                 
                 {/* Buyer Personalization Routes */}
@@ -267,6 +265,8 @@ function App() {
                     <Route path="orders" element={<div>Seller Orders</div>} />
                     <Route path="shipping-rates" element={<SellerShippingRates />} />
                     <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+                    <Route path="promotions" element={<SellerCampaigns />} />
+                    <Route path="offers" element={<SellerOffers />} />
                   </Route>
                   
                   {/* Seller Profile with Sidebar Navigation */}

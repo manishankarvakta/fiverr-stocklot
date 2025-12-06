@@ -2,8 +2,8 @@ import { baseApi } from './baseApi';
 
 export const sellerApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Seller Analytics
-    getSellerAnalytics: builder.query({
+    // Seller Analytics (for current authenticated seller)
+    getMySellerAnalytics: builder.query({
       query: (params = {}) => ({
         url: '/seller/analytics',
         params: {
@@ -127,8 +127,8 @@ export const sellerApi = baseApi.injectEndpoints({
 });
 
 export const {
-  useGetSellerAnalyticsQuery,
-  useLazyGetSellerAnalyticsQuery,
+  useGetMySellerAnalyticsQuery,
+  useLazyGetMySellerAnalyticsQuery,
   useGetSellerCampaignsQuery,
   useLazyGetSellerCampaignsQuery,
   useCreateSellerCampaignMutation,
