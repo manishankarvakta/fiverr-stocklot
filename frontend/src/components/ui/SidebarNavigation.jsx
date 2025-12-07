@@ -89,8 +89,8 @@ const SidebarNavigation = ({
           icon: TrendingUp,
           group: 'marketing',
           children: [
-            { id: 'campaigns', label: 'Campaigns', path: '/seller/promotions' },
-            { id: 'offers', label: 'Offers', path: '/seller/offers' }
+            { id: 'campaigns', label: 'Campaigns', path: '/seller/dashboard/promotions' },
+            { id: 'offers', label: 'Offers', path: '/seller/dashboard/offers' }
           ]
         }
       ];

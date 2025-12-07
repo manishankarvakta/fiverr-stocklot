@@ -8245,11 +8245,26 @@ async def track_payment_analytics(
 
 @api_router.get("/seller/analytics")
 async def get_seller_own_analytics(
-    period: str = "30days",
+    period: str = Query("30days", description="Time period for analytics"),
     current_user: User = Depends(get_current_user)
 ):
     """Get comprehensive analytics for the authenticated seller"""
-    if not current_user or "seller" not in current_user.roles:
+    logger.info(f"=== SELLER ANALYTICS REQUEST ===")
+    logger.info(f"User ID: {current_user.id if current_user else 'None'}")
+    logger.info(f"User Roles: {current_user.roles if current_user else 'None'}")
+    logger.info(f"Period: {period}")
+    logger.info(f"Request received at: {datetime.now(timezone.utc)}")
+    
+    # Allow users with "seller" or "both" roles
+    user_roles = current_user.roles if current_user else []
+    has_seller_access = "seller" in user_roles or "both" in user_roles
+    
+    if not current_user:
+        logger.warning("No current user for seller analytics")
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if not has_seller_access:
+        logger.warning(f"User {current_user.id} does not have seller access. Roles: {user_roles}")
         raise HTTPException(status_code=403, detail="Seller access required")
     
     try:
@@ -8265,17 +8280,32 @@ async def get_seller_own_analytics(
         start_date = datetime.now(timezone.utc) - timedelta(days=period_days)
         seller_id = current_user.id
         
+        logger.info(f"Fetching analytics for seller {seller_id}, period: {period_days} days")
+        
         # Get seller's listings
-        listings = await db.listings.find({"seller_id": seller_id}).to_list(length=None)
-        total_listings = len(listings)
-        active_listings = len([l for l in listings if l.get("status") == "active"])
-        sold_listings = len([l for l in listings if l.get("status") == "sold"])
+        try:
+            listings = await db.listings.find({"seller_id": seller_id}).to_list(length=None)
+            total_listings = len(listings)
+            active_listings = len([l for l in listings if l.get("status") == "active"])
+            sold_listings = len([l for l in listings if l.get("status") == "sold"])
+            logger.info(f"Found {total_listings} listings ({active_listings} active, {sold_listings} sold)")
+        except Exception as e:
+            logger.error(f"Error fetching listings: {e}")
+            listings = []
+            total_listings = 0
+            active_listings = 0
+            sold_listings = 0
         
         # Get orders for this seller
-        orders = await db.orders.find({
-            "seller_id": seller_id,
-            "created_at": {"$gte": start_date}
-        }).to_list(length=None)
+        try:
+            orders = await db.orders.find({
+                "seller_id": seller_id,
+                "created_at": {"$gte": start_date}
+            }).to_list(length=None)
+            logger.info(f"Found {len(orders)} orders in period")
+        except Exception as e:
+            logger.error(f"Error fetching orders: {e}")
+            orders = []
         
         # Calculate revenue from completed orders
         total_revenue = sum(
@@ -8284,82 +8314,160 @@ async def get_seller_own_analytics(
             if order.get("status") in ["completed", "delivered"]
         )
         
-        # Get listing views
-        listing_views_data = await db.analytics_events.aggregate([
-            {"$match": {
-                "event_type": "pdp_view",
-                "timestamp": {"$gte": start_date}
-            }},
-            {"$lookup": {
-                "from": "listings",
-                "localField": "listing_id",
-                "foreignField": "id",
-                "as": "listing"
-            }},
-            {"$unwind": "$listing"},
-            {"$match": {"listing.seller_id": seller_id}},
-            {"$group": {
-                "_id": "$listing_id",
-                "views": {"$sum": 1},
-                "title": {"$first": "$listing.title"},
-                "listing": {"$first": "$listing"}
-            }},
-            {"$sort": {"views": -1}},
-            {"$limit": 10}
-        ]).to_list(length=10)
+        # Get listing views - simplified approach to avoid slow aggregation
+        # First, get views from listings directly (if they have view_count field)
+        total_views = 0
+        listing_views_data = []
         
-        total_views = sum(item["views"] for item in listing_views_data)
+        try:
+            # Try to get view counts from listings directly (faster)
+            for listing in listings:
+                view_count = listing.get("view_count", 0) or 0
+                total_views += view_count
+                if len(listing_views_data) < 5 and view_count > 0:
+                    listing_views_data.append({
+                        "_id": listing.get("id"),
+                        "views": view_count,
+                        "title": listing.get("title", "Untitled")
+                    })
+            
+            # Sort by views and limit
+            listing_views_data = sorted(listing_views_data, key=lambda x: x.get("views", 0), reverse=True)[:5]
+            
+            # If no view counts in listings, try analytics_events (but with timeout protection)
+            if total_views == 0:
+                try:
+                    # Simplified query - just count views, don't do complex aggregation
+                    view_count = await db.analytics_events.count_documents({
+                        "event_type": "pdp_view",
+                        "timestamp": {"$gte": start_date}
+                    })
+                    # Get listing IDs from the events
+                    listing_ids = await db.analytics_events.distinct("listing_id", {
+                        "event_type": "pdp_view",
+                        "timestamp": {"$gte": start_date}
+                    })
+                    # Filter to seller's listings
+                    seller_listing_ids = [l.get("id") for l in listings]
+                    seller_views = len([lid for lid in listing_ids if lid in seller_listing_ids])
+                    total_views = seller_views
+                except Exception as e:
+                    logger.warning(f"Could not fetch analytics events: {e}")
+                    total_views = 0
+        except Exception as e:
+            logger.warning(f"Error calculating views: {e}")
+            total_views = 0
         
         # Calculate conversion rate (orders / views)
         conversion_rate = (len(orders) / total_views * 100) if total_views > 0 else 0
         
-        # Get previous period for growth calculation
-        previous_start = start_date - timedelta(days=period_days)
-        previous_orders = await db.orders.find({
-            "seller_id": seller_id,
-            "created_at": {"$gte": previous_start, "$lt": start_date}
-        }).to_list(length=None)
-        previous_revenue = sum(
-            float(order.get("total_amount", 0)) 
-            for order in previous_orders 
-            if order.get("status") in ["completed", "delivered"]
-        )
+        # Get previous period for growth calculation - simplified
+        previous_revenue = 0
+        try:
+            previous_start = start_date - timedelta(days=period_days)
+            previous_orders = await db.orders.find({
+                "seller_id": seller_id,
+                "created_at": {"$gte": previous_start, "$lt": start_date}
+            }).to_list(length=100)  # Limit to avoid slow queries
+            previous_revenue = sum(
+                float(order.get("total_amount", 0)) 
+                for order in previous_orders 
+                if order.get("status") in ["completed", "delivered"]
+            )
+        except Exception as e:
+            logger.warning(f"Error fetching previous period revenue: {e}")
+            previous_revenue = 0
         
         # Calculate growth percentages
         revenue_growth = ((total_revenue - previous_revenue) / previous_revenue * 100) if previous_revenue > 0 else 0
         listing_growth = 0  # Can be calculated if needed
         view_growth = 0  # Can be calculated if needed
         
-        # Monthly revenue breakdown
+        # Monthly revenue breakdown - simplified to avoid multiple queries
         monthly_revenue = []
-        current = start_date
         month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        while current < datetime.now(timezone.utc):
-            month_end = min(current + timedelta(days=30), datetime.now(timezone.utc))
-            month_orders = await db.orders.find({
-                "seller_id": seller_id,
-                "created_at": {"$gte": current, "$lt": month_end},
-                "status": {"$in": ["completed", "delivered"]}
-            }).to_list(length=None)
-            month_revenue = sum(float(order.get("total_amount", 0)) for order in month_orders)
-            monthly_revenue.append({
-                "month": month_names[current.month - 1],
-                "revenue": month_revenue * 100  # Convert to cents for frontend
-            })
-            current = month_end
+        try:
+            # Group orders by month from already fetched orders
+            monthly_revenue_dict = {}
+            for order in orders:
+                if order.get("status") in ["completed", "delivered"]:
+                    order_date = order.get("created_at")
+                    if isinstance(order_date, str):
+                        try:
+                            order_date = datetime.fromisoformat(order_date.replace('Z', '+00:00'))
+                        except:
+                            continue
+                    elif not isinstance(order_date, datetime):
+                        continue
+                    
+                    month_key = order_date.strftime("%Y-%m")
+                    if month_key not in monthly_revenue_dict:
+                        monthly_revenue_dict[month_key] = 0
+                    monthly_revenue_dict[month_key] += float(order.get("total_amount", 0))
+            
+            # Convert to list format
+            for month_key, revenue in sorted(monthly_revenue_dict.items()):
+                month_num = int(month_key.split("-")[1])
+                monthly_revenue.append({
+                    "month": month_names[month_num - 1],
+                    "revenue": int(revenue * 100)  # Convert to cents
+                })
+        except Exception as e:
+            logger.warning(f"Error calculating monthly revenue: {e}")
         
-        # Top listings
+        # Ensure at least one entry for frontend rendering
+        if not monthly_revenue:
+            monthly_revenue = [{"month": month_names[datetime.now(timezone.utc).month - 1], "revenue": 0}]
+        
+        # Top listings - use already fetched data
         top_listings = []
-        for item in listing_views_data[:5]:
-            listing_id = item["_id"]
-            listing_orders = [o for o in orders if o.get("listing_id") == listing_id]
-            listing_revenue = sum(float(o.get("total_amount", 0)) for o in listing_orders) * 100  # Convert to cents
-            top_listings.append({
-                "id": listing_id,
-                "title": item.get("title", "Untitled"),
-                "views": item["views"],
-                "revenue": listing_revenue
-            })
+        try:
+            # Get top listings by views or revenue
+            for item in listing_views_data[:5]:
+                listing_id = item.get("_id")
+                if listing_id:
+                    listing_orders = [o for o in orders if o.get("listing_id") == listing_id]
+                    listing_revenue = sum(float(o.get("total_amount", 0)) for o in listing_orders) * 100  # Convert to cents
+                    top_listings.append({
+                        "id": listing_id,
+                        "title": item.get("title", "Untitled"),
+                        "views": item.get("views", 0),
+                        "revenue": listing_revenue
+                    })
+            
+            # If no views data, use listings with orders
+            if not top_listings and orders:
+                listing_revenues = {}
+                for order in orders:
+                    lid = order.get("listing_id")
+                    if lid:
+                        if lid not in listing_revenues:
+                            listing_revenues[lid] = 0
+                        listing_revenues[lid] += float(order.get("total_amount", 0)) * 100
+                
+                for listing_id, revenue in sorted(listing_revenues.items(), key=lambda x: x[1], reverse=True)[:5]:
+                    listing = next((l for l in listings if l.get("id") == listing_id), None)
+                    if listing:
+                        top_listings.append({
+                            "id": listing_id,
+                            "title": listing.get("title", "Untitled"),
+                            "views": listing.get("view_count", 0),
+                            "revenue": revenue
+                        })
+            
+            # If still no top listings, just use first 5 active listings
+            if not top_listings:
+                for listing in listings[:5]:
+                    if listing.get("status") == "active":
+                        top_listings.append({
+                            "id": listing.get("id"),
+                            "title": listing.get("title", "Untitled"),
+                            "views": listing.get("view_count", 0),
+                            "revenue": 0
+                        })
+        except Exception as e:
+            logger.warning(f"Error building top listings: {e}")
+            top_listings = []
         
         # Category breakdown (simplified - can be enhanced)
         category_breakdown = []
@@ -8369,9 +8477,9 @@ async def get_seller_own_analytics(
                 {"category": "Livestock", "percentage": 100, "revenue": total_revenue * 100}
             ]
         
-        return {
+        result = {
             "overview": {
-                "total_revenue": total_revenue * 100,  # Convert to cents
+                "total_revenue": int(total_revenue * 100),  # Convert to cents
                 "total_listings": total_listings,
                 "total_views": total_views,
                 "conversion_rate": round(conversion_rate, 2),
@@ -8383,15 +8491,38 @@ async def get_seller_own_analytics(
                 "listing_growth": listing_growth,
                 "view_growth": view_growth
             },
-            "top_listings": top_listings,
+            "top_listings": top_listings if top_listings else [],
             "monthly_revenue": monthly_revenue if monthly_revenue else [
                 {"month": "No Data", "revenue": 0}
             ],
-            "category_breakdown": category_breakdown
+            "category_breakdown": category_breakdown if category_breakdown else []
         }
+        
+        logger.info(f"Returning analytics data: {total_listings} listings, {len(orders)} orders, {total_views} views")
+        logger.info(f"Response prepared in {datetime.now(timezone.utc)}")
+        return result
     except Exception as e:
-        logger.error(f"Error fetching seller analytics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+        logger.error(f"Error fetching seller analytics: {e}", exc_info=True)
+        # Return empty data structure instead of raising error to prevent frontend issues
+        return {
+            "overview": {
+                "total_revenue": 0,
+                "total_listings": 0,
+                "total_views": 0,
+                "conversion_rate": 0,
+                "active_listings": 0,
+                "sold_listings": 0
+            },
+            "performance": {
+                "revenue_growth": 0,
+                "listing_growth": 0,
+                "view_growth": 0
+            },
+            "top_listings": [],
+            "monthly_revenue": [],
+            "category_breakdown": [],
+            "error": str(e)
+        }
 
 @api_router.get("/admin/analytics/seller/{seller_id}")
 async def get_seller_analytics(
@@ -13403,13 +13534,42 @@ async def get_public_buy_requests(
     """Get public buy requests list with filters, sorting, and pagination"""
     try:
         # Build query for open, non-expired requests
+        # Handle both "open" and "OPEN" status values
+        now = datetime.now(timezone.utc)
+        
+        # First, let's check what we have in the database
+        total_open = await db.buy_requests.count_documents({"status": {"$in": ["open", "OPEN"]}})
+        logger.info(f"Total open buy requests in DB: {total_open}")
+        
+        # Count with expires_at > now
+        future_expires = await db.buy_requests.count_documents({
+            "status": {"$in": ["open", "OPEN"]},
+            "expires_at": {"$ne": None, "$gt": now}
+        })
+        logger.info(f"Open requests with future expires_at: {future_expires}")
+        
+        # Count with no expires_at
+        no_expires = await db.buy_requests.count_documents({
+            "status": {"$in": ["open", "OPEN"]},
+            "$or": [
+                {"expires_at": None},
+                {"expires_at": {"$exists": False}}
+            ]
+        })
+        logger.info(f"Open requests with no expires_at: {no_expires}")
+        
+        # Build query - include requests without expires_at or with future expires_at
+        # Simplified: status must be open, and either no expires_at or expires_at in future
         query = {
-            "status": "open",
-            "expires_at": {
-                "$ne": None,  # Not null
-                "$gt": datetime.now(timezone.utc)  # And greater than now
-            }
+            "status": {"$in": ["open", "OPEN"]}  # Accept both lowercase and uppercase
         }
+        
+        # Add expires_at condition - either missing/null or in the future
+        query["$or"] = [
+            {"expires_at": {"$gt": now}},  # Has expires_at and it's in the future
+            {"expires_at": None},  # No expires_at
+            {"expires_at": {"$exists": False}}  # expires_at field doesn't exist
+        ]
         
         # Apply basic filters
         if species:
@@ -13570,8 +13730,18 @@ async def get_public_buy_requests(
             sort_field = [("created_at", -1)]
         
         # Fetch requests
+        logger.info(f"Querying buy_requests with query: {query}")
+        logger.info(f"Query status filter: {query.get('status')}")
+        logger.info(f"Query expires_at filter: {query.get('$or')}")
+        
         cursor = db.buy_requests.find(query).sort(sort_field).limit(limit + 1)
         requests = await cursor.to_list(length=None)
+        logger.info(f"Found {len(requests)} buy requests matching query")
+        
+        # Log sample request if found
+        if requests and len(requests) > 0:
+            sample = requests[0]
+            logger.info(f"Sample request: id={sample.get('id')}, status={sample.get('status')}, expires_at={sample.get('expires_at')}")
         
         # Check if there are more results
         has_more = len(requests) > limit
@@ -13581,8 +13751,12 @@ async def get_public_buy_requests(
         # Process results
         result_items = []
         for req in requests:
+            # Remove MongoDB _id if present
+            if "_id" in req:
+                del req["_id"]
+            
             # Get offers count
-            offers_count = await db.buy_request_offers.count_documents({"request_id": req["id"]})
+            offers_count = await db.buy_request_offers.count_documents({"request_id": req.get("id")})
             
             # Calculate distance if user location provided
             distance_km = None
@@ -13596,27 +13770,84 @@ async def get_public_buy_requests(
             if max_distance_km and distance_km and distance_km > max_distance_km:
                 continue
             
-            # Build public item
+            # Build public item - use exact field names from database
+            # Log raw request for debugging (first request only)
+            if len(result_items) == 0:
+                logger.info(f"Raw request keys: {list(req.keys())}")
+                logger.info(f"Full raw request data: {req}")
+                logger.info(f"Sample request fields: species={req.get('species')}, breed={req.get('breed')}, product_type={req.get('product_type')}, qty={req.get('qty')}, province={req.get('province')}, notes={req.get('notes')}")
+            
+            # Get ALL fields directly from database - return exactly what's stored
+            target_price = req.get("target_price")
+            expires_at = req.get("expires_at")
+            created_at = req.get("created_at")
+            species = req.get("species")  # Return None if not in DB
+            breed = req.get("breed")  # Return None if not in DB
+            product_type = req.get("product_type")  # Return None if not in DB
+            qty = req.get("qty")  # Return None if not in DB
+            unit = req.get("unit")  # Return None if not in DB
+            province = req.get("province")  # Return None if not in DB
+            country = req.get("country")  # Return None if not in DB
+            notes = req.get("notes")  # Return None if not in DB
+            
+            # Log if critical fields are missing
+            if not species and not breed and not product_type:
+                logger.warning(f"Request {req.get('id')} has no species, breed, or product_type - returning as-is from DB")
+            
+            # Handle datetime conversion
+            if expires_at and not isinstance(expires_at, str):
+                if hasattr(expires_at, 'isoformat'):
+                    expires_at_str = expires_at.isoformat()
+                else:
+                    expires_at_str = str(expires_at)
+            else:
+                expires_at_str = expires_at
+            
+            if created_at and not isinstance(created_at, str):
+                if hasattr(created_at, 'isoformat'):
+                    created_at_str = created_at.isoformat()
+                else:
+                    created_at_str = str(created_at)
+            else:
+                created_at_str = created_at
+            
+            # Build title from available data
+            title_parts = []
+            if breed:
+                title_parts.append(breed)
+            if species:
+                title_parts.append(species)
+            title = " ".join(title_parts).strip() if title_parts else (species or product_type or "Buy Request")
+            
+            # Return all fields matching the create API structure
             item = {
-                "id": req["id"],
-                "title": f"{req.get('breed', '')} {req['species']}".strip() or req['species'],
-                "species": req["species"],
-                "product_type": req["product_type"],
-                "qty": req["qty"],
-                "unit": req["unit"],
-                "province": req["province"],
-                "deadline_at": req["expires_at"].isoformat(),
-                "has_target_price": bool(req.get("target_price") and req.get("target_price") > 0),
+                "id": req.get("id"),
+                "title": title,
+                "species": species,  # From database
+                "product_type": product_type,  # From database
+                "breed": breed,  # From database
+                "qty": int(qty) if qty is not None else 0,  # Convert to int, default 0
+                "unit": unit or "head",  # Default to "head" if not specified
+                "province": province,  # From database
+                "country": country or "ZA",  # Default to "ZA" if not specified
+                "deadline_at": expires_at_str,  # Frontend expects deadline_at
+                "expires_at": expires_at_str,  # Also include expires_at
+                "has_target_price": bool(target_price and target_price > 0),
+                "target_price": float(target_price) if target_price is not None else None,
                 "offers_count": offers_count,
-                "created_at": req["created_at"].isoformat(),
+                "created_at": created_at_str,
+                "notes": notes,  # From database
+                "notes_excerpt": (notes[:200] + "...") if notes and len(notes) > 200 else notes,
+                "additional_requirements": req.get("additional_requirements"),
                 # Enhanced content fields (public safe)
-                "images": req.get("images", [])[:3],  # Limit to first 3 images for list view
+                "images": req.get("images", [])[:3] if req.get("images") else [],
                 "has_vet_certificates": bool(req.get("vet_certificates")),
+                "vet_certificates": req.get("vet_certificates", []),
                 "weight_range": req.get("weight_range"),
                 "age_requirements": req.get("age_requirements"),
                 "vaccination_requirements": req.get("vaccination_requirements", []),
-                "delivery_preferences": req.get("delivery_preferences", "both"),
-                "inspection_allowed": req.get("inspection_allowed", True)
+                "delivery_preferences": req.get("delivery_preferences", "both"),  # Default to "both"
+                "inspection_allowed": req.get("inspection_allowed", True)  # Default to True
             }
             
             if distance_km is not None:

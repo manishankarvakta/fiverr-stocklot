@@ -7,7 +7,7 @@ import {
   BarChart3, PieChart, Activity, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
-import { useGetSellerAnalyticsQuery } from '../../store/api/seller.api';
+import { useGetMySellerAnalyticsQuery } from '../../store/api/seller.api';
 
 const SellerAnalytics = () => {
   const { user } = useAuth();
@@ -32,40 +32,90 @@ const SellerAnalytics = () => {
   const [timeRange, setTimeRange] = useState('30days');
 
   // Use Redux Toolkit Query hook - refetch when timeRange changes
-  const { data: analyticsData, isLoading: loading, error, refetch } = useGetSellerAnalyticsQuery(
+  // Skip if user doesn't have seller role
+  const hasSellerRole = user && (user.roles?.includes('seller') || user.roles?.includes('both'));
+  
+  console.log("User:", user);
+  console.log("User Roles:", user?.roles);
+  console.log("Has Seller Role:", hasSellerRole);
+  console.log("Time Range:", timeRange);
+  
+  const { data: analyticsData, isLoading: loading, error, refetch } = useGetMySellerAnalyticsQuery(
     { period: timeRange },
-    { skip: !user }
+    { 
+      skip: !hasSellerRole,
+      refetchOnMountOrArgChange: true,
+      // Don't cache to ensure fresh data
+      refetchOnFocus: true
+    }
   );
 
-  // Refetch when time range changes
+  console.log("Analytics Query State:", { 
+    loading, 
+    error: error ? { message: error.message, status: error.status, data: error.data } : null, 
+    analyticsData, 
+    hasSellerRole,
+    skipped: !hasSellerRole
+  });
+
+  // Refetch when time range changes - removed to avoid infinite loop
+  // RTK Query will automatically refetch when params change due to refetchOnMountOrArgChange
+  
+  // Debug logging
   useEffect(() => {
-    if (user) {
-      refetch();
+    if (error) {
+      console.error("Analytics Error:", error);
     }
-  }, [timeRange, user, refetch]);
-  console.log("Analytics Data:", analyticsData);
+    if (analyticsData) {
+      console.log("Analytics Data Received:", analyticsData);
+    }
+  }, [analyticsData, error]);
 
   // Update analytics state when data changes
   useEffect(() => {
     if (analyticsData) {
+      console.log("Setting analytics data:", analyticsData);
       // Ensure all required fields exist with defaults
-      setAnalytics({
+      const newAnalytics = {
         overview: {
-          total_revenue: analyticsData.overview?.total_revenue || 0,
-          total_listings: analyticsData.overview?.total_listings || 0,
-          total_views: analyticsData.overview?.total_views || 0,
-          conversion_rate: analyticsData.overview?.conversion_rate || 0,
-          active_listings: analyticsData.overview?.active_listings || 0,
-          sold_listings: analyticsData.overview?.sold_listings || 0
+          total_revenue: analyticsData.overview?.total_revenue ?? 0,
+          total_listings: analyticsData.overview?.total_listings ?? 0,
+          total_views: analyticsData.overview?.total_views ?? 0,
+          conversion_rate: analyticsData.overview?.conversion_rate ?? 0,
+          active_listings: analyticsData.overview?.active_listings ?? 0,
+          sold_listings: analyticsData.overview?.sold_listings ?? 0
         },
         performance: {
-          revenue_growth: analyticsData.performance?.revenue_growth || 0,
-          listing_growth: analyticsData.performance?.listing_growth || 0,
-          view_growth: analyticsData.performance?.view_growth || 0
+          revenue_growth: analyticsData.performance?.revenue_growth ?? 0,
+          listing_growth: analyticsData.performance?.listing_growth ?? 0,
+          view_growth: analyticsData.performance?.view_growth ?? 0
         },
-        top_listings: analyticsData.top_listings || [],
-        monthly_revenue: analyticsData.monthly_revenue || [],
-        category_breakdown: analyticsData.category_breakdown || []
+        top_listings: Array.isArray(analyticsData.top_listings) ? analyticsData.top_listings : [],
+        monthly_revenue: Array.isArray(analyticsData.monthly_revenue) ? analyticsData.monthly_revenue : [],
+        category_breakdown: Array.isArray(analyticsData.category_breakdown) ? analyticsData.category_breakdown : []
+      };
+      console.log("Processed analytics:", newAnalytics);
+      setAnalytics(newAnalytics);
+    } else if (!loading && !analyticsData && !error) {
+      // If not loading and no data/error, show empty state
+      console.log("No data received, showing empty state");
+      setAnalytics({
+        overview: {
+          total_revenue: 0,
+          total_listings: 0,
+          total_views: 0,
+          conversion_rate: 0,
+          active_listings: 0,
+          sold_listings: 0
+        },
+        performance: {
+          revenue_growth: 0,
+          listing_growth: 0,
+          view_growth: 0
+        },
+        top_listings: [],
+        monthly_revenue: [],
+        category_breakdown: []
       });
     } else if (error) {
       // Fallback to mock data on error
@@ -123,11 +173,44 @@ const SellerAnalytics = () => {
     return null;
   };
 
+  // Show loading state
   if (loading) {
     return (
       <div className="text-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading analytics...</p>
+        {!hasSellerRole && (
+          <p className="text-yellow-600 text-sm mt-2">Waiting for user authentication...</p>
+        )}
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-red-600 mb-4">
+          <p className="font-semibold">Error loading analytics</p>
+          <p className="text-sm mt-2">{error?.data?.detail || error?.message || 'Unknown error'}</p>
+          <p className="text-xs mt-1 text-gray-500">Status: {error?.status}</p>
+        </div>
+        <Button onClick={() => refetch()} className="bg-emerald-600 hover:bg-emerald-700">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  // Show message if query is skipped
+  if (!hasSellerRole) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-yellow-600 mb-4">
+          <p className="font-semibold">Seller Access Required</p>
+          <p className="text-sm mt-2">You need seller privileges to view analytics.</p>
+          <p className="text-xs mt-1">Current roles: {user?.roles?.join(', ') || 'None'}</p>
+        </div>
       </div>
     );
   }
@@ -151,6 +234,27 @@ const SellerAnalytics = () => {
           <option value="1year">Last Year</option>
         </select>
       </div>
+
+      {/* Show message if no data */}
+      {!loading && analyticsData && analyticsData.overview?.total_listings === 0 && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <Package className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-yellow-900 mb-2">No Analytics Data Yet</h3>
+              <p className="text-yellow-700 mb-4">
+                You don't have any listings or orders yet. Start by creating your first listing!
+              </p>
+              <Button 
+                onClick={() => window.location.href = '/create-listing'}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                Create Your First Listing
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -199,7 +303,7 @@ const SellerAnalytics = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Views</p>
-                <p className="text-2xl font-bold text-emerald-900">{analytics.overview.total_views.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-emerald-900">{(analytics.overview.total_views || 0).toLocaleString()}</p>
                 <div className="flex items-center gap-1 mt-1">
                   {getGrowthIcon(analytics.performance.view_growth)}
                   <span className={`text-sm ${getGrowthColor(analytics.performance.view_growth)}`}>

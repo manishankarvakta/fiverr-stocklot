@@ -9,23 +9,24 @@ import {
   DollarSign, Package, Truck, Calendar, AlertCircle, CheckCircle,
   MapPin, Clock, Star
 } from 'lucide-react';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import { useSubmitOfferMutation } from '@/store/api/buyRequests.api';
 
 const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     qty: request?.qty || 1,
-    unit_price_minor: 0, // Price in cents
+    unit_price: 0, // Price per unit in ZAR (not cents)
     delivery_mode: 'SELLER',
-    abattoir_fee_minor: 0,
-    validity_days: 7,
+    delivery_cost: 0, // Delivery cost in ZAR
+    delivery_days: 7, // Days for delivery
     notes: ''
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [userListings, setUserListings] = useState([]);
   const [selectedListing, setSelectedListing] = useState(null);
   const [useExistingListing, setUseExistingListing] = useState(false);
+  
+  // RTK Query mutation for submitting offers
+  const [submitOffer, { isLoading: loading }] = useSubmitOfferMutation();
 
   // Load user's existing listings
   useEffect(() => {
@@ -36,6 +37,7 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
 
   const loadUserListings = async () => {
     try {
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
       const response = await fetch(`${BACKEND_URL}/api/listings/my-listings`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -47,7 +49,7 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
         const matchingListings = data.listings?.filter(listing => 
           listing.species === request?.species &&
           listing.product_type === request?.product_type &&
-          listing.available_qty >= formData.qty
+          (listing.available_qty || listing.qty_available || 0) >= formData.qty
         ) || [];
         setUserListings(matchingListings);
       }
@@ -56,10 +58,9 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
     }
   };
 
-  // Handle form submission
+  // Handle form submission using RTK Query mutation
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     try {
@@ -68,69 +69,81 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
         throw new Error(`Quantity must be between 1 and ${request.qty}`);
       }
 
-      if (formData.unit_price_minor <= 0) {
+      if (formData.unit_price <= 0) {
         throw new Error('Price must be greater than 0');
       }
 
-      // Calculate validity expiry
-      const validityExpiresAt = new Date();
-      validityExpiresAt.setDate(validityExpiresAt.getDate() + formData.validity_days);
-
-      // Prepare offer data
+      // Prepare offer data matching backend API structure
+      // Backend expects: offer_price, qty, message (optional), listing_id (optional)
       const offerData = {
+        offer_price: parseFloat(formData.unit_price), // Price per unit in ZAR
         qty: parseInt(formData.qty),
-        unit_price_minor: Math.round(formData.unit_price_minor * 100), // Convert to cents
-        delivery_mode: formData.delivery_mode,
-        abattoir_fee_minor: Math.round(formData.abattoir_fee_minor * 100),
-        validity_expires_at: validityExpiresAt.toISOString(),
-        notes: formData.notes
+        message: formData.notes || null // Backend uses 'message' field for notes
       };
-
+      
+      // Add listing_id if using existing listing
       if (useExistingListing && selectedListing) {
         offerData.listing_id = selectedListing.id;
       }
 
-      // Send offer
-      const response = await fetch(`${BACKEND_URL}/api/buy-requests/${request.id}/offers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(offerData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to send offer');
-      }
-
-      const result = await response.json();
+      // Submit offer using RTK Query mutation
+      const result = await submitOffer({
+        requestId: request.id,
+        ...offerData
+      }).unwrap();
       
       // Success
-      onSuccess && onSuccess(result);
+      if (onSuccess) {
+        onSuccess(result);
+      }
       onClose();
 
     } catch (error) {
       console.error('Error sending offer:', error);
-      setError(error.message || 'Failed to send offer');
-    } finally {
-      setLoading(false);
+      // Handle RTK Query error format
+      let errorMessage = 'Failed to send offer';
+      
+      if (error?.data) {
+        // Handle Pydantic validation errors (array of error objects)
+        if (Array.isArray(error.data.detail)) {
+          // Format validation errors
+          const validationErrors = error.data.detail.map(err => {
+            const field = err.loc && err.loc.length > 1 ? err.loc[err.loc.length - 1] : 'field';
+            return `${field}: ${err.msg}`;
+          }).join(', ');
+          errorMessage = validationErrors || errorMessage;
+        } else if (typeof error.data.detail === 'string') {
+          errorMessage = error.data.detail;
+        } else if (error.data.message) {
+          errorMessage = error.data.message;
+        } else {
+          errorMessage = 'Validation error. Please check your input.';
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else {
+        // Fallback: try to extract meaningful error info
+        errorMessage = 'An unexpected error occurred. Please try again.';
+      }
+      
+      setError(errorMessage);
     }
   };
 
   // Calculate totals
-  const subtotal = formData.qty * formData.unit_price_minor;
-  const abattoir_fee = formData.delivery_mode === 'RFQ' ? formData.abattoir_fee_minor * formData.qty : 0;
-  const total = subtotal + abattoir_fee;
+  const subtotal = formData.qty * formData.unit_price;
+  const delivery_fee = formData.delivery_cost || 0;
+  const total = subtotal + delivery_fee;
 
   // Handle existing listing selection
   const handleListingSelect = (listing) => {
     setSelectedListing(listing);
     setFormData(prev => ({
       ...prev,
-      unit_price_minor: listing.price_per_unit || prev.unit_price_minor,
-      qty: Math.min(prev.qty, listing.available_qty)
+      unit_price: listing.price_per_unit || prev.unit_price,
+      qty: Math.min(prev.qty, listing.available_qty || listing.qty_available || prev.qty)
     }));
   };
 
@@ -176,13 +189,15 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
                     <p className="font-medium">{request.distance_km}km away</p>
                   </div>
                 )}
-                <div>
-                  <span className="text-gray-600">Deadline:</span>
-                  <p className="font-medium flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {new Date(request.deadline_at).toLocaleDateString()}
-                  </p>
-                </div>
+                {(request.deadline_at || request.expires_at) && (
+                  <div>
+                    <span className="text-gray-600">Deadline:</span>
+                    <p className="font-medium flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      {new Date(request.deadline_at || request.expires_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -247,10 +262,10 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
                     step="0.01"
                     min="0.01"
                     className="pl-10"
-                    value={formData.unit_price_minor}
+                    value={formData.unit_price}
                     onChange={(e) => setFormData(prev => ({
                       ...prev,
-                      unit_price_minor: parseFloat(e.target.value) || 0
+                      unit_price: parseFloat(e.target.value) || 0
                     }))}
                     placeholder="0.00"
                     required
@@ -263,45 +278,49 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
                 )}
               </div>
 
-              {/* Delivery Mode */}
+              {/* Delivery Cost */}
               <div>
-                <Label htmlFor="delivery_mode">Delivery Method *</Label>
-                <Select 
-                  value={formData.delivery_mode}
-                  onValueChange={(value) => setFormData(prev => ({...prev, delivery_mode: value}))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SELLER">I will deliver</SelectItem>
-                    <SelectItem value="RFQ">Buyer arranges pickup</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="delivery_cost">Delivery Cost (ZAR) - Optional</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="delivery_cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="pl-10"
+                    value={formData.delivery_cost}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      delivery_cost: parseFloat(e.target.value) || 0
+                    }))}
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  Total delivery cost for the order
+                </p>
               </div>
 
-              {/* Abattoir Fee (if RFQ mode) */}
-              {formData.delivery_mode === 'RFQ' && (
-                <div>
-                  <Label htmlFor="abattoir_fee">Abattoir Fee per unit (ZAR)</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="abattoir_fee"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="pl-10"
-                      value={formData.abattoir_fee_minor}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        abattoir_fee_minor: parseFloat(e.target.value) || 0
-                      }))}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              )}
+              {/* Delivery Days */}
+              <div>
+                <Label htmlFor="delivery_days">Delivery Days *</Label>
+                <Input
+                  id="delivery_days"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={formData.delivery_days}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    delivery_days: parseInt(e.target.value) || 7
+                  }))}
+                  required
+                />
+                <p className="text-sm text-gray-600 mt-1">
+                  Number of days to deliver after order confirmation
+                </p>
+              </div>
             </TabsContent>
 
             <TabsContent value="existing_listing" className="space-y-4">
@@ -341,25 +360,6 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
             </TabsContent>
           </Tabs>
 
-          {/* Validity Period */}
-          <div>
-            <Label htmlFor="validity">Offer Valid For</Label>
-            <Select 
-              value={formData.validity_days.toString()}
-              onValueChange={(value) => setFormData(prev => ({...prev, validity_days: parseInt(value)}))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 day</SelectItem>
-                <SelectItem value="3">3 days</SelectItem>
-                <SelectItem value="7">1 week</SelectItem>
-                <SelectItem value="14">2 weeks</SelectItem>
-                <SelectItem value="30">1 month</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Additional Notes */}
           <div>
@@ -384,16 +384,16 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
                 </div>
                 <div className="flex justify-between">
                   <span>Unit Price:</span>
-                  <span>R{formData.unit_price_minor.toFixed(2)}</span>
+                  <span>R{formData.unit_price.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
                   <span>R{subtotal.toFixed(2)}</span>
                 </div>
-                {abattoir_fee > 0 && (
+                {delivery_fee > 0 && (
                   <div className="flex justify-between">
-                    <span>Abattoir Fee:</span>
-                    <span>R{abattoir_fee.toFixed(2)}</span>
+                    <span>Delivery Cost:</span>
+                    <span>R{delivery_fee.toFixed(2)}</span>
                   </div>
                 )}
                 <hr />
@@ -402,10 +402,8 @@ const SendOfferModal = ({ request, user, open, onClose, onSuccess }) => {
                   <span>R{total.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Valid until:</span>
-                  <span>
-                    {new Date(Date.now() + formData.validity_days * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                  </span>
+                  <span>Delivery Days:</span>
+                  <span>{formData.delivery_days} days</span>
                 </div>
               </div>
             </CardContent>

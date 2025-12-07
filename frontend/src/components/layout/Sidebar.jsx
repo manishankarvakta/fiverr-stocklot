@@ -145,8 +145,8 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Marketing',
           icon: TrendingUp,
           items: [
-            { path: '/seller/promotions', label: 'Campaigns', icon: TrendingUp },
-            { path: '/seller/offers', label: 'Offers', icon: MessageSquare }
+            { path: '/seller/dashboard/promotions', label: 'Campaigns', icon: TrendingUp },
+            { path: '/seller/dashboard/offers', label: 'Offers', icon: MessageSquare }
           ]
         },
         {

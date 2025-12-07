@@ -75,9 +75,24 @@ export const NotificationService = {
     }
     
     const data = await response.json();
+    
+    // Handle different response formats
+    let notifications = [];
+    let unreadCount = 0;
+    
+    if (Array.isArray(data)) {
+      // If response is directly an array
+      notifications = data;
+      unreadCount = notifications.filter(n => !n.read_at).length;
+    } else if (data && typeof data === 'object') {
+      // If response is an object with notifications property
+      notifications = Array.isArray(data.notifications) ? data.notifications : [];
+      unreadCount = data.unread_count || data.unreadCount || notifications.filter(n => !n.read_at).length;
+    }
+    
     return {
-      notifications: data.notifications || data || [],
-      unread_count: data.unread_count || (data || []).filter(n => !n.read_at).length
+      notifications: notifications,
+      unread_count: unreadCount
     };
   },
   
