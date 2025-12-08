@@ -59,15 +59,15 @@ function Marketplace() {
   
   // Fetch all species on mount
   const [getAllSpecies, { data: allSpeciesData, isLoading: speciesLoading }] = useLazyGetSpeciesQuery();
-  console.log('All species data:', allSpeciesData);
+  // console.log('All species data:', allSpeciesData);
   const [getSpeciesByGroup, { data: speciesByGroupData }] = useLazyGetSpeciesQuery();
-  console.log('Species by group data:', speciesByGroupData);
+  // console.log('Species by group data:', speciesByGroupData);
   
   const { data: breedsData, isLoading: breedsLoading } = useGetBreedsBySpeciesQuery(
     filters.species_id || '',
     { skip: !filters.species_id }
   );
-  console.log('Breeds data:', breedsData);
+  // console.log('Breeds data:', breedsData);
 
   
   // Listings query with filters
@@ -87,7 +87,9 @@ function Marketplace() {
   }, [filters, deliverableOnly]);
   
   const { data: listingsData, isLoading: listingsLoading, error: listingsError, refetch: refetchListings } = useGetListingsQuery(listingsParams);
+  console.log('Listings data for:', listingsData);
   const [smartSearch, { isLoading: smartSearchLoading }] = useSmartSearchMutation();
+  console.log('Smart search loading:', smartSearchLoading);
 
   // Derived state from API responses - handle different response formats
   const categoryGroups = useMemo(() => {

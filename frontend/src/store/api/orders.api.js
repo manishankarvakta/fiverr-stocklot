@@ -2,6 +2,14 @@ import { baseApi } from './baseApi';
 
 export const ordersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    createOrder: builder.mutation({
+    query: ({ isAuthenticated, orderPayload }) => ({
+      url: isAuthenticated ? '/checkout/order' : '/checkout/guest/create',
+      method: 'POST',
+      body: orderPayload,
+    }),
+    invalidatesTags: ['Order'],
+  }),
     getUserOrders: builder.query({
       query: (params = {}) => ({
         url: '/orders/user',
@@ -9,7 +17,6 @@ export const ordersApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Order'],
     }),
-    
     getOrderById: builder.query({
       query: (orderId) => `/orders/${orderId}`,
       providesTags: (result, error, orderId) => [{ type: 'Order', id: orderId }],
@@ -90,6 +97,7 @@ export const ordersApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useCreateOrderMutation,
   useGetUserOrdersQuery,
   useLazyGetUserOrdersQuery,
   useGetOrderByIdQuery,
