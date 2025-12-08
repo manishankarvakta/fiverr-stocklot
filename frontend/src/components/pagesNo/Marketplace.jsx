@@ -59,12 +59,16 @@ function Marketplace() {
   
   // Fetch all species on mount
   const [getAllSpecies, { data: allSpeciesData, isLoading: speciesLoading }] = useLazyGetSpeciesQuery();
+  console.log('All species data:', allSpeciesData);
   const [getSpeciesByGroup, { data: speciesByGroupData }] = useLazyGetSpeciesQuery();
+  console.log('Species by group data:', speciesByGroupData);
   
   const { data: breedsData, isLoading: breedsLoading } = useGetBreedsBySpeciesQuery(
     filters.species_id || '',
     { skip: !filters.species_id }
   );
+  console.log('Breeds data:', breedsData);
+
   
   // Listings query with filters
   const listingsParams = useMemo(() => {
