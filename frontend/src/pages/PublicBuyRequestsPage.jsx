@@ -1,43 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import { useGetPublicBuyRequestsQuery } from '@/store/api/buyRequests.api';
 
 const PublicBuyRequestsPage = ({ user, onLogin }) => {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
   const navigate = useNavigate();
 
-  // Load buy requests
-  useEffect(() => {
-    const loadBuyRequests = async () => {
-      try {
-        console.log('Loading buy requests from:', `${BACKEND_URL}/api/public/buy-requests`);
-        
-        const response = await fetch(`${BACKEND_URL}/api/public/buy-requests?limit=10`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('Buy requests loaded:', data);
-        
-        setRequests(data.items || []);
-        setError(null);
-        
-      } catch (error) {
-        console.error('Error loading buy requests:', error);
-        setError(error.message || 'Unable to load buy requests');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Load buy requests using RTK Query
+  const { 
+    data: buyRequestsData, 
+    isLoading: loading, 
+    error: queryError 
+  } = useGetPublicBuyRequestsQuery({ limit: 10 });
 
-    loadBuyRequests();
-  }, []);
+  const requests = buyRequestsData?.items || [];
+  
+  const error = queryError 
+    ? (queryError?.data?.message || queryError?.data?.detail || 'Unable to load buy requests')
+    : null;
 
   if (loading) {
     return (

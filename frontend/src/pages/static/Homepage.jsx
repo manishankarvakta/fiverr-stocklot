@@ -60,53 +60,29 @@ function Homepage() {
 
 
 
-  // FETCH LISTINGS
-  const {data: featuredListingsData, isSuccess: isFeaturedListingsSuccess, isError: isFeaturedListingsError} = useGetListingsQuery();
+  // FETCH LISTINGS using RTK Query
+  const {data: featuredListingsData, isSuccess: isFeaturedListingsSuccess} = useGetListingsQuery({ limit: 3 });
 
-  // console.log('isFeaturedListingsError', isFeaturedListingsError);
   useEffect(() => {
-    // console.log('featuredListings', featuredListingsData);
-    if (featuredListings) {
-      setFeaturedListings(featuredListingsData);
+    if (featuredListingsData) {
+      setFeaturedListings(featuredListingsData.items || featuredListingsData || []);
     }
   }, [featuredListingsData, isFeaturedListingsSuccess]);
 
-
-  // Only fetch admin stats if user is admin
+  // Only fetch admin stats if user is admin using RTK Query
   const isAdmin = user?.roles?.includes('admin');
-  const {data: statsData, isSuccess: isStatsSuccess, isError: isStatsError} = useAdminStatsQuery(undefined, {
+  const {data: statsData, isSuccess: isStatsSuccess} = useAdminStatsQuery(undefined, {
     skip: !isAdmin, // Skip query if user is not admin
   });
-  useEffect(() => {
-    // console.log('statsData', statsData);
-    if (statsData) {
-      // console.log(statsData);
-      setStats({
-        total_listings: 15,
-        total_users: 50,
-        total_orders: 25
-      });
-    }
-    // Hide flash screen after 3 seconds
-    const timer = setTimeout(() => {
-      setShowFlash(false);
-    }, 3000);
   
-    return () => clearTimeout(timer);
-  }, [statsData, isStatsSuccess]);
-
-  // useEffect(() => {
-  //   // Load stats from API
-  //   loadStats();
-  //   // loadFeaturedListings();
-    
-  // }, []);
-
-  const loadStats = async () => {
-    try {
-      const response = await apiCall('GET', '/admin/stats');
-      setStats(response.data);
-    } catch (error) {
+  useEffect(() => {
+    if (statsData) {
+      setStats({
+        total_listings: statsData.total_listings || 15,
+        total_users: statsData.total_users || 50,
+        total_orders: statsData.total_orders || 25
+      });
+    } else {
       // Fallback to demo numbers
       setStats({
         total_listings: 15,
@@ -114,7 +90,14 @@ function Homepage() {
         total_orders: 25
       });
     }
-  };
+    
+    // Hide flash screen after 3 seconds
+    const timer = setTimeout(() => {
+      setShowFlash(false);
+    }, 3000);
+  
+    return () => clearTimeout(timer);
+  }, [statsData, isStatsSuccess]);
 
   // const loadFeaturedListings = async () => {
   //   try {

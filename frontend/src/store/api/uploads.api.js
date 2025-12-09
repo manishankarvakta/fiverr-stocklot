@@ -43,6 +43,10 @@ export const uploadsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['KYC'],
     }),
+
+    getUpload: builder.query({
+      query: ({ folder, filename }) => `/uploads/${folder}/${filename}`,
+    }),
   }),
   overrideExisting: false,
 });
@@ -53,5 +57,7 @@ export const {
   useUploadLivestockImageMutation,
   useUploadBuyRequestImageMutation,
   useUploadVetCertificateMutation,
+  useGetUploadQuery,
+  useLazyGetUploadQuery,
 } = uploadsApi;
 

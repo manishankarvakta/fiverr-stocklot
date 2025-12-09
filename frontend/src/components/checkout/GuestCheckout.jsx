@@ -19,29 +19,33 @@ import { assessRisk, RISK_CATEGORIES, getRiskCategory } from '../../lib/risk/ris
 import api from '../../utils/apiHelper';
 import { handleAPIError } from '../../services/api';
 import { useToast } from '../../hooks/use-toast';
-import PaymentRedirectService from '../../services/PaymentRedirectService';
 import { useAuth } from '../../auth/AuthProvider';
 import Header from '@/components/ui/common/Header';
 import Footer from '@/components/ui/common/Footer';
+import { useCreateOrderMutation } from '@/store/api/orders.api';
 
 export default function GuestCheckout() {
-  console.log('GuestCheckout component rendering...');
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
-  
-  console.log('Current location:', location.pathname);
-  console.log('Location state:', location.state);
+
   const [items, setItems] = useState([]);
   const [shipTo, setShipTo] = useState(null);
-  const [contact, setContact] = useState({
-    email: '',
-    phone: '',
-    full_name: ''
-  });
-  
-  // Pre-fill contact information for authenticated users
+  console.log('shipTo', shipTo);
+  const [contact, setContact] = useState({ email: '', phone: '', full_name: '' });
+  const [quote, setQuote] = useState(null);
+  const [risk, setRisk] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [step, setStep] = useState('details'); // details, quote, payment
+
+  const [createOrderMutation, {isSuccess, isLoading, isError}] = useCreateOrderMutation();
+
+  console.log("create order mutation ", createOrderMutation, isSuccess, isLoading, isError);
+  console.log('location for details ', location);
+
+  // Pre-fill contact info for authenticated users
   useEffect(() => {
     if (isAuthenticated && user) {
       setContact({
@@ -49,8 +53,7 @@ export default function GuestCheckout() {
         phone: user.phone || '',
         full_name: user.full_name || user.name || ''
       });
-      
-      // If user has a default address, pre-fill shipTo
+
       if (user.address || user.default_address) {
         const address = user.address || user.default_address;
         setShipTo({
@@ -63,34 +66,21 @@ export default function GuestCheckout() {
       }
     }
   }, [isAuthenticated, user]);
-  const [quote, setQuote] = useState(null);
-  const [risk, setRisk] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [step, setStep] = useState('details'); // details, quote, payment
 
+  // Load cart items from localStorage
   useEffect(() => {
-    // Load cart items from localStorage (check both 'guest_cart' and 'cart' for compatibility)
     const guestCartData = localStorage.getItem('guest_cart');
     const cartData = localStorage.getItem('cart');
-    
     let cartItems = [];
-    
+
     if (guestCartData) {
-      try {
-        cartItems = JSON.parse(guestCartData);
-      } catch (error) {
-        console.error('Error parsing guest_cart data:', error);
-      }
+      try { cartItems = JSON.parse(guestCartData); } 
+      catch (error) { console.error('Error parsing guest_cart:', error); }
     } else if (cartData) {
-      try {
-        cartItems = JSON.parse(cartData);
-      } catch (error) {
-        console.error('Error parsing cart data:', error);
-      }
+      try { cartItems = JSON.parse(cartData); } 
+      catch (error) { console.error('Error parsing cart:', error); }
     }
-    
-    // Convert guest cart format to checkout format if needed
+
     const formattedItems = cartItems.map(item => ({
       listing_id: item.listing_id || item.id,
       title: item.title,
@@ -99,24 +89,21 @@ export default function GuestCheckout() {
       species: item.species || 'livestock',
       product_type: item.product_type || 'animal'
     }));
-    
+
     setItems(formattedItems);
   }, []);
 
+  // Fetch quote
   const getQuote = async () => {
     if (!shipTo || !items.length) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
-      // Use authenticated endpoint if user is logged in, otherwise use guest endpoint
       const endpoint = isAuthenticated ? '/checkout/quote' : '/checkout/guest/quote';
-      const quoteData = await api.post(endpoint, { 
-        items, 
-        ship_to: shipTo 
-      });
-      
+      const quoteData = await api.post(endpoint, { items, ship_to: shipTo });
+
       setQuote(quoteData);
       setRisk(quoteData.risk);
       setStep('quote');
@@ -128,139 +115,69 @@ export default function GuestCheckout() {
     }
   };
 
+  // Create order
   const createOrder = async () => {
+    console.log('createOrder called');
     if (!quote) return;
-    // For authenticated users, email is not required (comes from profile)
-    if (!isAuthenticated && !contact.email) return;
-
+    if (!isAuthenticated && (!contact.email || !contact.full_name || !contact.phone)) {
+      setError('Full name, email, and phone are required for guest checkout');
+      return;
+    }
+    if (!shipTo || !shipTo.city || !shipTo.address_line_1) {
+      setError('Delivery address is incomplete');
+      return;
+    }
     setLoading(true);
+    console.log('Payload sent:', payload);
     setError('');
-
+    const payload = isAuthenticated
+      ? { ship_to: shipTo, items, quote }
+      : { contact, ship_to: shipTo, items, quote };
     try {
-      // Use authenticated endpoint if user is logged in, otherwise use guest endpoint
-      const endpoint = isAuthenticated ? '/checkout/order' : '/checkout/guest/create';
-      const orderPayload = isAuthenticated 
-        ? {
-            ship_to: shipTo,
-            items,
-            quote
-            // Contact info is not needed for authenticated users - comes from their profile
-          }
-        : {
-            contact,
-            ship_to: shipTo,
-            items,
-            quote
-          };
-      
-      const orderData = await api.post(endpoint, orderPayload);
-      
-      console.log('Order creation response:', orderData); // Debug log
-      
-      // ENHANCED PAYMENT REDIRECT - Multiple URL extraction methods
-      console.log('🔧 Enhanced Payment Redirect System Activated');
-      console.log('Available response keys:', Object.keys(orderData));
-      
-      // Extract payment URL with comprehensive fallback logic
+       const result = await createOrderMutation({
+      isAuthenticated,
+      orderPayload: payload
+    }).unwrap();
+      console.log('Order created successfully:', result);
+
+      // Payment URL detection
+      const possiblePaths = ['paystack.authorization_url', 'authorization_url', 'redirect_url', 'payment_url', 'data.authorization_url'];
+      const getNestedValue = (obj, path) => path.split('.').reduce((cur, key) => cur?.[key], obj);
+      const isValidUrl = url => url && (url.includes('paystack.com') || url.includes('checkout') || url.includes('payment'));
       let redirectUrl = null;
-      const possibleUrlPaths = [
-        'paystack.authorization_url',    // Nested format
-        'authorization_url',             // Direct format
-        'redirect_url',                  // Alternative format
-        'payment_url',                   // Backup format
-        'data.authorization_url'         // API wrapper format
-      ];
-      
-      // Try each possible path
-      for (const path of possibleUrlPaths) {
-        const url = getNestedValue(orderData, path);
-        if (url && isValidPaymentUrl(url)) {
-          redirectUrl = url;
-          console.log(`✅ Found payment URL at path: ${path} -> ${url}`);
-          break;
-        }
+      for (const path of possiblePaths) {
+        const url = getNestedValue(result, path);
+        if (isValidUrl(url)) { redirectUrl = url; break; }
       }
-      
-      // Helper function to get nested values
-      function getNestedValue(obj, path) {
-        return path.split('.').reduce((current, key) => current?.[key], obj);
-      }
-      
-      // Helper function to validate payment URLs
-      function isValidPaymentUrl(url) {
-        return url && (
-          url.includes('paystack.com') || 
-          url.includes('checkout') ||
-          url.includes('payment') ||
-          url.startsWith('https://demo-checkout')
-        );
-      }
-      
+
       if (redirectUrl) {
-        console.log('✅ PAYMENT URL FOUND:', redirectUrl);
-        
-        // Show immediate success message
-        toast({
-          title: "Order Created Successfully!",
-          description: `${orderData.order_count || 1} order(s) created. Redirecting to payment...`,
-          duration: 2000,
-        });
-        
-        // IMMEDIATE REDIRECT - No delays for better UX
-        console.log('🚀 IMMEDIATE REDIRECT to payment gateway');
+        toast({ title: 'Order created', description: 'Redirecting to payment...', duration: 2000 });
         window.location.href = redirectUrl;
-        
-        // Fallback redirect after 1 second (in case immediate fails)
-        setTimeout(() => {
-          console.log('🔄 Fallback redirect #1');
-          window.location.replace(redirectUrl);
-        }, 1000);
-        
-        // Final fallback after 2 seconds
-        setTimeout(() => {
-          console.log('🔄 Fallback redirect #2');
-          window.open(redirectUrl, '_self');
-        }, 2000);
-        
       } else {
-        console.log('❌ NO PAYMENT URL FOUND');
-        console.log('Full response data:', JSON.stringify(orderData, null, 2));
-        
-        // Show success message even without payment URL
-        toast({
-          title: "Order Created!",
-          description: `${orderData.order_count || 1} order(s) created successfully.`,
-          duration: 3000,
-        });
-        
-        // Alert user about missing payment URL
-        setTimeout(() => {
-          alert(`Order created successfully!\nOrder ID: ${orderData.order_group_id}\n\nNote: Payment gateway not configured. Please contact support to complete payment.`);
-        }, 1000);
+        toast({ title: 'Order created', description: 'No payment URL found', duration: 3000 });
+        console.log('No payment URL in order response:', result);
       }
-    } catch (error) {
-      console.error('Order creation error:', error);
-      setError(handleAPIError(error, false));
+
+    } catch (err) {
+      console.error('Order creation error:', err);
+      setError(handleAPIError(err, false));
+      if (err?.data?.detail) console.log('API validation details:', err.data.detail);
     } finally {
       setLoading(false);
     }
+   
   };
 
   const getRiskBadge = (riskData) => {
     if (!riskData) return null;
-    
     const category = getRiskCategory(riskData.score);
     const riskInfo = RISK_CATEGORIES[category];
-    
-    return (
-      <Badge className={riskInfo.color}>
-        {riskInfo.label}
-      </Badge>
-    );
+    return <Badge className={riskInfo.color}>{riskInfo.label}</Badge>;
   };
 
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">

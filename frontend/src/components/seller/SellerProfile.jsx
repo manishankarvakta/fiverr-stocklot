@@ -1,55 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ContactSellerButton from './ContactSellerButton';
-import { useGetSellerOffersQuery } from '@/store/api/seller.api';
+import { useGetSellerProfileQuery } from '@/store/api/seller.api';
 
 const SellerProfile = () => {
   const { handle } = useParams();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // useEffect(() => {
-  //   fetchSellerProfile();
-  // }, [handle]);
-
-  // const fetchSellerProfile = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
-  //     const response = await fetch(`${backendUrl}/api/sellers/${handle}`, {
-  //       credentials: 'include'
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  //     }
-
-  //     const sellerData = await response.json();
-  //     setData(sellerData);
-  //   } catch (err) {
-  //     console.error('Error fetching seller profile:', err);
-  //     setError(err.message);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  const {data: sellerData , isError, isLoading} = useGetSellerOffersQuery(handle);
-  console.log("sellerData:", sellerData);
-
-  useEffect(() => {
-    if (isLoading) {
-      setLoading(true);
-    } else if (isError) {
-      setError('Failed to load seller profile.');
-      setLoading(false);
-    } else {
-      setData(sellerData);
-      setLoading(false);
-    }
-  }, [sellerData, isError, isLoading]);
+  const { data, isLoading: loading, error, isError } = useGetSellerProfileQuery(handle);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-ZA', { 
@@ -113,12 +71,14 @@ const SellerProfile = () => {
     );
   }
 
-  if (error) {
+  if (isError || error) {
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="text-center py-12">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Seller Not Found</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 mb-6">
+            {error?.data?.detail || error?.message || 'Failed to load seller profile.'}
+          </p>
           <button 
             onClick={() => navigate('/marketplace')}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"

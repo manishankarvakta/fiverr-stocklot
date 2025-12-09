@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
@@ -10,145 +10,84 @@ import {
   Filter, Search, RefreshCw, Loader2, AlertCircle,
   Eye, ArrowRight, Star, Archive
 } from 'lucide-react';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import {
+  useGetNotificationsQuery,
+  useGetUnreadCountQuery,
+  useMarkNotificationReadMutation,
+  useMarkNotificationsReadMutation,
+  useMarkAllReadMutation,
+} from '@/store/api/notifications.api';
 
 const UnifiedInboxPage = ({ user }) => {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState('all'); // all, unread, offers, orders, system
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNotifications, setSelectedNotifications] = useState([]);
-  const [actionLoading, setActionLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) {
-      loadNotifications();
-      loadUnreadCount();
-      
-      // Set up real-time polling every 30 seconds
-      const interval = setInterval(() => {
-        loadNotifications();
-        loadUnreadCount();
-      }, 30000);
-      
-      return () => clearInterval(interval);
+  // RTK Query hooks
+  const { data: notificationsData, isLoading: loading, refetch } = useGetNotificationsQuery(
+    { unread_only: filter === 'unread' },
+    {
+      pollingInterval: 30000, // Poll every 30 seconds
+      skip: !user,
     }
-  }, [user, filter]);
+  );
 
-  const loadNotifications = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const unreadParam = filter === 'unread' ? '?unread_only=true' : '';
-      
-      const response = await fetch(`${BACKEND_URL}/api/notifications${unreadParam}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  const { data: unreadCountData } = useGetUnreadCountQuery(undefined, {
+    pollingInterval: 30000,
+    skip: !user,
+  });
 
-      if (!response.ok) {
-        throw new Error('Failed to load notifications');
-      }
+  const [markNotificationsReadMutation] = useMarkNotificationsReadMutation();
+  const [markAllAsReadMutation, { isLoading: actionLoading }] = useMarkAllReadMutation();
 
-      const data = await response.json();
-      let items = data.items || [];
-      
-      // Filter by type if needed
-      if (filter === 'offers') {
-        items = items.filter(n => n.topic?.includes('offer'));
-      } else if (filter === 'orders') {
-        items = items.filter(n => n.topic?.includes('order'));
-      } else if (filter === 'system') {
-        items = items.filter(n => n.topic?.includes('system') || n.topic?.includes('maintenance'));
-      }
-      
-      // Filter by search term
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        items = items.filter(n => 
-          n.title?.toLowerCase().includes(term) ||
-          n.message?.toLowerCase().includes(term)
-        );
-      }
-      
-      setNotifications(items);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    } finally {
-      setLoading(false);
+  const unreadCount = unreadCountData?.count || 0;
+
+  // Filter notifications
+  const notifications = useMemo(() => {
+    if (!notificationsData?.items) return [];
+    
+    let items = [...notificationsData.items];
+    
+    // Filter by type if needed
+    if (filter === 'offers') {
+      items = items.filter(n => n.topic?.includes('offer'));
+    } else if (filter === 'orders') {
+      items = items.filter(n => n.topic?.includes('order'));
+    } else if (filter === 'system') {
+      items = items.filter(n => n.topic?.includes('system') || n.topic?.includes('maintenance'));
     }
-  };
-
-  const loadUnreadCount = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${BACKEND_URL}/api/notifications/unread-count`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUnreadCount(data.count || 0);
-      }
-    } catch (error) {
-      console.error('Error loading unread count:', error);
+    
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      items = items.filter(n => 
+        n.title?.toLowerCase().includes(term) ||
+        n.message?.toLowerCase().includes(term)
+      );
     }
-  };
+    
+    return items;
+  }, [notificationsData, filter, searchTerm]);
 
   const markAsRead = async (notificationIds) => {
-    setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${BACKEND_URL}/api/notifications/mark-read`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(notificationIds)
-      });
-
-      if (response.ok) {
-        await loadNotifications();
-        await loadUnreadCount();
-        setSelectedNotifications([]);
-      }
+      // Mark multiple notifications as read using bulk endpoint
+      await markNotificationsReadMutation(notificationIds).unwrap();
+      refetch();
+      setSelectedNotifications([]);
     } catch (error) {
       console.error('Error marking as read:', error);
-    } finally {
-      setActionLoading(false);
     }
   };
 
   const markAllAsRead = async () => {
-    setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${BACKEND_URL}/api/notifications/mark-all-read`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        await loadNotifications();
-        await loadUnreadCount();
-      }
+      await markAllAsReadMutation().unwrap();
+      refetch();
     } catch (error) {
       console.error('Error marking all as read:', error);
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -274,13 +213,13 @@ const UnifiedInboxPage = ({ user }) => {
           </div>
           
           <div className="flex gap-3">
-            <Button onClick={loadNotifications} variant="outline" disabled={loading}>
+            <Button onClick={() => refetch()} variant="outline" disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             {unreadCount > 0 && (
               <Button onClick={markAllAsRead} disabled={actionLoading}>
-                <MarkAsRead className="h-4 w-4 mr-2" />
+                <Check className="h-4 w-4 mr-2" />
                 Mark All Read
               </Button>
             )}
@@ -356,7 +295,7 @@ const UnifiedInboxPage = ({ user }) => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
-            <Button onClick={loadNotifications}>
+            <Button onClick={() => refetch()}>
               Search
             </Button>
           </div>

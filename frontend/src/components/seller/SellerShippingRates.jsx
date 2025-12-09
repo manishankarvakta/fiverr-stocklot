@@ -6,11 +6,13 @@ import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Truck, DollarSign, MapPin, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { 
+  useGetShippingRatesQuery, 
+  useUpdateShippingRatesMutation 
+} from '../../store/api/seller.api';
 
 const SellerShippingRates = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [rateData, setRateData] = useState({
     base_fee_cents: 0,
@@ -26,11 +28,19 @@ const SellerShippingRates = () => {
     per_km_rands: 0
   });
 
+  const hasSellerRole = user && (user.roles?.includes('seller') || user.roles?.includes('both'));
+  
+  const { data: shippingData, isLoading: loading, error } = useGetShippingRatesQuery(undefined, {
+    skip: !hasSellerRole,
+  });
+  
+  const [updateShippingRates, { isLoading: saving }] = useUpdateShippingRatesMutation();
+
   useEffect(() => {
-    if (user && user.roles?.includes('seller')) {
-      fetchDeliveryRate();
+    if (shippingData) {
+      setRateData(shippingData);
     }
-  }, [user]);
+  }, [shippingData]);
 
   useEffect(() => {
     // Update display values when rate data changes
@@ -39,32 +49,6 @@ const SellerShippingRates = () => {
       per_km_rands: rateData.per_km_cents / 100
     });
   }, [rateData]);
-
-  const fetchDeliveryRate = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/seller/delivery-rate`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setRateData(data);
-      } else {
-        console.error('Failed to fetch delivery rate');
-      }
-    } catch (error) {
-      console.error('Error fetching delivery rate:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCurrencyChange = (field, value) => {
     const numValue = parseFloat(value) || 0;
@@ -80,35 +64,17 @@ const SellerShippingRates = () => {
   };
 
   const handleSave = async () => {
-    setSaving(true);
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/seller/delivery-rate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(rateData)
-        }
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        setMessage({ type: 'success', text: result.message || 'Delivery rates updated successfully!' });
-      } else {
-        const error = await response.json();
-        setMessage({ type: 'error', text: error.detail || 'Failed to update delivery rates' });
-      }
+      const result = await updateShippingRates(rateData).unwrap();
+      setMessage({ type: 'success', text: result.message || 'Delivery rates updated successfully!' });
     } catch (error) {
       console.error('Error saving delivery rate:', error);
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
-    } finally {
-      setSaving(false);
+      setMessage({ 
+        type: 'error', 
+        text: error?.data?.detail || error?.message || 'Failed to update delivery rates' 
+      });
     }
   };
 

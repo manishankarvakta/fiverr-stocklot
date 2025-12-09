@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -13,12 +13,10 @@ import {
   AlertTriangle, RefreshCw, ArrowLeft, DollarSign, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { useGetOrdersQuery } from '../../store/api/orders.api';
 
 const MyOrders = () => {
   const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
@@ -30,37 +28,11 @@ const MyOrders = () => {
   const [refundNotes, setRefundNotes] = useState('');
   const [submittingRefund, setSubmittingRefund] = useState(false);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/orders`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        // Backend returns orders array directly, not wrapped in {orders: [...]}
-        setOrders(Array.isArray(data) ? data : data.orders || []);
-        setLoading(false);
-      } else {
-        throw new Error('Failed to fetch orders');
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setError(error.message);
-      setLoading(false);
-    }
-  };
+  // Use RTK Query to fetch orders
+  const { data: ordersData, isLoading: loading, error, refetch } = useGetOrdersQuery({});
+  
+  // Extract orders from API response - handle both array and object responses
+  const orders = Array.isArray(ordersData) ? ordersData : (ordersData?.orders || ordersData?.buyer_orders || []);
 
   const handleRefundRequest = async () => {
     if (!selectedOrder || !refundReason) {
@@ -154,6 +126,16 @@ const MyOrders = () => {
       <div className="text-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading your orders...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8 text-red-600">
+        <h3>Error loading orders</h3>
+        <p className="text-sm">{error?.data?.detail || error?.message || 'Something went wrong.'}</p>
+        <Button onClick={() => refetch()} className="mt-4 bg-emerald-600 hover:bg-emerald-700">Retry</Button>
       </div>
     );
   }

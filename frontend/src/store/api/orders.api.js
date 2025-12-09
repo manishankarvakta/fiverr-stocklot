@@ -2,14 +2,6 @@ import { baseApi } from './baseApi';
 
 export const ordersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    createOrder: builder.mutation({
-    query: ({ isAuthenticated, orderPayload }) => ({
-      url: isAuthenticated ? '/checkout/order' : '/checkout/guest/create',
-      method: 'POST',
-      body: orderPayload,
-    }),
-    invalidatesTags: ['Order'],
-  }),
     getUserOrders: builder.query({
       query: (params = {}) => ({
         url: '/orders/user',
@@ -17,77 +9,89 @@ export const ordersApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Order'],
     }),
+
+    getOrders: builder.query({
+      query: (params = {}) => ({
+        url: isAuthenticated ? '/orders' : '/checkout/guest/order',
+        params,
+      }),
+      providesTags: ['Order'],
+    }),
+
     getOrderById: builder.query({
       query: (orderId) => `/orders/${orderId}`,
       providesTags: (result, error, orderId) => [{ type: 'Order', id: orderId }],
     }),
-    
+
+    getOrderGroup: builder.query({
+      query: (orderGroupId) => `/orders/${orderGroupId}`,
+      providesTags: (result, error, orderGroupId) => [{ type: 'Order', id: orderGroupId }],
+    }),
+
+    getOrderStatus: builder.query({
+      query: (orderGroupId) => `/orders/${orderGroupId}/status`,
+      providesTags: (result, error, orderGroupId) => [{ type: 'Order', id: orderGroupId }],
+    }),
+
     updateOrderStatus: builder.mutation({
-      query: ({ orderId, status }) => ({
+      query: ({ orderId, ...data }) => ({
         url: `/orders/${orderId}/status`,
         method: 'PUT',
-        body: { status },
+        body: data,
       }),
-      invalidatesTags: (result, error, { orderId }) => [
-        { type: 'Order', id: orderId },
-        'Order',
-      ],
+      invalidatesTags: (result, error, { orderId }) => [{ type: 'Order', id: orderId }, 'Order'],
     }),
-    
+
     confirmDelivery: builder.mutation({
       query: (orderId) => ({
-        url: `/orders/${orderId}/delivery-confirm`,
+        url: `/orders/${orderId}/confirm-delivery`,
         method: 'POST',
       }),
-      invalidatesTags: (result, error, orderId) => [
-        { type: 'Order', id: orderId },
-        'Order',
-      ],
+      invalidatesTags: (result, error, orderId) => [{ type: 'Order', id: orderId }, 'Order'],
     }),
-    
-    createDispute: builder.mutation({
-      query: ({ orderId, ...data }) => ({
-        url: `/orders/${orderId}/dispute`,
+
+    cancelOrder: builder.mutation({
+      query: (orderGroupId) => ({
+        url: `/orders/${orderGroupId}/cancel`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, orderGroupId) => [{ type: 'Order', id: orderGroupId }, 'Order'],
+    }),
+
+    refreshOrderLock: builder.mutation({
+      query: (orderGroupId) => ({
+        url: `/orders/${orderGroupId}/refresh-lock`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, orderGroupId) => [{ type: 'Order', id: orderGroupId }, 'Order'],
+    }),
+
+    finalizeOrderFees: builder.mutation({
+      query: ({ orderGroupId, ...data }) => ({
+        url: `/orders/${orderGroupId}/fees/finalize`,
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { orderId }) => [
-        { type: 'Order', id: orderId },
-        'Order',
-      ],
+      invalidatesTags: (result, error, { orderGroupId }) => [{ type: 'Order', id: orderGroupId }, 'Order'],
     }),
-    
-    // Payments
-    initializePayment: builder.mutation({
+
+    createOrder: builder.mutation({
       query: (data) => ({
-        url: '/payments/initialize',
+        url:'/checkout/order',
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Order'],
+      invalidatesTags: ['Order', 'Cart'],
     }),
-    
-    verifyPayment: builder.mutation({
-      query: (data) => ({
-        url: '/payments/verify',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['Order'],
+
+    getOrderTracking: builder.query({
+      query: (orderId) => `/orders/${orderId}/tracking`,
+      providesTags: (result, error, orderId) => [{ type: 'Order', id: orderId }],
     }),
-    
-    requestRefund: builder.mutation({
-      query: (data) => ({
-        url: '/payments/refund',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['Order'],
-    }),
-    
-    getPaymentHistory: builder.query({
+
+    getOrderHistory: builder.query({
       query: (params = {}) => ({
-        url: '/payments/history',
+        url: '/orders/history',
         params,
       }),
       providesTags: ['Order'],
@@ -97,18 +101,24 @@ export const ordersApi = baseApi.injectEndpoints({
 });
 
 export const {
-  useCreateOrderMutation,
   useGetUserOrdersQuery,
   useLazyGetUserOrdersQuery,
+  useGetOrdersQuery,
+  useLazyGetOrdersQuery,
   useGetOrderByIdQuery,
   useLazyGetOrderByIdQuery,
+  useGetOrderGroupQuery,
+  useLazyGetOrderGroupQuery,
+  useGetOrderStatusQuery,
+  useLazyGetOrderStatusQuery,
   useUpdateOrderStatusMutation,
   useConfirmDeliveryMutation,
-  useCreateDisputeMutation,
-  useInitializePaymentMutation,
-  useVerifyPaymentMutation,
-  useRequestRefundMutation,
-  useGetPaymentHistoryQuery,
-  useLazyGetPaymentHistoryQuery,
+  useCancelOrderMutation,
+  useRefreshOrderLockMutation,
+  useFinalizeOrderFeesMutation,
+  useCreateOrderMutation,
+  useGetOrderTrackingQuery,
+  useLazyGetOrderTrackingQuery,
+  useGetOrderHistoryQuery,
+  useLazyGetOrderHistoryQuery,
 } = ordersApi;
-

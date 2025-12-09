@@ -144,6 +144,36 @@ export const notificationsApi = baseApi.injectEndpoints({
       query: () => '/price-alerts/stats',
       providesTags: ['PriceAlert'],
     }),
+
+    getUnreadCount: builder.query({
+      query: () => '/notifications/unread-count',
+      providesTags: ['Notification'],
+    }),
+
+    markNotificationsRead: builder.mutation({
+      query: (notificationIds) => ({
+        url: '/notifications/mark-read',
+        method: 'POST',
+        body: notificationIds,
+      }),
+      invalidatesTags: ['Notification'],
+    }),
+
+    markAllRead: builder.mutation({
+      query: () => ({
+        url: '/notifications/mark-all-read',
+        method: 'POST',
+      }),
+      invalidatesTags: ['Notification'],
+    }),
+
+    getAdminNotifications: builder.query({
+      query: (params = {}) => ({
+        url: '/admin/notifications',
+        params,
+      }),
+      providesTags: ['Notification', 'Admin'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -177,5 +207,11 @@ export const {
   useDeletePriceAlertMutation,
   useGetPriceAlertStatsQuery,
   useLazyGetPriceAlertStatsQuery,
+  useGetUnreadCountQuery,
+  useLazyGetUnreadCountQuery,
+  useMarkNotificationsReadMutation,
+  useMarkAllReadMutation,
+  useGetAdminNotificationsQuery,
+  useLazyGetAdminNotificationsQuery,
 } = notificationsApi;
 
