@@ -21,7 +21,7 @@ const Wishlist = () => {
 
   // Use Redux RTK Query hooks
   const { data: wishlistData, isLoading: loading, refetch } = useGetWishlistQuery();
-  console.log('console.log', wiwshlistData)
+  console.log('console.log', wishlistData)
   console.log('wishlistData', wishlistData);
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
 
