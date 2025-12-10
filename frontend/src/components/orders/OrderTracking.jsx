@@ -7,7 +7,7 @@ import {
   MapPin, Truck, Clock, CheckCircle, Package, Phone, 
   Calendar, User, Search
 } from 'lucide-react';
-import { useLazyGetOrderTrackingQuery, useGetOrderByIdQuery } from '../../store/api/orders.api';
+import { useLazyGetOrderTrackingQuery, useGetOrderByIdQuery, useLazyGetOrderByIdQuery } from '../../store/api/orders.api';
 
 const OrderTracking = () => {
   const [trackingId, setTrackingId] = useState('');
