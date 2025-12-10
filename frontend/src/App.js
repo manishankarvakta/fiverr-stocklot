@@ -292,6 +292,8 @@ function App() {
                 {/* Buyer Dashboard with Sidebar */}
                 <Route element={<ProtectedRoute roles={['buyer']} />}>
                   <Route path="/buyer/dashboard/*" element={<DashboardLayout userRole="buyer" />}>
+                      {/* buyer dashboard here  */}
+                    <Route path = "offers-inbox" element={<BuyerOffersPage />} />
                     <Route index element={<Wishlist />} />
                     <Route path="orders" element={<div>Buyer Orders</div>} />
                     <Route path="wishlist" element={<Wishlist />} />

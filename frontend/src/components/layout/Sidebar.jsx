@@ -191,6 +191,14 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         ]
       },
       {
+        id: 'offers-inbox',
+        label: 'Accept offers',
+        icon: MessageSquare,
+        items: [
+          { path: '/offers-inbox', label: 'Accept Offers', icon: MessageSquare }
+        ]
+      },
+      {
         id: 'analytics',
         label: 'Analytics',
         icon: BarChart3,
