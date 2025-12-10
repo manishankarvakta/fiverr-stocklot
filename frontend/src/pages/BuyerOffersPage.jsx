@@ -29,6 +29,7 @@ const BuyerOffersPage = ({ user }) => {
     filter !== 'all' ? { status: filter } : {},
     { skip: !user }
   );
+  console.log('Offers Data:', offersData);
 
   const [acceptOffer, { isLoading: acceptLoading }] = useAcceptOfferMutation();
   const [declineOffer, { isLoading: declineLoading }] = useDeclineOfferMutation();

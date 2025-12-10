@@ -22,6 +22,7 @@ const CustomerReviews = () => {
     { seller_id: sellerId },
     { skip: !sellerId }
   );
+  c
   
   const [replyToReview] = useReplyToReviewMutation();
 

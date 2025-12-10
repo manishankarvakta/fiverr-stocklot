@@ -26,6 +26,7 @@ function SellerOrders() {
 
   // Use RTK Query to fetch orders
   const { data: ordersData, isLoading: loading, error, refetch } = useGetUserOrdersQuery({});
+  console.log('ordersData', ordersData);
   const [updateOrderStatus, { isLoading: updatingStatus }] = useUpdateOrderStatusMutation();
 
   // Extract seller orders from API response
