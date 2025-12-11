@@ -19,6 +19,7 @@ import { useGetOrdersQuery } from '../../store/api/orders.api';
 
 const MyOrders = () => {
   const { user } = useAuth();
+  console.log('user for my order', user)
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
