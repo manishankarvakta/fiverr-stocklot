@@ -314,18 +314,41 @@ const createOrder = async () => {
  // 🔥 FIXED function for live location + localStorage + API save
 const handleLocationChange = (newLocation) => {
   const normalized = {
+    id: Date.now(), // 🔑 unique id for edit/delete
     address_line_1: newLocation.address || newLocation.address_line_1 || '',
-    city: newLocation.admin_area_2 || newLocation.locality || newLocation.town || (newLocation.address?.split(',')[0] || 'Unknown'),
-    province: newLocation.administrative_area_level_1 || newLocation.province || newLocation.state || '',
-    postal_code: newLocation.postal_code || newLocation.postcode || '',
-    lat: newLocation.lat ?? 0,
-    lng: newLocation.lng ?? 0,
-    
+    address_line_2: newLocation.address_line_2 || '',
+    city:
+      newLocation.admin_area_2 ||
+      newLocation.locality ||
+      newLocation.town ||
+      (newLocation.address?.split(',')[0] || ''),
+    province:
+      newLocation.administrative_area_level_1 ||
+      newLocation.province ||
+      newLocation.state ||
+      '',
+    postal_code: newLocation.postal_code || '',
+    lat: newLocation.lat,
+    lng: newLocation.lng,
+    is_default: true
   };
 
+  // ✅ set to state (checkout use)
   setShipTo(normalized);
-  console.log('final ship_to', normalized)
+
+  // ✅ save to localStorage (address page use)
+  const existing = JSON.parse(localStorage.getItem('addresses') || '[]');
+
+  const updated = [
+    normalized,
+    ...existing.filter(a => a.address_line_1 !== normalized.address_line_1)
+  ];
+
+  localStorage.setItem('addresses', JSON.stringify(updated));
+
+  console.log('Saved address', normalized);
 };
+
   const getRiskBadge = (riskData) => {
     if (!riskData) return null;
     const category = getRiskCategory(riskData.score);
