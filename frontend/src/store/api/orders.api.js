@@ -76,12 +76,24 @@ export const ordersApi = baseApi.injectEndpoints({
     }),
 
     createOrder: builder.mutation({
-      query: (data) => ({
-        url:'/checkout/order',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['Order', 'Cart'],
+     query: (args) => {
+      const body = args?.data || args;
+      const customHeaders = args?.header || {};
+      "user";
+      const token = localStorage.getItem('token');// auth provider
+      return {
+        url: '/checkout/order',
+        mathod: 'POST',
+        body: body,
+        header:{
+          'X-org-context': orgContext,
+          ...(token? {Authorization: `Bearer ${token}`}:{}),
+          ...customHeaders,
+        },
+
+      };
+     },
+     invalidatesTag: ['Order', 'Cart']
     }),
 
     getOrderTracking: builder.query({

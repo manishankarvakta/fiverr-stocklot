@@ -1,24 +1,28 @@
-import { useEffect, useState } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "../ui";
 import { Badge, MapPin, Plus } from "lucide-react";
+import { useGetAddressesQuery } from "@/store/api/address.api";
+import { useEffect, useState } from "react";
 
-function AddressesPage() {
-  const [addresses, setAddresses] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function AddressesPage() {
+  const { data: addressesAPI = [], isLoading, isError, refetch } = useGetAddressesQuery();
+  const [addresses, setAddresses] = useState([false]);
 
-  useEffect(() => {
-    fetchAddresses();
-  }, []);
+// 1️⃣ Refetch only on mount
+// useEffect(() => {
+//   refetch();
+// }, []);
 
-  const fetchAddresses = async () => {
-    try {
-      const response = await apiCall('GET', '/addresses');
-      setAddresses(response || []);
-    } catch (error) {
-      console.error('Failed to fetch addresses');
-    }
-    setLoading(false);
-  };
+// 2️⃣ Merge addresses whenever API data changes
+useEffect(() => {
+  try {
+    const localAddresses = JSON.parse(localStorage.getItem('addresses') || '[]');
+    setAddresses([...localAddresses, ...(addressesAPI || [])]);
+  } catch (error) {
+    console.error('LocalStorage parse error', error);
+    setAddresses(addressesAPI || []);
+  }
+}, [addressesAPI]);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
@@ -28,7 +32,7 @@ function AddressesPage() {
             <h1 className="text-3xl font-bold text-emerald-900">Delivery Addresses</h1>
             <p className="text-emerald-700">Manage your delivery and pickup locations</p>
           </div>
-          
+
           <div className="grid gap-6">
             <Card className="shadow-xl border-emerald-200">
               <CardHeader>
@@ -40,9 +44,12 @@ function AddressesPage() {
                   </Button>
                 </div>
               </CardHeader>
+
               <CardContent>
-                {loading ? (
+                {isLoading ? (
                   <p>Loading addresses...</p>
+                ) : isError ? (
+                  <p className="text-red-600">Failed to load addresses. Try refreshing.</p>
                 ) : addresses.length === 0 ? (
                   <div className="text-center py-8">
                     <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -53,13 +60,13 @@ function AddressesPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {addresses.map((address, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 border border-emerald-200 rounded-lg">
+                    {addresses.map((address, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-4 border border-emerald-200 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <MapPin className="h-8 w-8 text-emerald-600" />
                           <div>
-                            <p className="font-medium">{address.name}</p>
-                            <p className="text-sm text-gray-600">{address.street_address}</p>
+                            <p className="font-medium">{address.address_line_1 || address.name}</p>
+                            <p className="text-sm text-gray-600">{address.address_line_2}</p>
                             <p className="text-sm text-gray-600">{address.city}, {address.province} {address.postal_code}</p>
                           </div>
                           {address.is_default && (
@@ -82,4 +89,3 @@ function AddressesPage() {
     </div>
   );
 }
-export default AddressesPage;

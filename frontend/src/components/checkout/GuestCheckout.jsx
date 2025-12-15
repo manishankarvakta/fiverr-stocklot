@@ -29,22 +29,25 @@ export default function GuestCheckout() {
   const location = useLocation();
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
+  const [addresses, setAddresses] = useState([]);
 
   const [items, setItems] = useState([]);
   const [shipTo, setShipTo] = useState(null);
-  console.log('shipTo', shipTo);
   const [contact, setContact] = useState({ email: '', phone: '', full_name: '' });
   const [quote, setQuote] = useState(null);
   const [risk, setRisk] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState('details'); // details, quote, payment
-
+  
   const [createOrderMutation, {isSuccess, isLoading, isError}] = useCreateOrderMutation();
-
+  
+  
   console.log("create order mutation ", createOrderMutation, isSuccess, isLoading, isError);
   console.log('location for details ', location);
-
+  
+  console.log('shipTo', shipTo);
+  
   // Pre-fill contact info for authenticated users
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -116,58 +119,213 @@ export default function GuestCheckout() {
   };
 
   // Create order
-  const createOrder = async () => {
-    console.log('createOrder called');
-    if (!quote) return;
-    if (!isAuthenticated && (!contact.email || !contact.full_name || !contact.phone)) {
-      setError('Full name, email, and phone are required for guest checkout');
-      return;
-    }
-    if (!shipTo || !shipTo.city || !shipTo.address_line_1) {
-      setError('Delivery address is incomplete');
-      return;
-    }
-    setLoading(true);
-    console.log('Payload sent:', payload);
-    setError('');
-    const payload = isAuthenticated
-      ? { ship_to: shipTo, items, quote }
-      : { contact, ship_to: shipTo, items, quote };
-    try {
-       const result = await createOrderMutation({
-      isAuthenticated,
-      orderPayload: payload
-    }).unwrap();
-      console.log('Order created successfully:', result);
+// const createOrder = async () => {
+//   if (!items.length) {
+//     setError('Cart is empty');
+//     return;
+//   }
 
-      // Payment URL detection
-      const possiblePaths = ['paystack.authorization_url', 'authorization_url', 'redirect_url', 'payment_url', 'data.authorization_url'];
-      const getNestedValue = (obj, path) => path.split('.').reduce((cur, key) => cur?.[key], obj);
-      const isValidUrl = url => url && (url.includes('paystack.com') || url.includes('checkout') || url.includes('payment'));
-      let redirectUrl = null;
-      for (const path of possiblePaths) {
-        const url = getNestedValue(result, path);
-        if (isValidUrl(url)) { redirectUrl = url; break; }
+//   if (!quote) {
+//     setError('Please get quote first');
+//     return;
+//   }
+
+//   if (
+//     !shipTo ||
+//     !shipTo.address_line_1 ||
+//     !shipTo.city ||
+//     shipTo.lat == null ||
+//     shipTo.lng == null
+//   ) {
+//     setError('Delivery address is incomplete');
+//     return;
+//   }
+
+//   const normalizedItems = items.map(item => ({
+//     listing_id: item.listing_id,
+//     quantity: item.qty
+//   }));
+
+//   const payload = isAuthenticated
+//     ? {
+//         shipTo: shipTo,
+//         items: normalizedItems,
+//         quote: quote
+//       }
+//     : {
+//         contact: contact,
+//         shipTo: shipTo,
+//         items: normalizedItems,
+//         quote: quote
+//       };
+
+//   console.log('FINAL ORDER PAYLOAD', payload);
+
+//   try {
+//     const result = await createOrderMutation(payload).unwrap();
+//     console.log('ORDER SUCCESS', result);
+//   } catch (err) {
+//     console.error(err);
+//     setError(handleAPIError(err, false));
+//   }
+// };
+
+// const createOrder = async () => {
+//     setError('');
+//     if (!items.length) return setError('Cart is empty');
+//     if (!quote) return setError('Please get quote first');
+//     if (!shipTo || !shipTo.address_line_1 || !shipTo.city || shipTo.lat == null || shipTo.lng == null) return setError('Delivery address is incomplete');
+
+//     const normalizedItems = items.map(item => ({ listing_id: item.listing_id, quantity: item.qty }));
+//     const payload = isAuthenticated
+//       ? { ship_to: shipTo, items: normalizedItems, quote }
+//       : { contact, ship_to: shipTo, items: normalizedItems, quote };
+
+//     setLoading(true);
+//     try {
+//       const result = await createOrderMutation(payload).unwrap();
+//       if (result?.authorization_url) window.location.href = result.authorization_url;
+//     } catch (err) {
+//       setError(handleAPIError(err, false));
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+
+const createOrder = async () => {
+  setError('');
+  
+  // 1️⃣ Check cart
+  if (!items || items.length === 0) {
+    return setError('Cart is empty');
+  }
+
+  // 2️⃣ Check quote
+  if (!quote) {
+    return setError('Please get quote first');
+  }
+
+  // 3️⃣ Validate shipTo
+  if (
+    !shipTo ||
+    !shipTo.address_line_1 ||
+    !shipTo.city ||
+    !shipTo.province ||       // added province check
+    shipTo.lat == null ||
+    shipTo.lng == null
+  ) {
+    return setError('Delivery address is incomplete');
+  }
+
+  // 4️⃣ Normalize items
+ const normalizedItems = items.map(item => ({
+  listing_id: item.listing_id,
+  qty: item.qty || 1,
+  species: item.species || 'livestock',
+  product_type: item.product_type || 'animal',
+  line_total: (item.price || 0) * (item.qty || 1)  // ✅ never None
+}));
+
+
+  // 5️⃣ Build payload
+  const payload = isAuthenticated
+    ? {
+        ship_to: {
+          address_line_1: shipTo.address_line_1,
+          address_line_2: shipTo.address_line_2 || '',
+          city: shipTo.city,
+          province: shipTo.province,
+          postal_code: shipTo.postal_code || '',
+          lat: shipTo.lat,
+          lng: shipTo.lng
+        },
+        items: normalizedItems,
+        quote
       }
+    : {
+        contact: {
+          full_name: contact.full_name,
+          email: contact.email,
+          phone: contact.phone
+        },
+        ship_to: {
+          address_line_1: shipTo.address_line_1,
+          address_line_2: shipTo.address_line_2 || '',
+          city: shipTo.city,
+          province: shipTo.province,
+          postal_code: shipTo.postal_code || '',
+          lat: shipTo.lat,
+          lng: shipTo.lng
+        },
+        items: normalizedItems,
+        quote
+      };
 
-      if (redirectUrl) {
-        toast({ title: 'Order created', description: 'Redirecting to payment...', duration: 2000 });
-        window.location.href = redirectUrl;
-      } else {
-        toast({ title: 'Order created', description: 'No payment URL found', duration: 3000 });
-        console.log('No payment URL in order response:', result);
-      }
+  console.log('FINAL ORDER PAYLOAD', payload); // ✅ check before sending
 
-    } catch (err) {
-      console.error('Order creation error:', err);
-      setError(handleAPIError(err, false));
-      if (err?.data?.detail) console.log('API validation details:', err.data.detail);
-    } finally {
-      setLoading(false);
+  // 6️⃣ Send order
+  setLoading(true);
+  try {
+    const result = await createOrderMutation(payload).unwrap();
+    console.log('ORDER SUCCESS', result);
+
+    // // If authorization_url exists, redirect
+    if (result?.authorization_url) {
+      // window.location.href = result.authorization_url;
+      console.log('result authorization ', result?.authorization_url)
     }
-   
+  } catch (err) {
+    console.error('ORDER ERROR', err);
+    setError(handleAPIError(err, false));
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  // Risk Badge
+
+//  onChange={async (newLocation) => {
+//   setShipTo(newLocation);
+//   setAddresses(prev => [...prev, newLocation]);
+
+//   try {
+//     await addAddress(newLocation).unwrap(); // API call
+//   } catch (err) {
+//     console.error('Error saving address:', err);
+//   }
+// }}
+
+// const handleLocationChange = async (newLocation) => {
+//   setShipTo(newLocation);
+//   setAddresses(prev => [...prev, newLocation]);
+
+//   if (addAddress) {
+//     try {
+//       await addAddress(newLocation).unwrap(); // Ensure addAddress exists
+//     } catch (err) {
+//       console.error('Error saving address:', err);
+//     }
+//   }
+// };
+
+ // 🔥 FIXED function for live location + localStorage + API save
+const handleLocationChange = (newLocation) => {
+  const normalized = {
+    address_line_1: newLocation.address || newLocation.address_line_1 || '',
+    city: newLocation.admin_area_2 || newLocation.locality || newLocation.town || (newLocation.address?.split(',')[0] || 'Unknown'),
+    province: newLocation.administrative_area_level_1 || newLocation.province || newLocation.state || '',
+    postal_code: newLocation.postal_code || newLocation.postcode || '',
+    lat: newLocation.lat ?? 0,
+    lng: newLocation.lng ?? 0,
+    
   };
 
+  setShipTo(normalized);
+  console.log('final ship_to', normalized)
+};
   const getRiskBadge = (riskData) => {
     if (!riskData) return null;
     const category = getRiskCategory(riskData.score);
@@ -181,6 +339,7 @@ export default function GuestCheckout() {
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
+          <LocationPicker value={shipTo} onChange={handleLocationChange} />
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -235,11 +394,19 @@ export default function GuestCheckout() {
                       <MapPin className="h-4 w-4 mr-2" />
                       Delivery Address
                     </Label>
-                    <LocationPicker 
+                    {/* <LocationPicker 
+                      // value={shipTo}
+                      // onChange={setShipTo}
+                      // placeholder="Select your delivery location"
+                      // className="w-full"
+
+                      // value={shipTo}
+                      //  onChange={(newLocation) => handleLocationChange(newLocation)}
+                    /> */}
+
+                    <LocationPicker
                       value={shipTo}
-                      onChange={setShipTo}
-                      placeholder="Select your delivery location"
-                      className="w-full"
+                      onChange={handleLocationChange}
                     />
                     <p className="text-xs text-gray-500 mt-2">
                       Your exact address is never shared with sellers until payment is confirmed
