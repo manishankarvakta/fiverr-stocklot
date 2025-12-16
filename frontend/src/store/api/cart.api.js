@@ -3,23 +3,28 @@ import { baseApi } from './baseApi';
 export const cartApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getCart: builder.query({
-      query: (params = {}) => ({
-        url: '/cart',
-        params,
-      }),
+      query: () => '/cart',
       providesTags: ['Cart'],
     }),
-    
+
     addToCart: builder.mutation({
-      query: (item) => ({
+      query: (data) => ({
         url: '/cart/add',
         method: 'POST',
-        body: item,
+        body: data,
       }),
       invalidatesTags: ['Cart'],
     }),
-    
-    updateCartItem: builder.mutation({
+
+    removeCartItem: builder.mutation({
+      query: (itemId) => ({
+        url: `/cart/item/${itemId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Cart'],
+    }),
+
+    updateCart: builder.mutation({
       query: (data) => ({
         url: '/cart/update',
         method: 'PUT',
@@ -27,40 +32,13 @@ export const cartApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Cart'],
     }),
-    
-    removeFromCart: builder.mutation({
-      query: (itemId) => ({
-        url: `/cart/item/${itemId}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['Cart'],
-    }),
-    
-    // Checkout
-    createCheckout: builder.mutation({
+
+    createCartSnapshot: builder.mutation({
       query: (data) => ({
-        url: '/checkout/create',
+        url: '/cart/snapshot',
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Cart'],
-    }),
-    
-    getCheckoutPreview: builder.query({
-      query: (params = {}) => ({
-        url: '/checkout/preview',
-        params,
-      }),
-      providesTags: ['Cart'],
-    }),
-    
-    completeCheckout: builder.mutation({
-      query: ({ sessionId, ...data }) => ({
-        url: `/checkout/${sessionId}/complete`,
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['Cart', 'Order'],
     }),
   }),
   overrideExisting: false,
@@ -70,11 +48,27 @@ export const {
   useGetCartQuery,
   useLazyGetCartQuery,
   useAddToCartMutation,
-  useUpdateCartItemMutation,
-  useRemoveFromCartMutation,
-  useCreateCheckoutMutation,
-  useGetCheckoutPreviewQuery,
-  useLazyGetCheckoutPreviewQuery,
-  useCompleteCheckoutMutation,
+  useRemoveCartItemMutation,
+  useUpdateCartMutation,
+  useCreateCartSnapshotMutation,
 } = cartApi;
 
+// Aliases for backward compatibility
+export const useRemoveFromCartMutation = useRemoveCartItemMutation;
+
+// Wrapper hook for updateCartItem that accepts { itemId, quantity }
+// Backend expects: { item_id, quantity }
+export const useUpdateCartItemMutation = () => {
+  const [updateCart, mutationResult] = useUpdateCartMutation();
+  
+  const updateCartItem = async ({ itemId, quantity, ...otherData }) => {
+    // Backend expects { item_id, quantity } format
+    return updateCart({
+      item_id: itemId,
+      quantity,
+      ...otherData
+    });
+  };
+  
+  return [updateCartItem, mutationResult];
+};

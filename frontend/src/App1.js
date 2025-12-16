@@ -189,7 +189,7 @@ function App() {
                   <Route path="/addresses" element={<AddressesPage />} />
                   <Route path="/account/credit-wallet" element={<CreditWallet />} />
                   <Route path="/dashboard" element={<UniversalDashboard />} />
-                  <Route path="/seller-dashboard" element={<SellerDashboard />} />
+                  <Route path="/seller/dashboard" element={<SellerDashboard />} />
                   <Route path="/create-organization" element={<CreateOrganizationPage />} />
                   <Route path="/orgs/:handle/dashboard" element={<OrganizationDashboard />} />
                   <Route path="/referrals" element={<ReferralDashboard />} />

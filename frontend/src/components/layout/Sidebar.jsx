@@ -18,12 +18,15 @@ import {
   Upload,
   Star,
   Eye,
-  DollarSign
+  DollarSign,
+  Clock
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
   const [expandedGroups, setExpandedGroups] = useState(['dashboard']);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => 
@@ -191,6 +194,14 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         ]
       },
       {
+        id: 'offers-inbox',
+        label: 'Accept offers',
+        icon: MessageSquare,
+        items: [
+          { path: '/offers-inbox', label: 'Accept Offers', icon: MessageSquare }
+        ]
+      },
+      {
         id: 'analytics',
         label: 'Analytics',
         icon: BarChart3,
@@ -203,7 +214,9 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         label: 'Orders',
         icon: FileText,
         items: [
-          { path: '/buyer/orders', label: 'My Orders', icon: FileText }
+          { path: '/buyer/dashboard/orders', label: 'My Orders', icon: FileText },
+          { path: '/buyer/dashboard/orders/tracking', label: 'Order tracking', icon: FileText },
+          { path: '/buyer/dashboard/orders/history', label: 'History', icon: Clock },
         ]
       },
       // Role switcher for dual-role users
@@ -303,7 +316,10 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
       ${isCollapsed ? 'w-16' : 'w-64'}
     `}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+     <button 
+      onClick={() => navigate('/')}
+     >
+       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
             <Package className="h-5 w-5 text-white" />
@@ -316,6 +332,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           )}
         </div>
       </div>
+     </button>
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

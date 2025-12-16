@@ -12,57 +12,13 @@ import { useGetMyListingsQuery } from '@/store/api/listings.api';
 
 const MyListings = () => {
   const { user } = useAuth();
-  const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-      // const {data, error, isLoading} = useGetMyListingsQuery();
-      // console.log("MyListings user:", data, error, isLoading);
-  const { data, error, isLoading } = useGetMyListingsQuery({});
-  console.log("MyListings data:", data, error, isLoading);
-
-  // useEffect(() => {
-  //   if (data && data.listings) {
-  //     setListings(data.listings);
-  //   }
-  // }, [data]);
-
-  useEffect(() => {
-    fetchListings();
-  }, []);
-
-  const fetchListings = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
-      const response = await fetch(
-        `${backendUrl}/api/seller/listings`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        // Handle both array response (old) and object response (new with pagination)
-        if (Array.isArray(data)) {
-          setListings(data);
-        } else {
-          setListings(data.listings || []);
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Error fetching listings:', errorData);
-      }
-    } catch (error) {
-      console.error('Error fetching listings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  const { data: listingsData, error, isLoading: loading, refetch } = useGetMyListingsQuery({});
+  
+  // Extract listings from API response - handle both array and object responses
+  const listings = listingsData?.listings || (Array.isArray(listingsData) ? listingsData : []);
 
 
 
@@ -88,6 +44,16 @@ const MyListings = () => {
       <div className="text-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading your listings...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8 text-red-600">
+        <h3>Error loading listings</h3>
+        <p className="text-sm">{error?.data?.detail || error?.message || 'Something went wrong.'}</p>
+        <Button onClick={() => refetch()} className="mt-4 bg-emerald-600 hover:bg-emerald-700">Retry</Button>
       </div>
     );
   }

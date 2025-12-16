@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -7,41 +7,49 @@ import {
   MapPin, Truck, Clock, CheckCircle, Package, Phone, 
   Calendar, User, Search
 } from 'lucide-react';
+import { useLazyGetOrderTrackingQuery, useGetOrderByIdQuery, useLazyGetOrderByIdQuery } from '../../store/api/orders.api';
 
 const OrderTracking = () => {
   const [trackingId, setTrackingId] = useState('');
-  const [trackingData, setTrackingData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [trackTrackinging, { data: trackingData, isLoading: trackingLoading, error: trackingError }] = useLazyGetOrderTrackingQuery();
+  
+  // Fallback: if tracking endpoint doesn't exist, use order details
+  const [getOrderById, { data: orderData, isLoading: orderLoading, error: orderError }] = useLazyGetOrderByIdQuery();
 
-  const handleTrack = async () => {
+  const handleTrack = () => {
     if (!trackingId.trim()) return;
     
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/orders/${trackingId}/tracking`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setTrackingData(data);
-      } else {
-        setTrackingData({ error: 'Order not found or tracking unavailable' });
-      }
-    } catch (error) {
-      console.error('Error tracking order:', error);
-      setTrackingData({ error: 'Failed to track order' });
-    } finally {
-      setLoading(false);
-    }
+    // Try tracking endpoint first
+    trackTrackinging(trackingId).catch(() => {
+      // Fallback to order details if tracking endpoint doesn't exist
+      getOrderById(trackingId);
+    });
   };
+
+  const loading = trackingLoading || orderLoading;
+  const error = trackingError || orderError;
+  
+  // Extract tracking data - prefer tracking endpoint, fallback to order data
+  const trackingInfo = trackingData || (orderData ? {
+    order_id: orderData.id,
+    current_step: getStepFromStatus(orderData.status || orderData.delivery_status),
+    estimated_delivery: orderData.estimated_delivery_date,
+    carrier: orderData.carrier || 'Direct Delivery',
+    seller_name: orderData.seller_name,
+    error: null
+  } : null);
+
+  // Helper function to convert order status to tracking step
+  function getStepFromStatus(status) {
+    const statusMap = {
+      'pending': 1,
+      'confirmed': 2,
+      'shipped': 4,
+      'delivered': 5,
+      'completed': 5
+    };
+    return statusMap[status?.toLowerCase()] || 1;
+  }
 
   const trackingSteps = [
     { id: 1, title: 'Order Placed', icon: Package, description: 'Your order has been received' },
@@ -51,7 +59,7 @@ const OrderTracking = () => {
     { id: 5, title: 'Delivered', icon: MapPin, description: 'Order has been delivered' }
   ];
 
-  const currentStep = trackingData?.current_step || 1;
+  const currentStep = trackingInfo?.current_step || 1;
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -82,21 +90,28 @@ const OrderTracking = () => {
               disabled={loading || !trackingId.trim()}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {loading ? 'Tracking...' : 'Track Order'}
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                  Tracking...
+                </>
+              ) : 'Track Order'}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Tracking Results */}
-      {trackingData && (
+      {trackingInfo && (
         <>
-          {trackingData.error ? (
+          {(trackingInfo.error || error) ? (
             <Card className="border-red-200">
               <CardContent className="text-center py-8">
                 <Package className="h-12 w-12 text-red-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-red-800 mb-2">Tracking Failed</h3>
-                <p className="text-red-600">{trackingData.error}</p>
+                <p className="text-red-600">
+                  {trackingInfo.error || error?.data?.detail || error?.message || 'Order not found or tracking unavailable'}
+                </p>
               </CardContent>
             </Card>
           ) : (
@@ -110,15 +125,15 @@ const OrderTracking = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Order ID</p>
-                      <p className="font-medium">#{trackingData.order_id || trackingId}</p>
+                      <p className="font-medium">#{trackingInfo.order_id || trackingId}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Estimated Delivery</p>
-                      <p className="font-medium">{trackingData.estimated_delivery || 'TBD'}</p>
+                      <p className="font-medium">{trackingInfo.estimated_delivery || 'TBD'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Carrier</p>
-                      <p className="font-medium">{trackingData.carrier || 'Direct Delivery'}</p>
+                      <p className="font-medium">{trackingInfo.carrier || 'Direct Delivery'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -188,7 +203,7 @@ const OrderTracking = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <User className="h-5 w-5 text-emerald-600" />
-                    <span>Seller: {trackingData.seller_name || 'Contact via messages'}</span>
+                    <span>Seller: {trackingInfo.seller_name || 'Contact via messages'}</span>
                   </div>
                 </CardContent>
               </Card>

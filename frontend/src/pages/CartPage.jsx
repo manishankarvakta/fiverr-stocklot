@@ -25,6 +25,7 @@ function CartPage() {
   const { data: cartData, isLoading: loading, isError: cartError, refetch } = useGetCartQuery(undefined, {
     skip: !user, // Skip query if user is not authenticated
   });
+  console.log('cartData', cartData);  
   
   // Also load guest cart items as fallback (in case API cart is empty but localStorage has items)
   const [fallbackGuestCart, setFallbackGuestCart] = useState([]);

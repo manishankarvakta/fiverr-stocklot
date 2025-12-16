@@ -4,7 +4,7 @@ import { MessagePane } from '../components/inbox/MessagePane';
 import { Button } from '@/components/ui';
 import { Badge } from '@/components/ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
-import useSWR from 'swr';
+import { useGetInboxSummaryQuery } from '@/store/api/messaging.api';
 import { useSearchParams } from 'react-router-dom';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -38,8 +38,12 @@ export default function InboxPage() {
     }
   }, [searchParams]);
 
-  // Get inbox summary for unread counts
-  const { data: summary } = useSWR(`${BACKEND_URL}/api/inbox/summary`, fetcher);
+  // Get inbox summary for unread counts using RTK Query
+  const { data: summaryData } = useGetInboxSummaryQuery(undefined, {
+    pollingInterval: 30000, // Poll every 30 seconds
+  });
+  
+  const summary = summaryData || {};
 
   const buckets = [
     { id: 'ALL', label: 'All', count: summary?.total_unread || 0 },

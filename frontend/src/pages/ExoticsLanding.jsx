@@ -1,32 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import CategoryList from '../components/catalog/CategoryList';
+import { useGetExoticStatisticsQuery } from '@/store/api/taxonomy.api';
 
 /**
  * 🦌 Exotic & Specialty Livestock Landing Page
  * Dedicated page for exotic livestock with proper SEO and content
  */
 export function ExoticsLanding() {
-  const [statistics, setStatistics] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStatistics = async () => {
-      try {
-        const response = await fetch('/api/exotic-livestock/statistics');
-        if (response.ok) {
-          const data = await response.json();
-          setStatistics(data);
-        }
-      } catch (error) {
-        console.error('Error fetching exotic statistics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStatistics();
-  }, []);
+  // Use RTK Query to fetch statistics
+  const { data: statistics, isLoading: loading } = useGetExoticStatisticsQuery();
+  console.log(statistics);
 
   return (
     <div className="min-h-screen bg-gray-50">

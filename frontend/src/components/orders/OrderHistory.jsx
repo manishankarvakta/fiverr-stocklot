@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -8,45 +8,66 @@ import {
   Star, MessageSquare, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { useGetOrderHistoryQuery, useGetOrdersQuery } from '../../store/api/orders.api';
 
 const OrderHistory = () => {
   const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('completed');
 
-  useEffect(() => {
-    fetchOrderHistory();
-  }, [dateFilter, statusFilter]);
+  // Use RTK Query - if history endpoint doesn't exist, use orders endpoint with filters
+  const { data: historyData, isLoading: historyLoading, error: historyError } = useGetOrderHistoryQuery({
+    period: dateFilter !== 'all' ? dateFilter : undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+  }, { skip: false });
 
-  const fetchOrderHistory = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const params = new URLSearchParams();
-      if (dateFilter !== 'all') params.append('period', dateFilter);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
+  // Fallback to orders endpoint if history endpoint doesn't exist
+  const { data: ordersData, isLoading: ordersLoading, error: ordersError } = useGetOrdersQuery({}, {
+    skip: !historyError || historyError?.status !== 404
+  });
 
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/orders/history?${params.toString()}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
+  const loading = historyLoading || ordersLoading;
+  const error = historyError && historyError?.status !== 404 ? historyError : ordersError;
+  
+  // Extract orders - prefer history data, fallback to orders data filtered client-side
+  const allOrders = historyData?.orders || (Array.isArray(ordersData) ? ordersData : ordersData?.orders || []);
+  
+  // Client-side filtering if using orders endpoint
+  const orders = useMemo(() => {
+    if (historyData?.orders) return historyData.orders;
+    
+    let filtered = allOrders;
+    
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(order => 
+        order.status?.toLowerCase() === statusFilter.toLowerCase() ||
+        order.delivery_status?.toLowerCase() === statusFilter.toLowerCase()
       );
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders || []);
-      }
-    } catch (error) {
-      console.error('Error fetching order history:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    // Filter by date period
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const periodDays = {
+        '30days': 30,
+        '3months': 90,
+        '6months': 180,
+        '1year': 365
+      };
+      
+      const days = periodDays[dateFilter];
+      if (days) {
+        const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        filtered = filtered.filter(order => {
+          const orderDate = new Date(order.created_at || order.completed_at);
+          return orderDate >= cutoffDate;
+        });
+      }
+    }
+    
+    return filtered;
+  }, [allOrders, statusFilter, dateFilter, historyData]);
 
   const downloadHistory = async () => {
     try {
@@ -90,6 +111,15 @@ const OrderHistory = () => {
       <div className="text-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading order history...</p>
+      </div>
+    );
+  }
+
+  if (error && error?.status !== 404) {
+    return (
+      <div className="text-center p-8 text-red-600">
+        <h3>Error loading order history</h3>
+        <p className="text-sm">{error?.data?.detail || error?.message || 'Something went wrong.'}</p>
       </div>
     );
   }

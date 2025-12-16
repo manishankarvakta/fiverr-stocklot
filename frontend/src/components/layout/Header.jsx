@@ -13,9 +13,12 @@ import { useAuth } from '@/auth/AuthProvider';
 import LocationPicker from '../location/LocationPicker';
 import ShoppingCartModal from '../cart/ShoppingCart';
 import ContextSwitcher from '../seller/ContextSwitcher';
+import { useSelector } from "react-redux";
+import { LayoutDashboard } from "lucide-react";
 
 export default function Header() {
   const auth = useAuth();
+
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -339,7 +342,7 @@ export default function Header() {
                   )}
                   {user.roles?.includes('seller') && (
                     <Link 
-                      to="/seller-dashboard" 
+                      to="/seller/dashboard" 
                       className="font-medium text-gray-600 hover:text-emerald-700 transition-colors"
                       onClick={() => setMobileMenuOpen(false)}
                     >
@@ -366,7 +369,7 @@ export default function Header() {
               </Link>
               {user && (
                 <Link 
-                  to="/dashboard" 
+                  to={getDashboardPath(user?.role)}
                   className="font-medium text-gray-600 hover:text-emerald-700 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >

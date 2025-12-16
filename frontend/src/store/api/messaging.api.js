@@ -2,21 +2,26 @@ import { baseApi } from './baseApi';
 
 export const messagingApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Inbox System
+    // Inbox
+    getInboxEvents: builder.query({
+      query: () => '/inbox/events',
+      providesTags: ['Conversation'],
+    }),
+
     getInboxSummary: builder.query({
       query: () => '/inbox/summary',
       providesTags: ['Conversation'],
     }),
-    
-    getInboxConversations: builder.query({
+
+    getInbox: builder.query({
       query: (params = {}) => ({
         url: '/inbox',
         params,
       }),
       providesTags: ['Conversation'],
     }),
-    
-    createInboxConversation: builder.mutation({
+
+    createConversation: builder.mutation({
       query: (data) => ({
         url: '/inbox/conversations',
         method: 'POST',
@@ -24,113 +29,117 @@ export const messagingApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Conversation'],
     }),
-    
-    getInboxConversation: builder.query({
+
+    getConversation: builder.query({
       query: (conversationId) => `/inbox/conversations/${conversationId}`,
-      providesTags: (result, error, conversationId) => [
-        { type: 'Conversation', id: conversationId },
-      ],
+      providesTags: (result, error, conversationId) => [{ type: 'Conversation', id: conversationId }],
     }),
-    
-    sendInboxMessage: builder.mutation({
+
+    getConversationMessages: builder.query({
+      query: (conversationId) => `/inbox/conversations/${conversationId}/messages`,
+      providesTags: (result, error, conversationId) => [{ type: 'Conversation', id: conversationId }, 'Message'],
+    }),
+
+    sendMessage: builder.mutation({
       query: ({ conversationId, ...data }) => ({
         url: `/inbox/conversations/${conversationId}/messages`,
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { conversationId }) => [
-        { type: 'Conversation', id: conversationId },
-        'Message',
-      ],
+      invalidatesTags: (result, error, { conversationId }) => [{ type: 'Conversation', id: conversationId }, 'Message'],
     }),
-    
-    getInboxMessages: builder.query({
-      query: ({ conversationId, ...params }) => ({
-        url: `/inbox/conversations/${conversationId}/messages`,
+
+    markConversationRead: builder.mutation({
+      query: (conversationId) => ({
+        url: `/inbox/conversations/${conversationId}/read`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, conversationId) => [{ type: 'Conversation', id: conversationId }],
+    }),
+
+    updateConversation: builder.mutation({
+      query: ({ conversationId, ...data }) => ({
+        url: `/inbox/conversations/${conversationId}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { conversationId }) => [{ type: 'Conversation', id: conversationId }],
+    }),
+
+    // Messages
+    getMessageThreads: builder.query({
+      query: (params = {}) => ({
+        url: '/messages/threads',
         params,
       }),
-      providesTags: (result, error, { conversationId }) => [
-        { type: 'Conversation', id: conversationId },
-        'Message',
-      ],
+      providesTags: ['Conversation'],
     }),
-    
-    // Messaging System
-    createConversation: builder.mutation({
+
+    createMessageThread: builder.mutation({
       query: (data) => ({
-        url: '/messaging/conversations',
+        url: '/messages/threads',
         method: 'POST',
         body: data,
       }),
       invalidatesTags: ['Conversation'],
     }),
-    
-    getConversations: builder.query({
-      query: (params = {}) => ({
-        url: '/messaging/conversations',
-        params,
-      }),
-      providesTags: ['Conversation'],
+
+    getThreadMessages: builder.query({
+      query: (threadId) => `/messages/threads/${threadId}/messages`,
+      providesTags: (result, error, threadId) => [{ type: 'Conversation', id: threadId }, 'Message'],
     }),
-    
-    sendMessage: builder.mutation({
-      query: ({ conversationId, ...data }) => ({
-        url: `/messaging/conversations/${conversationId}/messages`,
+
+    sendThreadMessage: builder.mutation({
+      query: ({ threadId, ...data }) => ({
+        url: `/messages/threads/${threadId}/messages`,
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { conversationId }) => [
-        { type: 'Conversation', id: conversationId },
-        'Message',
-      ],
+      invalidatesTags: (result, error, { threadId }) => [{ type: 'Conversation', id: threadId }, 'Message'],
     }),
-    
-    getMessages: builder.query({
-      query: ({ conversationId, ...params }) => ({
-        url: `/messaging/conversations/${conversationId}/messages`,
-        params,
-      }),
-      providesTags: (result, error, { conversationId }) => [
-        { type: 'Conversation', id: conversationId },
-        'Message',
-      ],
-    }),
-    
-    uploadMedia: builder.mutation({
-      query: (formData) => ({
-        url: '/messaging/upload-media',
+
+    markThreadRead: builder.mutation({
+      query: (threadId) => ({
+        url: `/messages/threads/${threadId}/read`,
         method: 'POST',
-        body: formData,
       }),
+      invalidatesTags: (result, error, threadId) => [{ type: 'Conversation', id: threadId }],
     }),
-    
-    getMessageTemplates: builder.query({
-      query: () => '/messaging/templates',
-      providesTags: ['Message'],
+
+    // Ask
+    askQuestion: builder.mutation({
+      query: (data) => ({
+        url: '/inbox/ask',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Conversation'],
     }),
   }),
   overrideExisting: false,
 });
 
 export const {
+  useGetInboxEventsQuery,
+  useLazyGetInboxEventsQuery,
   useGetInboxSummaryQuery,
   useLazyGetInboxSummaryQuery,
-  useGetInboxConversationsQuery,
-  useLazyGetInboxConversationsQuery,
-  useCreateInboxConversationMutation,
-  useGetInboxConversationQuery,
-  useLazyGetInboxConversationQuery,
-  useSendInboxMessageMutation,
-  useGetInboxMessagesQuery,
-  useLazyGetInboxMessagesQuery,
+  useGetInboxQuery,
+  useLazyGetInboxQuery,
   useCreateConversationMutation,
-  useGetConversationsQuery,
-  useLazyGetConversationsQuery,
+  useGetConversationQuery,
+  useLazyGetConversationQuery,
+  useGetConversationMessagesQuery,
+  useLazyGetConversationMessagesQuery,
   useSendMessageMutation,
-  useGetMessagesQuery,
-  useLazyGetMessagesQuery,
-  useUploadMediaMutation,
-  useGetMessageTemplatesQuery,
-  useLazyGetMessageTemplatesQuery,
+  useMarkConversationReadMutation,
+  useUpdateConversationMutation,
+  useGetMessageThreadsQuery,
+  useLazyGetMessageThreadsQuery,
+  useCreateMessageThreadMutation,
+  useGetThreadMessagesQuery,
+  useLazyGetThreadMessagesQuery,
+  useSendThreadMessageMutation,
+  useMarkThreadReadMutation,
+  useAskQuestionMutation,
 } = messagingApi;
-

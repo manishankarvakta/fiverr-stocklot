@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import { 
@@ -6,71 +6,43 @@ import {
   CheckCircle, XCircle, Eye, User, Star, AlertCircle,
   RefreshCw, Loader2, Bell, TrendingUp, Calendar
 } from 'lucide-react';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import {
+  useGetBuyerOffersQuery,
+  useAcceptOfferMutation,
+  useDeclineOfferMutation,
+} from '@/store/api/buyRequests.api';
 
 const BuyerOffersPage = ({ user }) => {
-  const [offers, setOffers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [filter, setFilter] = useState('all'); // all, pending, accepted, declined
-  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) {
-      loadOffers();
-    }
-  }, [user, filter]);
+  // RTK Query hooks
+  const { 
+    data: offersData, 
+    isLoading: loading, 
+    error: queryError,
+    refetch 
+  } = useGetBuyerOffersQuery(
+    filter !== 'all' ? { status: filter } : {},
+    { skip: !user }
+  );
+  console.log('Offers Data:', offersData);
 
-  const loadOffers = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const statusParam = filter !== 'all' ? `?status=${filter}` : '';
-      
-      const response = await fetch(`${BACKEND_URL}/api/buyers/offers${statusParam}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  const [acceptOffer, { isLoading: acceptLoading }] = useAcceptOfferMutation();
+  const [declineOffer, { isLoading: declineLoading }] = useDeclineOfferMutation();
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setOffers(data.items || []);
-      setError(null);
-    } catch (error) {
-      console.error('Error loading offers:', error);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const actionLoading = acceptLoading || declineLoading;
+  const offers = offersData?.items || [];
+  const error = queryError?.data?.message || queryError?.message || null;
 
   const handleOfferAction = async (offerId, requestId, action) => {
-    setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${BACKEND_URL}/api/buy-requests/${requestId}/offers/${offerId}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to ${action} offer`);
-      }
-
-      const result = await response.json();
+      const result = action === 'accept'
+        ? await acceptOffer({ requestId, offerId }).unwrap()
+        : await declineOffer({ requestId, offerId }).unwrap();
       
       // Show success message
       const toast = document.createElement('div');
@@ -80,7 +52,7 @@ const BuyerOffersPage = ({ user }) => {
           <div class="text-lg">${action === 'accept' ? '✅' : '❌'}</div>
           <div>
             <div class="font-medium">Offer ${action}ed successfully!</div>
-            <div class="text-sm opacity-90">${result.message}</div>
+            <div class="text-sm opacity-90">${result.message || 'Success'}</div>
           </div>
         </div>
       `;
@@ -92,7 +64,7 @@ const BuyerOffersPage = ({ user }) => {
       }, 5000);
 
       // Refresh offers
-      await loadOffers();
+      refetch();
       setShowDetailModal(false);
 
     } catch (error) {
@@ -100,11 +72,9 @@ const BuyerOffersPage = ({ user }) => {
       
       const toast = document.createElement('div');
       toast.className = 'fixed top-4 right-4 bg-red-500 text-white p-4 rounded-md z-50';
-      toast.textContent = error.message;
+      toast.textContent = error?.data?.message || error?.message || `Failed to ${action} offer`;
       document.body.appendChild(toast);
       setTimeout(() => document.body.removeChild(toast), 3000);
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -199,7 +169,7 @@ const BuyerOffersPage = ({ user }) => {
           </div>
           
           <div className="flex gap-3">
-            <Button onClick={loadOffers} variant="outline" disabled={loading}>
+            <Button onClick={() => refetch()} variant="outline" disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -277,7 +247,7 @@ const BuyerOffersPage = ({ user }) => {
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Offers</h3>
               <p className="text-red-600 mb-4">{error}</p>
-              <Button onClick={loadOffers} variant="outline">
+              <Button onClick={() => refetch()} variant="outline">
                 Try Again
               </Button>
             </CardContent>
