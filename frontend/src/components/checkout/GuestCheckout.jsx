@@ -47,7 +47,12 @@ export default function GuestCheckout() {
   console.log('location for details ', location);
   
   console.log('shipTo', shipTo);
-  
+
+//   useEffect(() => {
+//   const cart = JSON.parse(localStorage.getItem("cart_items") || "[]");
+//   setItems(cart);
+// }, []);
+
   // Pre-fill contact info for authenticated users
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -70,31 +75,38 @@ export default function GuestCheckout() {
     }
   }, [isAuthenticated, user]);
 
+    useEffect(() => {
+      loadCartItems();
+      setQuote(null);
+      setRisk(null);
+      setStep('details');
+    }, [location.key]);
+
   // Load cart items from localStorage
-  useEffect(() => {
-    const guestCartData = localStorage.getItem('guest_cart');
-    const cartData = localStorage.getItem('cart');
-    let cartItems = [];
+  // useEffect(() => {
+  //   const guestCartData = localStorage.getItem('guest_cart');
+  //   const cartData = localStorage.getItem('cart');
+  //   let cartItems = [];
 
-    if (guestCartData) {
-      try { cartItems = JSON.parse(guestCartData); } 
-      catch (error) { console.error('Error parsing guest_cart:', error); }
-    } else if (cartData) {
-      try { cartItems = JSON.parse(cartData); } 
-      catch (error) { console.error('Error parsing cart:', error); }
-    }
+  //   if (guestCartData) {
+  //     try { cartItems = JSON.parse(guestCartData); } 
+  //     catch (error) { console.error('Error parsing guest_cart:', error); }
+  //   } else if (cartData) {
+  //     try { cartItems = JSON.parse(cartData); } 
+  //     catch (error) { console.error('Error parsing cart:', error); }
+  //   }
 
-    const formattedItems = cartItems.map(item => ({
-      listing_id: item.listing_id || item.id,
-      title: item.title,
-      price: item.price || item.price_per_unit,
-      qty: item.qty || item.quantity || 1,
-      species: item.species || 'livestock',
-      product_type: item.product_type || 'animal'
-    }));
+  //   const formattedItems = cartItems.map(item => ({
+  //     listing_id: item.listing_id || item.id,
+  //     title: item.title,
+  //     price: item.price || item.price_per_unit,
+  //     qty: item.qty || item.quantity || 1,
+  //     species: item.species || 'livestock',
+  //     product_type: item.product_type || 'animal'
+  //   }));
 
-    setItems(formattedItems);
-  }, []);
+  //   setItems(formattedItems);
+  // }, []);
 
   // Fetch quote
   const getQuote = async () => {
@@ -118,80 +130,28 @@ export default function GuestCheckout() {
     }
   };
 
-  // Create order
-// const createOrder = async () => {
-//   if (!items.length) {
-//     setError('Cart is empty');
-//     return;
-//   }
+ 
+  const loadCartItems = () => {
+  const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
 
-//   if (!quote) {
-//     setError('Please get quote first');
-//     return;
-//   }
+  const formattedItems = cartData.map(item => ({
+    listing_id: item.listing_id || item.id,
+    title: item.title,
+    price: item.price || item.price_per_unit,
+    qty: item.qty || item.quantity || 1,
+    species: item.species || 'livestock',
+    product_type: item.product_type || 'animal'
+  }));
 
-//   if (
-//     !shipTo ||
-//     !shipTo.address_line_1 ||
-//     !shipTo.city ||
-//     shipTo.lat == null ||
-//     shipTo.lng == null
-//   ) {
-//     setError('Delivery address is incomplete');
-//     return;
-//   }
+  setItems(formattedItems);
+};
 
-//   const normalizedItems = items.map(item => ({
-//     listing_id: item.listing_id,
-//     quantity: item.qty
-//   }));
-
-//   const payload = isAuthenticated
-//     ? {
-//         shipTo: shipTo,
-//         items: normalizedItems,
-//         quote: quote
-//       }
-//     : {
-//         contact: contact,
-//         shipTo: shipTo,
-//         items: normalizedItems,
-//         quote: quote
-//       };
-
-//   console.log('FINAL ORDER PAYLOAD', payload);
-
-//   try {
-//     const result = await createOrderMutation(payload).unwrap();
-//     console.log('ORDER SUCCESS', result);
-//   } catch (err) {
-//     console.error(err);
-//     setError(handleAPIError(err, false));
-//   }
-// };
-
-// const createOrder = async () => {
-//     setError('');
-//     if (!items.length) return setError('Cart is empty');
-//     if (!quote) return setError('Please get quote first');
-//     if (!shipTo || !shipTo.address_line_1 || !shipTo.city || shipTo.lat == null || shipTo.lng == null) return setError('Delivery address is incomplete');
-
-//     const normalizedItems = items.map(item => ({ listing_id: item.listing_id, quantity: item.qty }));
-//     const payload = isAuthenticated
-//       ? { ship_to: shipTo, items: normalizedItems, quote }
-//       : { contact, ship_to: shipTo, items: normalizedItems, quote };
-
-//     setLoading(true);
-//     try {
-//       const result = await createOrderMutation(payload).unwrap();
-//       if (result?.authorization_url) window.location.href = result.authorization_url;
-//     } catch (err) {
-//       setError(handleAPIError(err, false));
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
+useEffect(() => {
+  loadCartItems();      // fresh cart read
+  setQuote(null);       // old quote invalidate
+  setRisk(null);        // reset risk
+  setStep('details');   // back to step 1
+}, [location.key])
 
 const createOrder = async () => {
   setError('');
@@ -662,8 +622,8 @@ const handleLocationChange = (newLocation) => {
                 <CardContent>
                   {items.length > 0 ? (
                     <div className="space-y-3">
-                      {items.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between text-sm">
+                      {items.map((item) => (
+                        <div key={item.listing_id} className="flex items-center justify-between text-sm">
                           <div>
                             <div className="font-medium">{item.title}</div>
                             <div className="text-gray-500">Qty: {item.qty}</div>
