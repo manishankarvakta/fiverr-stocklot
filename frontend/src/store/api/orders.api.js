@@ -27,14 +27,18 @@ export const ordersApi = baseApi.injectEndpoints({
     }),
 
     getOrderGroup: builder.query({
-   query: ({ order_group_id, token }) => ({
-    url: `/orders/${order_group_id}`,
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  }),
-  providesTags: (result, error, { order_group_id }) => [{ type: 'Order', id: order_group_id }],
-}),
+      query: ({ order_group_id, token }) => {
+        const headers = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        return {
+          url: `/orders/${order_group_id}`,
+          headers,
+        };
+      },
+      providesTags: (result, error, { order_group_id }) => [{ type: 'Order', id: order_group_id }],
+    }),
 
     getOrderStatus: builder.query({
       query: (order_group_id) => `/orders/${order_group_id}/status`,

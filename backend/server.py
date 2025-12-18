@@ -17071,25 +17071,96 @@ async def get_order_group(
     order_group_id: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Get order group details"""
+    """Get order group details with all related data"""
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
     try:
-        order_group = await order_management_service.get_order_group(
-            order_group_id=order_group_id,
-            user_id=current_user.id
-        )
+        # Get order group - check both buyer_id and buyer_user_id
+        order_group = await db.order_groups.find_one({
+            "id": order_group_id,
+            "$or": [
+                {"buyer_id": current_user.id},
+                {"buyer_user_id": current_user.id}
+            ]
+        })
         
         if not order_group:
             raise HTTPException(status_code=404, detail="Order not found")
         
-        return order_group
+        # Remove MongoDB _id
+        if "_id" in order_group:
+            del order_group["_id"]
+        
+        # Get seller orders
+        seller_orders = await db.seller_orders.find({"order_group_id": order_group_id}).to_list(length=None)
+        for so in seller_orders:
+            if "_id" in so:
+                del so["_id"]
+        
+        # Get order items for each seller order
+        orders_with_items = []
+        for seller_order in seller_orders:
+            order_items = await db.order_items.find({"seller_order_id": seller_order["id"]}).to_list(length=None)
+            for item in order_items:
+                if "_id" in item:
+                    del item["_id"]
+            
+            # Get seller info
+            seller = await db.users.find_one({"id": seller_order["seller_id"]})
+            seller_name = seller.get("full_name") or seller.get("name") or "Unknown Seller" if seller else "Unknown Seller"
+            
+            # Format order with items
+            order_with_items = {
+                "id": seller_order["id"],
+                "seller_id": seller_order["seller_id"],
+                "seller_name": seller_name,
+                "status": seller_order.get("status", "PENDING"),
+                "delivery_status": seller_order.get("delivery_status", seller_order.get("status", "PENDING")),
+                "total_amount": seller_order.get("total", seller_order.get("subtotal", 0) + seller_order.get("delivery", 0)),
+                "delivery_cost": seller_order.get("delivery", 0),
+                "subtotal": seller_order.get("subtotal", 0),
+                "items": [
+                    {
+                        "id": item.get("id"),
+                        "listing_id": item.get("listing_id"),
+                        "title": item.get("title", item.get("listing_title", "Unknown Item")),
+                        "listing_title": item.get("title", item.get("listing_title", "Unknown Item")),
+                        "quantity": item.get("qty", item.get("quantity", 1)),
+                        "qty": item.get("qty", item.get("quantity", 1)),
+                        "unit": item.get("unit", "head"),
+                        "price": item.get("price", 0),
+                        "unit_price": item.get("price", 0),
+                        "item_total": item.get("line_total", item.get("item_total", 0)),
+                        "species": item.get("species"),
+                        "product_type": item.get("product_type")
+                    }
+                    for item in order_items
+                ],
+                "created_at": seller_order.get("created_at")
+            }
+            orders_with_items.append(order_with_items)
+        
+        # Get order contact
+        order_contact = await db.order_contacts.find_one({"order_group_id": order_group_id})
+        if order_contact and "_id" in order_contact:
+            del order_contact["_id"]
+        
+        # Build complete response
+        response = {
+            **order_group,
+            "orders": orders_with_items,
+            "order_contact": order_contact or {}
+        }
+        
+        return response
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Get order group failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Failed to get order")
 
 @api_router.post("/orders/{order_group_id}/cancel")

@@ -91,6 +91,7 @@ import UniversalDashboard from './components/dashboard/UniversalDashboard';
 import MyOrders from './components/orders/MyOrders';
 import OrderTracking from './components/orders/OrderTracking';
 import OrderHistory from './components/orders/OrderHistory';
+import OrderDetail from './pages/orders/OrderDetail';
 import MyListings from './components/seller/MyListings';
 import ListingPerformance from './components/seller/ListingPerformance';
 import CustomerReviews from './components/seller/CustomerReviews';
@@ -187,6 +188,7 @@ function App() {
                   <Route path="/orders" element={<MyOrders />} />
                   <Route path="/orders/tracking" element={<OrderTracking />} />
                   <Route path="/orders/history" element={<OrderHistory />} />
+                  <Route path="/orders/:id" element={<OrderDetail />} />
                   
                   {/* Seller Routes */}
                   <Route path="/seller/listings" element={<MyListings />} />
