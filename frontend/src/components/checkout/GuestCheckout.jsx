@@ -25,6 +25,7 @@ import { selectCartItems } from '../../store/cartSlice';
 import Header from '@/components/ui/common/Header';
 import Footer from '@/components/ui/common/Footer';
 import { useCreateOrderMutation } from '@/store/api/orders.api';
+import CheckoutAuthModal from './CheckoutAuthModal';
 
 export default function GuestCheckout() {
   const navigate = useNavigate();
@@ -44,6 +45,8 @@ export default function GuestCheckout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState('details'); // details, quote, payment
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [hasShownAuthModal, setHasShownAuthModal] = useState(false);
   
   const [createOrderMutation, {isSuccess, isLoading, isError}] = useCreateOrderMutation();
   
@@ -70,16 +73,25 @@ export default function GuestCheckout() {
     }
   }, [isAuthenticated, user, location.pathname, navigate]);
   
-  
-  // console.log("create order mutation ", createOrderMutation, isSuccess, isLoading, isError);
-  // console.log('location for details ', location);
-  
-  // console.log('shipTo', shipTo);
-
-//   useEffect(() => {
-//   const cart = JSON.parse(localStorage.getItem("cart_items") || "[]");
-//   setItems(cart);
-// }, []);
+  // Show auth modal for guest users on first visit to checkout
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const hasValidAuth = Boolean(
+      isAuthenticated && 
+      user && 
+      user.id && 
+      token && 
+      token.trim() !== '' &&
+      token !== 'null' &&
+      token !== 'undefined'
+    );
+    
+    // Show auth modal for guest users if not already shown and cart has items
+    if (!hasValidAuth && !hasShownAuthModal && reduxCartItems.length > 0) {
+      setShowAuthModal(true);
+      setHasShownAuthModal(true);
+    }
+  }, [isAuthenticated, user, reduxCartItems.length, hasShownAuthModal]);
 
   // Pre-fill contact info for authenticated users
   useEffect(() => {
@@ -102,6 +114,18 @@ export default function GuestCheckout() {
       }
     }
   }, [isAuthenticated, user]);
+  
+  // Handle auth success - redirect to authenticated checkout
+  const handleAuthSuccess = () => {
+    // User logged in, redirect to authenticated checkout
+    navigate('/checkout', { replace: true });
+  };
+  
+  // Handle continue as guest
+  const handleContinueAsGuest = () => {
+    // User chose to continue as guest, just close modal
+    setShowAuthModal(false);
+  };
 
   // Load cart items from Redux store
   useEffect(() => {
@@ -717,6 +741,14 @@ const handleLocationChange = (newLocation) => {
         </div>
       </div>
       <Footer />
+      
+      {/* Checkout Auth Modal */}
+      <CheckoutAuthModal
+        open={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onContinueAsGuest={handleContinueAsGuest}
+        onAuthSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }
