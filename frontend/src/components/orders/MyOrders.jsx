@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -8,21 +8,26 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Alert, AlertDescription } from '../ui/alert';
+
 import { 
-  Package, Search, Eye, Truck, Clock, CheckCircle, XCircle, 
-  AlertTriangle, RefreshCw, ArrowLeft, DollarSign, AlertCircle
+  Package, Search, Eye, Truck, Clock, CheckCircle, XCircle,
+  AlertCircle, DollarSign
 } from 'lucide-react';
+
 import { useAuth } from '../../auth/AuthProvider';
+import { useGetOrdersQuery } from '../../store/api/orders.api';
 
 const MyOrders = () => {
   const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const isAuth = true;
+  console.log('isAuth for my order', isAuth);
+  // to match the variable name in the API call
+ 
+  console.log('user for my order', user)
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  
-  // Refund request state
+
+  // Refund state
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [refundReason, setRefundReason] = useState('');
@@ -30,38 +35,17 @@ const MyOrders = () => {
   const [refundNotes, setRefundNotes] = useState('');
   const [submittingRefund, setSubmittingRefund] = useState(false);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  // Orders API
+// const { data: ordersData } = useGetOrdersQuery({ isAuth: isAuthenticated });
+  const { data: ordersData, isLoading, error, refetch } = useGetOrdersQuery({ isAuth });
+  console.log('ordersData', ordersData, isLoading, error);
 
-  const fetchOrders = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/orders`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+  // Support multiple formats
+  const orders = Array.isArray(ordersData)
+    ? ordersData
+    : (ordersData?.orders || ordersData?.buyer_orders || []);
 
-      if (response.ok) {
-        const data = await response.json();
-        // Backend returns orders array directly, not wrapped in {orders: [...]}
-        setOrders(Array.isArray(data) ? data : data.orders || []);
-        setLoading(false);
-      } else {
-        throw new Error('Failed to fetch orders');
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setError(error.message);
-      setLoading(false);
-    }
-  };
-
+  // Refund API
   const handleRefundRequest = async () => {
     if (!selectedOrder || !refundReason) {
       alert('Please select a reason for the refund');
@@ -70,8 +54,9 @@ const MyOrders = () => {
 
     try {
       setSubmittingRefund(true);
+
       const token = localStorage.getItem('token');
-      
+
       const refundData = {
         order_id: selectedOrder.id,
         reason_code: refundReason,
@@ -93,33 +78,37 @@ const MyOrders = () => {
         }
       );
 
-      if (response.ok) {
-        const refund = await response.json();
-        alert('Refund request submitted successfully! You will be notified once it is processed.');
-        setShowRefundModal(false);
-        setSelectedOrder(null);
-        setRefundReason('');
-        setRefundNotes('');
-        // Refresh orders to show updated status
-        fetchOrders();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to submit refund request');
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Failed to submit refund');
       }
-    } catch (error) {
-      console.error('Error submitting refund:', error);
-      alert(`Error: ${error.message}`);
+
+      alert('Refund request submitted successfully!');
+      setShowRefundModal(false);
+
+      // RESET form
+      setSelectedOrder(null);
+      setRefundReason('');
+      setRefundNotes('');
+
+      // RELOAD orders
+      refetch();
+
+    } catch (e) {
+      console.error(e);
+      alert(`Error: ${e.message}`);
     } finally {
       setSubmittingRefund(false);
     }
   };
 
+  // Refund eligibility
   const canRequestRefund = (order) => {
-    // Allow refund for orders that are placed, confirmed, or delivered
-    const refundableStatuses = ['placed', 'confirmed', 'shipped', 'delivered'];
-    return refundableStatuses.includes(order.status?.toLowerCase()) && !order.refund_requested;
+    const refundable = ['placed', 'confirmed', 'shipped', 'delivered'];
+    return refundable.includes(order.status?.toLowerCase()) && !order.refund_requested;
   };
 
+  // Status Colors
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -142,29 +131,51 @@ const MyOrders = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          order.seller_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status?.toLowerCase() === statusFilter;
+  // Filtering
+  const filteredOrders = orders.filter((order) => {
+    const matchesSearch =
+      order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.seller_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === 'all' || order.status?.toLowerCase() === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
-  if (loading) {
+  // Loading screen
+  if (isLoading) {
     return (
       <div className="text-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
         <p className="text-gray-600">Loading your orders...</p>
       </div>
     );
   }
 
+  // Error screen (THIS is where your error was showing)
+  if (error) {
+    return (
+      <div className="text-center p-8 text-red-600">
+        <h3>Error loading orders</h3>
+        <p className="text-sm">
+          {error?.data?.detail || error?.message || 'Something went wrong.'}
+        </p>
+        <Button onClick={() => refetch()} className="mt-4 bg-emerald-600 hover:bg-emerald-700">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  // UI Render
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-emerald-900">My Orders</h1>
-          <p className="text-emerald-700">Track and manage your livestock orders</p>
-        </div>
+
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-emerald-900">My Orders</h1>
+        <p className="text-emerald-700">Track and manage your livestock orders</p>
       </div>
 
       {/* Filters */}
@@ -178,6 +189,7 @@ const MyOrders = () => {
             className="pl-10"
           />
         </div>
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -197,11 +209,11 @@ const MyOrders = () => {
         <Card>
           <CardContent className="text-center py-12">
             <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Orders Found</h3>
+            <h3 className="text-lg font-semibold">No Orders Found</h3>
             <p className="text-gray-600">
-              {orders.length === 0 
-                ? "You haven't placed any orders yet." 
-                : "No orders match your current filters."}
+              {orders.length === 0
+                ? "You haven't placed any orders yet."
+                : "No orders match your filters."}
             </p>
           </CardContent>
         </Card>
@@ -217,14 +229,16 @@ const MyOrders = () => {
                       Placed on {new Date(order.created_at).toLocaleDateString()}
                     </p>
                   </div>
+
                   <Badge className={`${getStatusColor(order.status)} border`}>
                     <div className="flex items-center gap-1">
                       {getStatusIcon(order.status)}
-                      {order.status || 'Pending'}
+                      {order.status}
                     </div>
                   </Badge>
                 </div>
               </CardHeader>
+
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
@@ -240,30 +254,31 @@ const MyOrders = () => {
                     <p className="font-medium">{order.items?.length || 0} item(s)</p>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
+
+                  {/* Actions */}
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       onClick={() => window.location.href = `/orders/${order.id}`}
-                      className="flex items-center gap-2"
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4 mr-2" />
                       View Details
                     </Button>
-                    
+
                     {order.status === 'shipped' && (
                       <Button
-                        onClick={() => window.location.href = `/orders/${order.id}/tracking`}
                         className="bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => window.location.href = `/orders/${order.id}/tracking`}
                       >
                         <Truck className="h-4 w-4 mr-2" />
                         Track Order
                       </Button>
                     )}
                   </div>
-                  
-                  {/* Refund Request Button */}
+
+                  {/* Refund */}
                   {canRequestRefund(order) && (
                     <Dialog open={showRefundModal} onOpenChange={setShowRefundModal}>
                       <DialogTrigger asChild>
@@ -276,22 +291,22 @@ const MyOrders = () => {
                           Request Refund
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
+
+                      <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Request Refund</DialogTitle>
                           <DialogDescription>
-                            Request a refund for Order #{order.id?.slice(0, 8)}...
-                            <br />
-                            <span className="font-medium">Amount: R{((order.total_amount || 0) / 100).toFixed(2)}</span>
+                            Order #{order.id?.slice(0, 8)} –  
+                            Amount: <b>R{((order.total_amount || 0) / 100).toFixed(2)}</b>
                           </DialogDescription>
                         </DialogHeader>
+
                         <div className="space-y-4">
+
                           <div>
-                            <Label htmlFor="reason">Reason for Refund *</Label>
+                            <Label>Reason *</Label>
                             <Select value={refundReason} onValueChange={setRefundReason}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a reason" />
-                              </SelectTrigger>
+                              <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="CHANGE_OF_MIND">Change of Mind</SelectItem>
                                 <SelectItem value="NOT_AS_DESCRIBED">Not as Described</SelectItem>
@@ -300,51 +315,40 @@ const MyOrders = () => {
                               </SelectContent>
                             </Select>
                           </div>
-                          
+
                           <div>
-                            <Label htmlFor="method">Refund Method</Label>
+                            <Label>Refund Method</Label>
                             <Select value={refundMethod} onValueChange={setRefundMethod}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="WALLET">Credit Wallet (Instant)</SelectItem>
-                                <SelectItem value="BANK_ORIGINAL">Original Payment Method (3-5 days)</SelectItem>
-                                <SelectItem value="CARD_ORIGINAL">Original Card (3-5 days)</SelectItem>
+                                <SelectItem value="BANK_ORIGINAL">Bank (3–5 days)</SelectItem>
+                                <SelectItem value="CARD_ORIGINAL">Card (3–5 days)</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
-                          
+
                           <div>
-                            <Label htmlFor="notes">Additional Notes (Optional)</Label>
+                            <Label>Notes (optional)</Label>
                             <Textarea
-                              id="notes"
-                              placeholder="Please provide any additional details..."
+                              rows={3}
                               value={refundNotes}
                               onChange={(e) => setRefundNotes(e.target.value)}
-                              rows={3}
                             />
                           </div>
-                          
+
                           {refundMethod === 'WALLET' && (
                             <Alert>
                               <AlertCircle className="h-4 w-4" />
                               <AlertDescription>
-                                Wallet credits are available instantly and valid for 36 months.
+                                Wallet refund is instant & valid for 36 months.
                               </AlertDescription>
                             </Alert>
                           )}
                         </div>
+
                         <DialogFooter>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setShowRefundModal(false);
-                              setSelectedOrder(null);
-                              setRefundReason('');
-                              setRefundNotes('');
-                            }}
-                          >
+                          <Button variant="outline" onClick={() => setShowRefundModal(false)}>
                             Cancel
                           </Button>
                           <Button
@@ -352,7 +356,7 @@ const MyOrders = () => {
                             disabled={submittingRefund || !refundReason}
                             className="bg-red-600 hover:bg-red-700"
                           >
-                            {submittingRefund ? 'Submitting...' : 'Submit Refund Request'}
+                            {submittingRefund ? 'Submitting...' : 'Submit'}
                           </Button>
                         </DialogFooter>
                       </DialogContent>

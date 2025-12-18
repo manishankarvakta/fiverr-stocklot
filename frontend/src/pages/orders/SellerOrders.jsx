@@ -1,6 +1,4 @@
-import React from 'react';
-
-
+import React, { useState, useMemo } from 'react';
 import { 
   Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Input, Label, Textarea, Badge, Avatar, AvatarFallback,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogDescription, 
@@ -16,58 +14,102 @@ import {
   FileText, Image, Video, Play, Pause, BarChart3, PieChart, Zap, Globe, Shield, CreditCard, 
   LayoutDashboard, MessageCircle, Ban, Check, Copy, Heart, Award, Truck, LogIn, Brain
 } from "lucide-react";
+import { useAuth } from '../../auth/AuthProvider';
+import { useGetUserOrdersQuery, useUpdateOrderStatusMutation } from '../../store/api/orders.api';
 
 function SellerOrders() {
-   const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchSellerOrders();
-  }, []);
+  // Use RTK Query to fetch orders
+  const { data: ordersData, isLoading: loading, error, refetch } = useGetUserOrdersQuery({});
+  console.log('ordersData', ordersData);
+  const [updateOrderStatus, { isLoading: updatingStatus }] = useUpdateOrderStatusMutation();
 
-  const fetchSellerOrders = async () => {
-    try {
-      const response = await apiCall('GET', '/orders');
-      // Filter orders where current user is the seller
-      const sellerOrders = (Array.isArray(response) ? response : []).filter(order => 
-        order.seller_id === user?.id || order.seller_id === 'admin_user_id' // Include admin orders for demo
+  // Extract seller orders from API response
+  const allOrders = ordersData?.seller_orders || [];
+  
+  // Calculate order analytics
+  const analytics = useMemo(() => {
+    const totalOrders = allOrders.length;
+    const newOrders = allOrders.filter(o => 
+      ['pending', 'preparing', 'confirmed'].includes(o.status?.toLowerCase() || o.delivery_status?.toLowerCase())
+    ).length;
+    const activeOrders = allOrders.filter(o => 
+      ['shipped', 'in_transit'].includes(o.status?.toLowerCase() || o.delivery_status?.toLowerCase())
+    ).length;
+    const completedOrders = allOrders.filter(o => 
+      ['delivered', 'completed'].includes(o.status?.toLowerCase() || o.delivery_status?.toLowerCase())
+    ).length;
+    
+    const totalRevenue = allOrders.reduce((sum, order) => {
+      const amount = order.total_amount || 0;
+      return sum + (typeof amount === 'number' ? amount : parseFloat(amount) || 0);
+    }, 0);
+    
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    
+    return {
+      totalOrders,
+      newOrders,
+      activeOrders,
+      completedOrders,
+      totalRevenue,
+      averageOrderValue
+    };
+  }, [allOrders]);
+
+  // Filter orders by tab
+  const filteredOrders = useMemo(() => {
+    let filtered = allOrders;
+    
+    // Filter by tab
+    if (activeTab === 'new') {
+      filtered = filtered.filter(o => 
+        ['pending', 'preparing', 'confirmed'].includes(o.status?.toLowerCase() || o.delivery_status?.toLowerCase())
       );
-      setOrders(sellerOrders);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching seller orders:', error);
-      setOrders([]);
-      setLoading(false);
+    } else if (activeTab === 'active') {
+      filtered = filtered.filter(o => 
+        ['shipped', 'in_transit'].includes(o.status?.toLowerCase() || o.delivery_status?.toLowerCase())
+      );
+    } else if (activeTab === 'completed') {
+      filtered = filtered.filter(o => 
+        ['delivered', 'completed'].includes(o.status?.toLowerCase() || o.delivery_status?.toLowerCase())
+      );
     }
-  };
+    
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.id?.toLowerCase().includes(searchLower) ||
+        order.buyer_name?.toLowerCase().includes(searchLower) ||
+        order.items?.some(item => item.listing_title?.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    return filtered;
+  }, [allOrders, activeTab, searchTerm]);
 
   const updateDeliveryStatus = async (orderId, newStatus) => {
-    setUpdatingStatus(true);
     try {
-      await apiCall('PUT', `/orders/${orderId}/status`, {
-        delivery_status: newStatus
-      });
+      await updateOrderStatus({
+        orderId,
+        delivery_status: newStatus,
+        status: newStatus
+      }).unwrap();
       
-      // Update local state
-      setOrders(orders.map(order => 
-        order.id === orderId 
-          ? { ...order, delivery_status: newStatus, updated_at: new Date().toISOString() }
-          : order
-      ));
+      refetch(); // Refresh orders
       
       if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder({ ...selectedOrder, delivery_status: newStatus });
+        setSelectedOrder({ ...selectedOrder, delivery_status: newStatus, status: newStatus });
       }
-      
     } catch (error) {
       console.error('Error updating delivery status:', error);
-      alert('Failed to update delivery status. Please try again.');
-    } finally {
-      setUpdatingStatus(false);
+      alert(error?.data?.detail || error?.message || 'Failed to update delivery status. Please try again.');
     }
   };
 
@@ -96,34 +138,137 @@ function SellerOrders() {
   
   if (loading) {
     return (
-      <Card className="border-emerald-200">
-        <CardContent className="p-6">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-            <p className="text-emerald-600">Loading your sales...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="max-w-7xl mx-auto p-6">
+        <Card className="border-emerald-200">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+              <p className="text-emerald-600">Loading your sales...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
-  return (
-    <>
 
-    <Card className="border-emerald-200">
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card className="border-red-200">
+          <CardContent className="p-6">
+            <div className="text-center text-red-600">
+              <h3>Error loading orders</h3>
+              <p className="text-sm">{error?.data?.detail || error?.message || 'Something went wrong.'}</p>
+              <Button onClick={() => refetch()} className="mt-4 bg-emerald-600 hover:bg-emerald-700">Retry</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-emerald-900">Seller Orders</h1>
+        <p className="text-emerald-700">Manage incoming orders and delivery status</p>
+      </div>
+
+      {/* Order Analytics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Orders</p>
+                <p className="text-2xl font-bold">{analytics.totalOrders}</p>
+              </div>
+              <Package className="h-8 w-8 text-emerald-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">New Orders</p>
+                <p className="text-2xl font-bold text-yellow-600">{analytics.newOrders}</p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Active Orders</p>
+                <p className="text-2xl font-bold text-blue-600">{analytics.activeOrders}</p>
+              </div>
+              <Truck className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-green-600">
+                  R{((analytics.totalRevenue || 0) / 100).toFixed(2)}
+                </p>
+              </div>
+              <DollarSign className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Orders Management */}
+      <Card className="border-emerald-200">
         <CardHeader>
-          <CardTitle className="text-emerald-900">My Sales</CardTitle>
-          <CardDescription>Manage incoming orders and delivery status</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="text-emerald-900">My Sales</CardTitle>
+              <CardDescription>Manage incoming orders and delivery status</CardDescription>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search orders..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-64"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {(orders || []).length === 0 ? (
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList>
+              <TabsTrigger value="all">All Orders ({allOrders.length})</TabsTrigger>
+              <TabsTrigger value="new">New Orders ({analytics.newOrders})</TabsTrigger>
+              <TabsTrigger value="active">Active ({analytics.activeOrders})</TabsTrigger>
+              <TabsTrigger value="completed">Completed ({analytics.completedOrders})</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {filteredOrders.length === 0 ? (
             <div className="text-center py-8">
               <Package className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-              <p className="text-emerald-600 mb-4">No sales yet.</p>
+              <p className="text-emerald-600 mb-4">
+                {allOrders.length === 0 ? 'No sales yet.' : 'No orders match your filters.'}
+              </p>
               <p className="text-sm text-emerald-500">Your incoming orders will appear here.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {(orders || []).map(order => (
+              {filteredOrders.map(order => (
                 <Card key={order.id} className="border-emerald-100">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
@@ -134,32 +279,37 @@ function SellerOrders() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-lg text-emerald-900">R{order.total_amount}</p>
-                        <Badge className={getStatusColor(order.delivery_status)}>
-                          {getStatusText(order.delivery_status)}
+                        <p className="font-bold text-lg text-emerald-900">
+                          R{((order.total_amount || 0) / 100).toFixed(2)}
+                        </p>
+                        <Badge className={getStatusColor(order.delivery_status || order.status)}>
+                          {getStatusText(order.delivery_status || order.status)}
                         </Badge>
                       </div>
                     </div>
                     
                     <div className="mb-3">
-                      <p className="text-sm text-emerald-700 font-medium">Items:</p>
+                      <p className="text-sm text-emerald-700 font-medium">Buyer: {order.buyer_name || 'Unknown'}</p>
+                      <p className="text-sm text-emerald-700 font-medium mt-2">Items:</p>
                       {(order.items || []).map((item, index) => (
                         <div key={index} className="text-sm text-emerald-600 ml-2">
-                          • {item.listing_title} (Qty: {item.quantity}) - R{item.item_total}
+                          • {item.listing_title || item.title} (Qty: {item.quantity}) - R{((item.item_total || item.price || 0) / 100).toFixed(2)}
                         </div>
                       ))}
                     </div>
 
-                    <div className="mb-3">
-                      <p className="text-sm text-emerald-700 font-medium">Shipping Address:</p>
-                      <p className="text-sm text-emerald-600">
-                        {order.shipping_address?.line1}, {order.shipping_address?.city}, {order.shipping_address?.province}
-                      </p>
-                    </div>
+                    {order.shipping_address && (
+                      <div className="mb-3">
+                        <p className="text-sm text-emerald-700 font-medium">Shipping Address:</p>
+                        <p className="text-sm text-emerald-600">
+                          {order.shipping_address?.line1}, {order.shipping_address?.city}, {order.shipping_address?.province}
+                        </p>
+                      </div>
+                    )}
 
                     <div className="flex justify-between items-center">
                       <div className="flex space-x-2">
-                        {order.delivery_status === 'preparing' && (
+                        {(order.delivery_status === 'preparing' || order.status === 'preparing') && (
                           <Button
                             size="sm"
                             onClick={() => updateDeliveryStatus(order.id, 'shipped')}
@@ -169,7 +319,7 @@ function SellerOrders() {
                             Mark as Shipped
                           </Button>
                         )}
-                        {order.delivery_status === 'shipped' && (
+                        {(order.delivery_status === 'shipped' || order.status === 'shipped') && (
                           <Button
                             size="sm"
                             onClick={() => updateDeliveryStatus(order.id, 'in_transit')}
@@ -179,7 +329,7 @@ function SellerOrders() {
                             Mark In Transit
                           </Button>
                         )}
-                        {order.delivery_status === 'in_transit' && (
+                        {(order.delivery_status === 'in_transit' || order.status === 'in_transit') && (
                           <Button
                             size="sm"
                             onClick={() => updateDeliveryStatus(order.id, 'delivered')}
@@ -223,13 +373,15 @@ function SellerOrders() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-emerald-800">Order Status</Label>
-                  <Badge className={getStatusColor(selectedOrder.delivery_status)}>
-                    {getStatusText(selectedOrder.delivery_status)}
+                  <Badge className={getStatusColor(selectedOrder.delivery_status || selectedOrder.status)}>
+                    {getStatusText(selectedOrder.delivery_status || selectedOrder.status)}
                   </Badge>
                 </div>
                 <div>
                   <Label className="text-emerald-800">Total Amount</Label>
-                  <p className="font-bold text-emerald-900">R{selectedOrder.total_amount}</p>
+                  <p className="font-bold text-emerald-900">
+                    R{((selectedOrder.total_amount || 0) / 100).toFixed(2)}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-emerald-800">Order Date</Label>
@@ -247,10 +399,12 @@ function SellerOrders() {
                   {(selectedOrder.items || []).map((item, index) => (
                     <div key={index} className="flex justify-between items-center p-2 bg-emerald-50 rounded">
                       <div>
-                        <p className="font-medium text-emerald-900">{item.listing_title}</p>
+                        <p className="font-medium text-emerald-900">{item.listing_title || item.title}</p>
                         <p className="text-emerald-600">Quantity: {item.quantity}</p>
                       </div>
-                      <p className="font-bold text-emerald-900">R{item.item_total}</p>
+                      <p className="font-bold text-emerald-900">
+                        R{((item.item_total || item.price || 0) / 100).toFixed(2)}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -273,11 +427,11 @@ function SellerOrders() {
                   {['preparing', 'shipped', 'in_transit', 'delivered'].map((status) => (
                     <Button
                       key={status}
-                      variant={selectedOrder.delivery_status === status ? "default" : "outline"}
+                      variant={(selectedOrder.delivery_status === status || selectedOrder.status === status) ? "default" : "outline"}
                       size="sm"
                       onClick={() => updateDeliveryStatus(selectedOrder.id, status)}
                       disabled={updatingStatus}
-                      className={selectedOrder.delivery_status === status ? "bg-emerald-600 hover:bg-emerald-700" : "border-emerald-200"}
+                      className={(selectedOrder.delivery_status === status || selectedOrder.status === status) ? "bg-emerald-600 hover:bg-emerald-700" : "border-emerald-200"}
                     >
                       {getStatusText(status)}
                     </Button>
@@ -295,28 +449,7 @@ function SellerOrders() {
         </DialogContent>
       </Dialog>
 
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-emerald-900 mb-8">Seller Orders</h1>
-          <Card className="border-emerald-200">
-            <CardContent className="p-8">
-              <Package className="h-12 w-12 text-emerald-600 mb-6" />
-              <p className="text-emerald-700 mb-6">
-                Seller order management. Please use the main App.js version for full features.
-              </p>
-              <Button 
-                onClick={() => window.location.href = '/seller-dashboard'}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Go to Seller Dashboard
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
-    </>
   );
 }
 

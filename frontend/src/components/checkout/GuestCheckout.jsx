@@ -19,29 +19,41 @@ import { assessRisk, RISK_CATEGORIES, getRiskCategory } from '../../lib/risk/ris
 import api from '../../utils/apiHelper';
 import { handleAPIError } from '../../services/api';
 import { useToast } from '../../hooks/use-toast';
-import PaymentRedirectService from '../../services/PaymentRedirectService';
 import { useAuth } from '../../auth/AuthProvider';
 import Header from '@/components/ui/common/Header';
 import Footer from '@/components/ui/common/Footer';
+import { useCreateOrderMutation } from '@/store/api/orders.api';
 
 export default function GuestCheckout() {
-  console.log('GuestCheckout component rendering...');
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
-  
-  console.log('Current location:', location.pathname);
-  console.log('Location state:', location.state);
+  const [addresses, setAddresses] = useState([]);
+
   const [items, setItems] = useState([]);
   const [shipTo, setShipTo] = useState(null);
-  const [contact, setContact] = useState({
-    email: '',
-    phone: '',
-    full_name: ''
-  });
+  const [contact, setContact] = useState({ email: '', phone: '', full_name: '' });
+  const [quote, setQuote] = useState(null);
+  const [risk, setRisk] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [step, setStep] = useState('details'); // details, quote, payment
   
-  // Pre-fill contact information for authenticated users
+  const [createOrderMutation, {isSuccess, isLoading, isError}] = useCreateOrderMutation();
+  
+  
+  // console.log("create order mutation ", createOrderMutation, isSuccess, isLoading, isError);
+  // console.log('location for details ', location);
+  
+  // console.log('shipTo', shipTo);
+
+//   useEffect(() => {
+//   const cart = JSON.parse(localStorage.getItem("cart_items") || "[]");
+//   setItems(cart);
+// }, []);
+
+  // Pre-fill contact info for authenticated users
   useEffect(() => {
     if (isAuthenticated && user) {
       setContact({
@@ -49,8 +61,7 @@ export default function GuestCheckout() {
         phone: user.phone || '',
         full_name: user.full_name || user.name || ''
       });
-      
-      // If user has a default address, pre-fill shipTo
+
       if (user.address || user.default_address) {
         const address = user.address || user.default_address;
         setShipTo({
@@ -63,60 +74,51 @@ export default function GuestCheckout() {
       }
     }
   }, [isAuthenticated, user]);
-  const [quote, setQuote] = useState(null);
-  const [risk, setRisk] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [step, setStep] = useState('details'); // details, quote, payment
 
-  useEffect(() => {
-    // Load cart items from localStorage (check both 'guest_cart' and 'cart' for compatibility)
-    const guestCartData = localStorage.getItem('guest_cart');
-    const cartData = localStorage.getItem('cart');
-    
-    let cartItems = [];
-    
-    if (guestCartData) {
-      try {
-        cartItems = JSON.parse(guestCartData);
-      } catch (error) {
-        console.error('Error parsing guest_cart data:', error);
-      }
-    } else if (cartData) {
-      try {
-        cartItems = JSON.parse(cartData);
-      } catch (error) {
-        console.error('Error parsing cart data:', error);
-      }
-    }
-    
-    // Convert guest cart format to checkout format if needed
-    const formattedItems = cartItems.map(item => ({
-      listing_id: item.listing_id || item.id,
-      title: item.title,
-      price: item.price || item.price_per_unit,
-      qty: item.qty || item.quantity || 1,
-      species: item.species || 'livestock',
-      product_type: item.product_type || 'animal'
-    }));
-    
-    setItems(formattedItems);
-  }, []);
+    useEffect(() => {
+      loadCartItems();
+      setQuote(null);
+      setRisk(null);
+      setStep('details');
+    }, [location.key]);
 
+  // Load cart items from localStorage
+  // useEffect(() => {
+  //   const guestCartData = localStorage.getItem('guest_cart');
+  //   const cartData = localStorage.getItem('cart');
+  //   let cartItems = [];
+
+  //   if (guestCartData) {
+  //     try { cartItems = JSON.parse(guestCartData); } 
+  //     catch (error) { console.error('Error parsing guest_cart:', error); }
+  //   } else if (cartData) {
+  //     try { cartItems = JSON.parse(cartData); } 
+  //     catch (error) { console.error('Error parsing cart:', error); }
+  //   }
+
+  //   const formattedItems = cartItems.map(item => ({
+  //     listing_id: item.listing_id || item.id,
+  //     title: item.title,
+  //     price: item.price || item.price_per_unit,
+  //     qty: item.qty || item.quantity || 1,
+  //     species: item.species || 'livestock',
+  //     product_type: item.product_type || 'animal'
+  //   }));
+
+  //   setItems(formattedItems);
+  // }, []);
+
+  // Fetch quote
   const getQuote = async () => {
     if (!shipTo || !items.length) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
-      // Use authenticated endpoint if user is logged in, otherwise use guest endpoint
       const endpoint = isAuthenticated ? '/checkout/quote' : '/checkout/guest/quote';
-      const quoteData = await api.post(endpoint, { 
-        items, 
-        ship_to: shipTo 
-      });
-      
+      const quoteData = await api.post(endpoint, { items, ship_to: shipTo });
+
       setQuote(quoteData);
       setRisk(quoteData.risk);
       setStep('quote');
@@ -128,142 +130,199 @@ export default function GuestCheckout() {
     }
   };
 
-  const createOrder = async () => {
-    if (!quote) return;
-    // For authenticated users, email is not required (comes from profile)
-    if (!isAuthenticated && !contact.email) return;
+ 
+  const loadCartItems = () => {
+  const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
 
-    setLoading(true);
-    setError('');
+  const formattedItems = cartData.map(item => ({
+    listing_id: item.listing_id || item.id,
+    title: item.title,
+    price: item.price || item.price_per_unit,
+    qty: item.qty || item.quantity || 1,
+    species: item.species || 'livestock',
+    product_type: item.product_type || 'animal'
+  }));
 
-    try {
-      // Use authenticated endpoint if user is logged in, otherwise use guest endpoint
-      const endpoint = isAuthenticated ? '/checkout/order' : '/checkout/guest/create';
-      const orderPayload = isAuthenticated 
-        ? {
-            ship_to: shipTo,
-            items,
-            quote
-            // Contact info is not needed for authenticated users - comes from their profile
-          }
-        : {
-            contact,
-            ship_to: shipTo,
-            items,
-            quote
-          };
-      
-      const orderData = await api.post(endpoint, orderPayload);
-      
-      console.log('Order creation response:', orderData); // Debug log
-      
-      // ENHANCED PAYMENT REDIRECT - Multiple URL extraction methods
-      console.log('🔧 Enhanced Payment Redirect System Activated');
-      console.log('Available response keys:', Object.keys(orderData));
-      
-      // Extract payment URL with comprehensive fallback logic
-      let redirectUrl = null;
-      const possibleUrlPaths = [
-        'paystack.authorization_url',    // Nested format
-        'authorization_url',             // Direct format
-        'redirect_url',                  // Alternative format
-        'payment_url',                   // Backup format
-        'data.authorization_url'         // API wrapper format
-      ];
-      
-      // Try each possible path
-      for (const path of possibleUrlPaths) {
-        const url = getNestedValue(orderData, path);
-        if (url && isValidPaymentUrl(url)) {
-          redirectUrl = url;
-          console.log(`✅ Found payment URL at path: ${path} -> ${url}`);
-          break;
-        }
+  setItems(formattedItems);
+};
+
+useEffect(() => {
+  loadCartItems();      // fresh cart read
+  setQuote(null);       // old quote invalidate
+  setRisk(null);        // reset risk
+  setStep('details');   // back to step 1
+}, [location.key])
+
+const createOrder = async () => {
+  setError('');
+  
+  // 1️⃣ Check cart
+  if (!items || items.length === 0) {
+    return setError('Cart is empty');
+  }
+
+  // 2️⃣ Check quote
+  if (!quote) {
+    return setError('Please get quote first');
+  }
+
+  // 3️⃣ Validate shipTo
+  if (
+    !shipTo ||
+    !shipTo.address_line_1 ||
+    !shipTo.city ||
+    !shipTo.province ||       // added province check
+    shipTo.lat == null ||
+    shipTo.lng == null
+  ) {
+    return setError('Delivery address is incomplete');
+  }
+
+  // 4️⃣ Normalize items
+ const normalizedItems = items.map(item => ({
+  listing_id: item.listing_id,
+  qty: item.qty || 1,
+  species: item.species || 'livestock',
+  product_type: item.product_type || 'animal',
+  line_total: (item.price || 0) * (item.qty || 1)  // ✅ never None
+}));
+
+
+  // 5️⃣ Build payload
+  const payload = isAuthenticated
+    ? {
+        ship_to: {
+          address_line_1: shipTo.address_line_1,
+          address_line_2: shipTo.address_line_2 || '',
+          city: shipTo.city,
+          province: shipTo.province,
+          postal_code: shipTo.postal_code || '',
+          lat: shipTo.lat,
+          lng: shipTo.lng
+        },
+        items: normalizedItems,
+        quote
       }
-      
-      // Helper function to get nested values
-      function getNestedValue(obj, path) {
-        return path.split('.').reduce((current, key) => current?.[key], obj);
-      }
-      
-      // Helper function to validate payment URLs
-      function isValidPaymentUrl(url) {
-        return url && (
-          url.includes('paystack.com') || 
-          url.includes('checkout') ||
-          url.includes('payment') ||
-          url.startsWith('https://demo-checkout')
-        );
-      }
-      
-      if (redirectUrl) {
-        console.log('✅ PAYMENT URL FOUND:', redirectUrl);
-        
-        // Show immediate success message
-        toast({
-          title: "Order Created Successfully!",
-          description: `${orderData.order_count || 1} order(s) created. Redirecting to payment...`,
-          duration: 2000,
-        });
-        
-        // IMMEDIATE REDIRECT - No delays for better UX
-        console.log('🚀 IMMEDIATE REDIRECT to payment gateway');
-        window.location.href = redirectUrl;
-        
-        // Fallback redirect after 1 second (in case immediate fails)
-        setTimeout(() => {
-          console.log('🔄 Fallback redirect #1');
-          window.location.replace(redirectUrl);
-        }, 1000);
-        
-        // Final fallback after 2 seconds
-        setTimeout(() => {
-          console.log('🔄 Fallback redirect #2');
-          window.open(redirectUrl, '_self');
-        }, 2000);
-        
-      } else {
-        console.log('❌ NO PAYMENT URL FOUND');
-        console.log('Full response data:', JSON.stringify(orderData, null, 2));
-        
-        // Show success message even without payment URL
-        toast({
-          title: "Order Created!",
-          description: `${orderData.order_count || 1} order(s) created successfully.`,
-          duration: 3000,
-        });
-        
-        // Alert user about missing payment URL
-        setTimeout(() => {
-          alert(`Order created successfully!\nOrder ID: ${orderData.order_group_id}\n\nNote: Payment gateway not configured. Please contact support to complete payment.`);
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Order creation error:', error);
-      setError(handleAPIError(error, false));
-    } finally {
-      setLoading(false);
+    : {
+        contact: {
+          full_name: contact.full_name,
+          email: contact.email,
+          phone: contact.phone
+        },
+        ship_to: {
+          address_line_1: shipTo.address_line_1,
+          address_line_2: shipTo.address_line_2 || '',
+          city: shipTo.city,
+          province: shipTo.province,
+          postal_code: shipTo.postal_code || '',
+          lat: shipTo.lat,
+          lng: shipTo.lng
+        },
+        items: normalizedItems,
+        quote
+      };
+
+  console.log('FINAL ORDER PAYLOAD', payload); // ✅ check before sending
+
+  // 6️⃣ Send order
+  setLoading(true);
+  try {
+    const result = await createOrderMutation(payload).unwrap();
+    console.log('ORDER SUCCESS', result);
+
+    // // If authorization_url exists, redirect
+    if (result?.authorization_url) {
+      // window.location.href = result.authorization_url;
+      console.log('result authorization ', result?.authorization_url)
     }
+  } catch (err) {
+    console.error('ORDER ERROR', err);
+    setError(handleAPIError(err, false));
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  // Risk Badge
+
+//  onChange={async (newLocation) => {
+//   setShipTo(newLocation);
+//   setAddresses(prev => [...prev, newLocation]);
+
+//   try {
+//     await addAddress(newLocation).unwrap(); // API call
+//   } catch (err) {
+//     console.error('Error saving address:', err);
+//   }
+// }}
+
+// const handleLocationChange = async (newLocation) => {
+//   setShipTo(newLocation);
+//   setAddresses(prev => [...prev, newLocation]);
+
+//   if (addAddress) {
+//     try {
+//       await addAddress(newLocation).unwrap(); // Ensure addAddress exists
+//     } catch (err) {
+//       console.error('Error saving address:', err);
+//     }
+//   }
+// };
+
+ // 🔥 FIXED function for live location + localStorage + API save
+const handleLocationChange = (newLocation) => {
+  const normalized = {
+    id: Date.now(), // 🔑 unique id for edit/delete
+    address_line_1: newLocation.address || newLocation.address_line_1 || '',
+    address_line_2: newLocation.address_line_2 || '',
+    city:
+      newLocation.admin_area_2 ||
+      newLocation.locality ||
+      newLocation.town ||
+      (newLocation.address?.split(',')[0] || ''),
+    province:
+      newLocation.administrative_area_level_1 ||
+      newLocation.province ||
+      newLocation.state ||
+      '',
+    postal_code: newLocation.postal_code || '',
+    lat: newLocation.lat,
+    lng: newLocation.lng,
+    is_default: true
   };
+
+  // ✅ set to state (checkout use)
+  setShipTo(normalized);
+
+  // ✅ save to localStorage (address page use)
+  const existing = JSON.parse(localStorage.getItem('addresses') || '[]');
+
+  const updated = [
+    normalized,
+    ...existing.filter(a => a.address_line_1 !== normalized.address_line_1)
+  ];
+
+  localStorage.setItem('addresses', JSON.stringify(updated));
+
+  console.log('Saved address', normalized);
+};
 
   const getRiskBadge = (riskData) => {
     if (!riskData) return null;
-    
     const category = getRiskCategory(riskData.score);
     const riskInfo = RISK_CATEGORIES[category];
-    
-    return (
-      <Badge className={riskInfo.color}>
-        {riskInfo.label}
-      </Badge>
-    );
+    return <Badge className={riskInfo.color}>{riskInfo.label}</Badge>;
   };
 
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
+          <LocationPicker value={shipTo} onChange={handleLocationChange} />
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -318,11 +377,19 @@ export default function GuestCheckout() {
                       <MapPin className="h-4 w-4 mr-2" />
                       Delivery Address
                     </Label>
-                    <LocationPicker 
+                    {/* <LocationPicker 
+                      // value={shipTo}
+                      // onChange={setShipTo}
+                      // placeholder="Select your delivery location"
+                      // className="w-full"
+
+                      // value={shipTo}
+                      //  onChange={(newLocation) => handleLocationChange(newLocation)}
+                    /> */}
+
+                    <LocationPicker
                       value={shipTo}
-                      onChange={setShipTo}
-                      placeholder="Select your delivery location"
-                      className="w-full"
+                      onChange={handleLocationChange}
                     />
                     <p className="text-xs text-gray-500 mt-2">
                       Your exact address is never shared with sellers until payment is confirmed
@@ -555,8 +622,8 @@ export default function GuestCheckout() {
                 <CardContent>
                   {items.length > 0 ? (
                     <div className="space-y-3">
-                      {items.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between text-sm">
+                      {items.map((item) => (
+                        <div key={item.listing_id} className="flex items-center justify-between text-sm">
                           <div>
                             <div className="font-medium">{item.title}</div>
                             <div className="text-gray-500">Qty: {item.qty}</div>

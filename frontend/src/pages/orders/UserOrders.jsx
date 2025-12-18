@@ -1,38 +1,22 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
 import { Button } from '@/components/ui';
-import { ShoppingBag } from 'lucide-react';
+import { Badge } from '@/components/ui';
+import { ShoppingBag, ShoppingCart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useGetOrdersQuery, useConfirmDeliveryMutation } from '@/store/api/orders.api';
 
 function UserOrders() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: ordersData, isLoading: loading, error, refetch } = useGetOrdersQuery({});
+  const [confirmDeliveryMutation] = useConfirmDeliveryMutation();
 
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await apiCall('GET', '/orders');
-      // Handle both direct array and wrapped response
-      const ordersData = Array.isArray(response) ? response : (response.data || response.buyer_orders || []);
-      setOrders(ordersData);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setOrders([]); // Set empty array on error
-      setLoading(false);
-    }
-  };
+  // Extract orders from API response
+  const orders = Array.isArray(ordersData) ? ordersData : (ordersData?.orders || ordersData?.buyer_orders || []);
 
   const confirmDelivery = async (orderId) => {
     try {
-      await apiCall('POST', `/orders/${orderId}/confirm-delivery`, {
-        order_id: orderId,
-        delivery_rating: 5
-      });
-      fetchOrders(); // Refresh orders
+      await confirmDeliveryMutation(orderId).unwrap();
+      refetch(); // Refresh orders
     } catch (error) {
       console.error('Error confirming delivery:', error);
     }
@@ -67,6 +51,20 @@ function UserOrders() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
             <p className="text-emerald-600">Loading your orders...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200">
+        <CardContent className="p-6">
+          <div className="text-center text-red-600">
+            <h3>Error loading orders</h3>
+            <p className="text-sm">{error?.data?.detail || error?.message || 'Something went wrong.'}</p>
+            <Button onClick={() => refetch()} className="mt-4 bg-emerald-600 hover:bg-emerald-700">Retry</Button>
           </div>
         </CardContent>
       </Card>

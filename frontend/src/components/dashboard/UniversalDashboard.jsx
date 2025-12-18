@@ -9,6 +9,11 @@ import {
   Target, Zap, Activity, PieChart
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import Header from '../ui/common/Header';
+import Footer from '../ui/common/Footer';
+import BuyerOffersInbox from '../pagesNo/BuyerOffersInbox';
+import SellerAnalytics from '../seller/SellerAnalytics';
+import DashboardLayout from '../layout/DashboardLayout';
 
 const UniversalDashboard = () => {
   const { user } = useAuth();
@@ -236,9 +241,11 @@ const UniversalDashboard = () => {
   })).filter(section => section.cards.length > 0);
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-8">
+    <>
+      {/* <Header /> */}
+    {/* <div className="max-w-7xl mx-auto p-6 space-y-8"> */}
       {/* Header */}
-      <div className="mb-8">
+      {/* <div className="mb-8">
         <h1 className="text-3xl font-bold text-emerald-900 mb-2">User Dashboard</h1>
         <div className="flex items-center gap-2 mb-4">
           <span className="text-emerald-700">Welcome back, {user.full_name || user.email}</span>
@@ -251,11 +258,11 @@ const UniversalDashboard = () => {
           </div>
         </div>
         <p className="text-emerald-600">Access orders, listings, analytics, and advanced features from your dashboard.</p>
-      </div>
+      </div> */}
 
       {/* Quick Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+      
+        {/* <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -265,37 +272,42 @@ const UniversalDashboard = () => {
               <ShoppingBag className="h-8 w-8 text-blue-100" />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {user.roles?.includes('seller') && (
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100">Active Listings</p>
-                  <p className="text-2xl font-bold">-</p>
-                </div>
-                <Package2 className="h-8 w-8 text-purple-100" />
-              </div>
-            </CardContent>
-          </Card>
+          // <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+          //   <CardContent className="pt-6">
+          //     <div className="flex items-center justify-between">
+          //       <div>
+          //         <p className="text-purple-100">Active Listings</p>
+          //         <p className="text-2xl font-bold">-</p>
+          //       </div>
+          //       <Package2 className="h-8 w-8 text-purple-100" />
+          //     </div>
+          //   </CardContent>
+          // </Card>
+          // <SellerAnalytics />
+
+          <DashboardLayout userRole="seller" />
         )}
 
         {user.roles?.includes('buyer') && (
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100">Wishlist Items</p>
-                  <p className="text-2xl font-bold">-</p>
-                </div>
-                <Heart className="h-8 w-8 text-green-100" />
-              </div>
-            </CardContent>
-          </Card>
+          // <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+          //   <CardContent className="pt-6">
+          //     <div className="flex items-center justify-between">
+          //       <div>
+          //         <p className="text-green-100">Wishlist Items</p>
+          //         <p className="text-2xl font-bold">-</p>
+          //       </div>
+          //       <Heart className="h-8 w-8 text-green-100" />
+          //     </div>
+          //   </CardContent>
+          // </Card>
+          // <BuyerOffersInbox />
+          <DashboardLayout userRole="buyer" />
         )}
 
-        <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+        {/* <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -305,11 +317,11 @@ const UniversalDashboard = () => {
               <Bell className="h-8 w-8 text-orange-100" />
             </div>
           </CardContent>
-        </Card>
-      </div>
+        </Card> */}
+      
 
       {/* Dashboard Feature Sections */}
-      {visibleSections.map((section, sectionIndex) => (
+      {/* {visibleSections.map((section, sectionIndex) => (
         <div key={sectionIndex} className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <section.icon className="h-6 w-6 text-emerald-600" />
@@ -339,22 +351,24 @@ const UniversalDashboard = () => {
             ))}
           </div>
         </div>
-      ))}
+      ))} */}
 
       {/* Note about dropdown features */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+      {/* <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-emerald-900 mb-2">Need basic account features?</h3>
         <p className="text-emerald-800">
           Profile settings, payment methods, addresses, messages, and other basic features 
           are available in the user dropdown menu (click your profile picture in the top right).
         </p>
-      </div>
+      </div> */}
 
       {/* Footer */}
-      <div className="text-center py-8 border-t border-emerald-200">
+      {/* <div className="text-center py-8 border-t border-emerald-200">
         <p className="text-emerald-600">Need help navigating your dashboard? Contact our support team.</p>
-      </div>
-    </div>
+      </div> */}
+    {/* </div> */}
+      {/* <Footer /> */}
+      </>
   );
 };
 

@@ -15,7 +15,7 @@ const baseQuery = fetchBaseQuery({
   credentials: 'include', // Include cookies for session-based auth
   prepareHeaders: (headers, { getState }) => {
     // Get token from localStorage
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     
     // If we have a token, add it to headers
     if (token) {
@@ -85,6 +85,10 @@ export const baseApi = createApi({
     'Wishlist',
     'PriceAlert',
     'Taxonomy',
+    'Review',
+    'Referral',
+    'Blog',
+    'Email',
   ],
   endpoints: () => ({}),
 });

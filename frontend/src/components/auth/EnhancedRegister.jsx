@@ -184,7 +184,7 @@ export default function EnhancedRegister() {
 
       // debug: see what we're sending
       console.log('Register payload:', registerData);
-
+      // use rtk
       const userResponse = await register(registerData).unwrap();
 
       // Step 2: Automatically log in the user after registration

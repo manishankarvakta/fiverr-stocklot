@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -8,120 +8,56 @@ import {
   ThumbsUp, ThumbsDown, AlertCircle, TrendingUp, Award
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { useGetReviewsQuery, useReplyToReviewMutation } from '../../store/api/reviews.api';
 
 const CustomerReviews = () => {
   const { user } = useAuth();
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const [stats, setStats] = useState({
-    average_rating: 0,
-    total_reviews: 0,
-    rating_breakdown: {
-      5: 0, 4: 0, 3: 0, 2: 0, 1: 0
-    },
-    recent_trend: 0
-  });
+  // Get seller reviews - filter by seller_id from current user
+  const sellerId = user?.id;
+  const { data: reviewsData, isLoading: loading, error, refetch } = useGetReviewsQuery(
+    { seller_id: sellerId },
+    { skip: !sellerId }
+  );
+  c
+  
+  const [replyToReview] = useReplyToReviewMutation();
 
-  useEffect(() => {
-    fetchReviews();
-  }, []);
-
-  const fetchReviews = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/seller/reviews`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setReviews(data.reviews || []);
-        setStats(data.stats || stats);
-      } else {
-        // Mock data for demo
-        setReviews([
-          {
-            id: 1,
-            buyer_name: "John Smith",
-            rating: 5,
-            comment: "Excellent cattle! Very healthy and exactly as described. The seller was professional and delivery was on time.",
-            listing_title: "Premium Angus Cattle",
-            created_at: "2024-11-20",
-            status: "published",
-            helpful_votes: 8,
-            response: null
-          },
-          {
-            id: 2,
-            buyer_name: "Sarah Johnson",
-            rating: 4,
-            comment: "Good quality goats. Minor delay in delivery but overall satisfied with the purchase.",
-            listing_title: "Purebred Boer Goats",
-            created_at: "2024-11-18",
-            status: "published",
-            helpful_votes: 5,
-            response: "Thank you for your feedback! We apologize for the delivery delay and have improved our logistics."
-          },
-          {
-            id: 3,
-            buyer_name: "Mike Wilson",
-            rating: 5,
-            comment: "Amazing chickens! Excellent egg laying capacity. Highly recommend this seller.",
-            listing_title: "Layer Chickens - Brown",
-            created_at: "2024-11-15",
-            status: "published",
-            helpful_votes: 12,
-            response: null
-          },
-          {
-            id: 4,
-            buyer_name: "Emma Davis",
-            rating: 3,
-            comment: "Cows were okay but not as productive as expected. Could use better documentation.",
-            listing_title: "Holstein Dairy Cows",
-            created_at: "2024-11-10",
-            status: "pending",
-            helpful_votes: 2,
-            response: null
-          },
-          {
-            id: 5,
-            buyer_name: "David Brown",
-            rating: 5,
-            comment: "Perfect transaction! Healthy livestock, great communication, fast delivery. Will buy again!",
-            listing_title: "Free Range Chickens",
-            created_at: "2024-11-08",
-            status: "published",
-            helpful_votes: 15,
-            response: "Thank you David! We appreciate your business and look forward to serving you again."
-          }
-        ]);
-
-        setStats({
-          average_rating: 4.4,
-          total_reviews: 47,
-          rating_breakdown: {
-            5: 28, 4: 12, 3: 5, 2: 1, 1: 1
-          },
-          recent_trend: 8.5
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching reviews:', error);
-    } finally {
-      setLoading(false);
+  // Extract reviews and calculate stats
+  const reviews = reviewsData?.reviews || reviewsData?.items || [];
+  
+  const stats = useMemo(() => {
+    if (reviews.length === 0) {
+      return {
+        average_rating: 0,
+        total_reviews: 0,
+        rating_breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+        recent_trend: 0
+      };
     }
-  };
+    
+    const total = reviews.length;
+    const sum = reviews.reduce((acc, r) => acc + (r.rating || r.stars || 0), 0);
+    const avg = sum / total;
+    
+    const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach(r => {
+      const rating = r.rating || r.stars || 0;
+      if (rating >= 1 && rating <= 5) {
+        breakdown[rating]++;
+      }
+    });
+    
+    return {
+      average_rating: avg,
+      total_reviews: total,
+      rating_breakdown: breakdown,
+      recent_trend: 0 // Calculate if needed
+    };
+  }, [reviews]);
 
   const getRatingColor = (rating) => {
     if (rating >= 4) return 'text-green-600';
@@ -139,11 +75,17 @@ const CustomerReviews = () => {
   };
 
   const filteredReviews = reviews.filter(review => {
-    const matchesSearch = review.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          review.listing_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          review.comment?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRating = ratingFilter === 'all' || review.rating === parseInt(ratingFilter);
-    const matchesStatus = statusFilter === 'all' || review.status === statusFilter;
+    const buyerName = review.buyer_name || review.reviewer_name || '';
+    const listingTitle = review.listing_title || '';
+    const comment = review.comment || '';
+    const rating = review.rating || review.stars || 0;
+    const status = review.status || review.moderation_status || 'published';
+    
+    const matchesSearch = buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          listingTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          comment.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRating = ratingFilter === 'all' || rating === parseInt(ratingFilter);
+    const matchesStatus = statusFilter === 'all' || status === statusFilter;
     return matchesSearch && matchesRating && matchesStatus;
   });
 
@@ -161,6 +103,16 @@ const CustomerReviews = () => {
       <div className="text-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading reviews...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8 text-red-600">
+        <h3>Error loading reviews</h3>
+        <p className="text-sm">{error?.data?.detail || error?.message || 'Something went wrong.'}</p>
+        <Button onClick={() => refetch()} className="mt-4 bg-emerald-600 hover:bg-emerald-700">Retry</Button>
       </div>
     );
   }
@@ -309,19 +261,23 @@ const CustomerReviews = () => {
                     <User className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900">{review.buyer_name}</h4>
-                    <p className="text-sm text-gray-600">{review.listing_title}</p>
+                    <h4 className="font-medium text-gray-900">
+                      {review.buyer_name || review.reviewer_name || 'Anonymous'}
+                    </h4>
+                    {review.listing_title && (
+                      <p className="text-sm text-gray-600">{review.listing_title}</p>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="flex items-center gap-1 mb-1">
-                    {renderStars(review.rating)}
-                    <span className={`text-sm font-medium ml-1 ${getRatingColor(review.rating)}`}>
-                      {review.rating}/5
+                    {renderStars(review.rating || review.stars || 0)}
+                    <span className={`text-sm font-medium ml-1 ${getRatingColor(review.rating || review.stars || 0)}`}>
+                      {review.rating || review.stars || 0}/5
                     </span>
                   </div>
-                  <Badge className={`${getStatusColor(review.status)} border text-xs`}>
-                    {review.status}
+                  <Badge className={`${getStatusColor(review.status || review.moderation_status || 'published')} border text-xs`}>
+                    {review.status || review.moderation_status || 'published'}
                   </Badge>
                 </div>
               </div>
@@ -330,13 +286,13 @@ const CustomerReviews = () => {
                 <p className="text-gray-800 leading-relaxed">{review.comment}</p>
               </div>
 
-              {review.response && (
+              {(review.response || review.seller_reply) && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <MessageSquare className="h-4 w-4 text-emerald-600" />
                     <span className="text-sm font-medium text-emerald-800">Your Response</span>
                   </div>
-                  <p className="text-emerald-700 text-sm">{review.response}</p>
+                  <p className="text-emerald-700 text-sm">{review.response || review.seller_reply}</p>
                 </div>
               )}
 
@@ -344,20 +300,36 @@ const CustomerReviews = () => {
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1 text-sm text-gray-600">
                     <Calendar className="h-4 w-4" />
-                    {new Date(review.created_at).toLocaleDateString()}
+                    {review.created_at ? new Date(review.created_at).toLocaleDateString() : 'N/A'}
                   </div>
-                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                    <ThumbsUp className="h-4 w-4" />
-                    {review.helpful_votes} helpful
-                  </div>
+                  {review.helpful_votes && (
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <ThumbsUp className="h-4 w-4" />
+                      {review.helpful_votes} helpful
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
-                  {!review.response && (
+                  {!(review.response || review.seller_reply) && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
+                      onClick={async () => {
+                        const replyText = prompt('Enter your response:');
+                        if (replyText) {
+                          try {
+                            await replyToReview({
+                              reviewId: review.id,
+                              reply: replyText
+                            }).unwrap();
+                            refetch();
+                          } catch (error) {
+                            console.error('Error replying to review:', error);
+                          }
+                        }
+                      }}
                     >
                       <MessageSquare className="h-3 w-3" />
                       Respond

@@ -2025,7 +2025,7 @@ async def create_authenticated_order(
                     if payment_result.get("status") == True or payment_result.get("success") == True:
                         data = payment_result.get("data", payment_result)
                         authorization_url = data.get("authorization_url")
-                        reference = data.get("reference", reference)
+                        reference = f"STOCKLOT_{order_group['id']}"
                     elif payment_result.get("authorization_url"):
                         authorization_url = payment_result.get("authorization_url")
                         reference = payment_result.get("reference", reference)
@@ -18206,61 +18206,80 @@ async def get_seller_payouts(
 # WEBHOOK ENDPOINTS
 @api_router.post("/payments/webhook/paystack")
 async def handle_paystack_webhook(request: Request):
-    """Handle Paystack webhook events"""
     try:
-        # Get raw body and signature
+        # 1️⃣ Raw body + signature
         body = await request.body()
         signature = request.headers.get("x-paystack-signature")
-        
-        # Parse payload
-        import json
+
+        # 2️⃣ Verify signature (IMPORTANT)
+        secret = os.getenv("PAYSTACK_SECRET_KEY")
+        if not secret:
+            raise HTTPException(status_code=500, detail="Paystack secret not set")
+
+        computed_signature = hmac.new(
+            secret.encode(),
+            body,
+            hashlib.sha512
+        ).hexdigest()
+
+        if signature != computed_signature:
+            raise HTTPException(status_code=401, detail="Invalid Paystack signature")
+
+        # 3️⃣ Parse payload
         payload = json.loads(body.decode())
-        
-        # Record webhook event (idempotent)
-        event_id = payload.get("id") or payload.get("data", {}).get("reference", "unknown")
-        await fee_service.record_webhook_event(
-            provider="paystack",
-            event_id=str(event_id),
-            payload=payload,
-            signature=signature
-        )
-        
-        # Process specific event types
         event_type = payload.get("event")
-        
-        if event_type == "charge.success":
-            # Handle successful payment - could trigger order status update
-            logger.info(f"Payment successful: {event_id}")
-            
-        elif event_type == "transfer.success":
-            # Handle successful payout
-            transfer_ref = payload.get("data", {}).get("reference")
-            if transfer_ref:
-                # Update payout status
-                payout = await db.payouts.find_one({"transfer_ref": transfer_ref})
-                if payout:
-                    await fee_service.update_payout_status(
-                        payout["id"],
-                        PayoutStatus.SENT,
-                        transfer_ref
-                    )
-        
-        elif event_type == "transfer.failed":
-            # Handle failed payout
-            transfer_ref = payload.get("data", {}).get("reference")
-            if transfer_ref:
-                payout = await db.payouts.find_one({"transfer_ref": transfer_ref})
-                if payout:
-                    await fee_service.update_payout_status(
-                        payout["id"],
-                        PayoutStatus.FAILED
-                    )
-        
-        return {"success": True, "message": "Webhook processed"}
-        
+
+        # 4️⃣ Only handle successful payment
+        if event_type != "charge.success":
+            return {"success": True}
+
+        data = payload.get("data", {})
+        reference = data.get("reference")
+
+        if not reference:
+            return {"success": True}
+
+        # 5️⃣ Extract order_group_id from reference
+        if reference.startswith("STOCKLOT_"):
+            order_group_id = reference.replace("STOCKLOT_", "")
+        elif reference.startswith("DEMO_"):
+            order_group_id = reference.replace("DEMO_", "")
+        else:
+            return {"success": True}
+
+        # 6️⃣ Update order_group (THIS IS THE MAIN FIX)
+        await db.order_groups.update_one(
+            {"id": order_group_id},
+            {
+                "$set": {
+                    "status": "CONFIRMED",
+                    "paid_at": datetime.now(timezone.utc),
+                    "payment_reference": reference
+                }
+            }
+        )
+
+        # 7️⃣ Update all seller orders
+        await db.seller_orders.update_many(
+            {"order_group_id": order_group_id},
+            {
+                "$set": {
+                    "status": "CONFIRMED",
+                    "paid_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+
+        return {
+            "success": True,
+            "message": "Order payment confirmed"
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Webhook processing failed: {e}")
-        return {"success": False, "error": "Webhook processing failed"}
+        print("Webhook error:", e)
+        return {"success": False}
 
 # ==============================================================================
 # 📧 CONTACT FORM API ENDPOINT

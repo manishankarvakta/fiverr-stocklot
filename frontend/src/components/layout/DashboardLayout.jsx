@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Menu, Bell, User, Search } from 'lucide-react';
 
 const DashboardLayout = ({ userRole = 'seller', user = null }) => {
+  const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const toggleSidebar = () => {
@@ -12,6 +13,7 @@ const DashboardLayout = ({ userRole = 'seller', user = null }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      
       {/* Sidebar */}
       <div className={`fixed left-0 top-0 h-full z-30 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         <Sidebar 
@@ -24,7 +26,7 @@ const DashboardLayout = ({ userRole = 'seller', user = null }) => {
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Top Navigation Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-black-200 border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -55,7 +57,10 @@ const DashboardLayout = ({ userRole = 'seller', user = null }) => {
               </button>
 
               {/* User Menu */}
-              <div className="flex items-center gap-3">
+             <button
+             onClick={() => navigate('/profile')}
+             >
+               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center">
                   <User className="h-4 w-4 text-white" />
                 </div>
@@ -66,6 +71,7 @@ const DashboardLayout = ({ userRole = 'seller', user = null }) => {
                   <p className="text-xs text-gray-500 capitalize">{userRole}</p>
                 </div>
               </div>
+             </button>
             </div>
           </div>
         </header>

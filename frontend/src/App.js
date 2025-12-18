@@ -289,16 +289,18 @@ function App() {
                   </Route>
                 </Route>
                 
-                {/* Buyer Dashboard with Sidebar */}
-                <Route element={<ProtectedRoute roles={['buyer']} />}>
-                  <Route path="/buyer/dashboard/*" element={<DashboardLayout userRole="buyer" />}>
-                    <Route index element={<Wishlist />} />
-                    <Route path="orders" element={<div>Buyer Orders</div>} />
-                    <Route path="wishlist" element={<Wishlist />} />
-                    <Route path="price-alerts" element={<PriceAlerts />} />
-                    <Route path="trading-statements" element={<MonthlyTradingStatements />} />
-                  </Route>
-                </Route>
+                  <Route element={<ProtectedRoute roles={['buyer']} />}>
+              <Route path="/buyer/dashboard/*" element={<DashboardLayout userRole="buyer" />}>
+                <Route index element={<Wishlist />} /> 
+                <Route path="offers-inbox" element={<BuyerOffersPage />} />
+                <Route path="orders" element={<MyOrders />} />
+                <Route path="orders/tracking" element={<OrderTracking />} />
+                <Route path="orders/history" element={<OrderHistory />} />
+                <Route path="wishlist" element={<Wishlist />} />
+                <Route path="price-alerts" element={<PriceAlerts />} />
+                <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+              </Route>
+            </Route>
                 
                 {/* Public marketplace routes */}
                 <Route path="/marketplace" element={<Marketplace />} />

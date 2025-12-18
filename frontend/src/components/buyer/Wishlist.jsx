@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Heart, X, ShoppingCart, Eye, Bell, BellOff, Filter, Search, Package, DollarSign, Calendar, Star } from 'lucide-react';
-
+import {
+  useGetWishlistQuery,
+  useRemoveFromWishlistMutation,
+  useGetWishlistStatsQuery,
+  useUpdateWishlistMutation
+} from '../../store/api/wishlist.api';
+import { useAddToCartMutation } from '../../store/api/cart.api';
 
 const Wishlist = () => {
   const [filters, setFilters] = useState({
@@ -15,8 +21,12 @@ const Wishlist = () => {
 
   // Use Redux RTK Query hooks
   const { data: wishlistData, isLoading: loading, refetch } = useGetWishlistQuery();
+  console.log('console.log', wishlistData)
+  console.log('wishlistData', wishlistData);
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
+
   const { data: statsData } = useGetWishlistStatsQuery();
+  console.log('statsData', statsData);
 
   const wishlistItems = wishlistData?.items || [];
 
@@ -40,12 +50,18 @@ const Wishlist = () => {
     }
   };
 
+  const [updateWishlist] = useUpdateWishlistMutation();
+  const [addToCartMutation] = useAddToCartMutation();
+
   const toggleNotifications = async (itemId) => {
     try {
       const newState = !notifications[itemId];
       
-      // Note: Update wishlist item mutation would need to be added to notificationsApi
-      // For now, using the update mutation if available
+      await updateWishlist({
+        wishlistId: itemId,
+        notifications_enabled: newState
+      }).unwrap();
+      
       setNotifications(prev => ({
         ...prev,
         [itemId]: newState
@@ -58,10 +74,11 @@ const Wishlist = () => {
 
   const addToCart = async (listing) => {
     try {
-      // Use cart API from Redux - will need to import useAddToCartMutation
-      // For now, keeping the structure but this should use Redux hook
+      await addToCartMutation({
+        listing_id: listing.listing_id || listing.id,
+        quantity: 1
+      }).unwrap();
       console.log('Added to cart successfully');
-      
     } catch (error) {
       console.error('Error adding to cart:', error);
     }

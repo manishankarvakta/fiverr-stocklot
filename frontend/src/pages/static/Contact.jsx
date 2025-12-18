@@ -3,6 +3,7 @@ import { Card, CardContent, Button, Input, Label, Textarea } from '@/components/
 import { Mail, Clock } from 'lucide-react';
 import Header from '@/components/ui/common/Header';
 import Footer from '@/components/ui/common/Footer';
+import { useSubmitContactFormMutation } from '@/store/api/contact.api';
 
 function Contact() {
   const [contactForm, setContactForm] = useState({
@@ -11,7 +12,8 @@ function Contact() {
     subject: '',
     message: ''
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [submitContactForm, { isLoading: isSubmitting }] = useSubmitContactFormMutation();
 
   const handleContactSubmit = async (e) => {
     e.preventDefault();
@@ -20,33 +22,18 @@ function Contact() {
       alert('Please fill in all fields');
       return;
     }
-
-    setIsSubmitting(true);
     
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
-      const response = await fetch(`${backendUrl}/api/contact`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...contactForm,
-          to_email: 'hello@stocklot.farm'
-        })
-      });
-
-      if (response.ok) {
-        alert('Message sent successfully! We\'ll get back to you soon.');
-        setContactForm({ name: '', email: '', subject: '', message: '' });
-      } else {
-        alert('Failed to send message. Please try again or email us directly at hello@stocklot.farm');
-      }
+      await submitContactForm({
+        ...contactForm,
+        to_email: 'hello@stocklot.farm'
+      }).unwrap();
+      
+      alert('Message sent successfully! We\'ll get back to you soon.');
+      setContactForm({ name: '', email: '', subject: '', message: '' });
     } catch (error) {
       console.error('Contact form error:', error);
       alert('Failed to send message. Please email us directly at hello@stocklot.farm');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
