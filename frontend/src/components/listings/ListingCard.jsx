@@ -5,8 +5,10 @@ import {
   Truck, Shield, Star, TrendingUp, DollarSign 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { useAuth } from '@/auth/AuthProvider';
 import { useAddToCartMutation, useLazyGetCartQuery } from '@/store/api/cart.api';
+import { addItem as addItemToCart } from '@/store/cartSlice';
 import { useToast } from '@/hooks/use-toast';
 
 const ListingCard = ({ 
@@ -19,6 +21,7 @@ const ListingCard = ({
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addToCart] = useAddToCartMutation();
@@ -127,38 +130,24 @@ const ListingCard = ({
         }
       }
       
-      // Guest user OR auth failed - add to localStorage cart
+      // Guest user OR auth failed - add to Redux cart slice
       if (!hasValidAuth) {
-        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
-        
-        // Check if item already exists in cart
-        const existingItemIndex = guestCart.findIndex(
-          item => item.listing_id === listing.id
-        );
-        
-        if (existingItemIndex >= 0) {
-          // Update quantity if item exists
-          guestCart[existingItemIndex].qty += 1;
-        } else {
-          // Add new item
-          guestCart.push({
-            listing_id: listing.id,
-            title: listing.title,
-            price: getPriceDisplay(),
-            qty: 1,
-            unit: listing.unit || 'head',
-            species: listing.species,
-            product_type: listing.product_type,
-            image: mainImage,
-            seller_id: listing.seller_id,
-          });
-        }
-        
-        localStorage.setItem('guest_cart', JSON.stringify(guestCart));
+        // Add to Redux cart slice (which syncs with localStorage)
+        dispatch(addItemToCart({
+          listing_id: listing.id,
+          title: listing.title,
+          price: getPriceDisplay(),
+          qty: 1,
+          unit: listing.unit || 'head',
+          species: listing.species,
+          product_type: listing.product_type,
+          image: mainImage,
+          seller_id: listing.seller_id,
+          location: listing.region,
+        }));
         
         // Update header cart count by dispatching a custom event
-        const cartCount = guestCart.reduce((sum, item) => sum + (item.qty || 1), 0);
-        window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { count: cartCount } }));
+        window.dispatchEvent(new CustomEvent('cartUpdated', {}));
         
         if (onAddToCart) {
           onAddToCart(listing, 1);

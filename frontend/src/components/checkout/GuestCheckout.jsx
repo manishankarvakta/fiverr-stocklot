@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -20,6 +21,7 @@ import api from '../../utils/apiHelper';
 import { handleAPIError } from '../../services/api';
 import { useToast } from '../../hooks/use-toast';
 import { useAuth } from '../../auth/AuthProvider';
+import { selectCartItems } from '../../store/cartSlice';
 import Header from '@/components/ui/common/Header';
 import Footer from '@/components/ui/common/Footer';
 import { useCreateOrderMutation } from '@/store/api/orders.api';
@@ -30,6 +32,9 @@ export default function GuestCheckout() {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
   const [addresses, setAddresses] = useState([]);
+  
+  // Get cart items from Redux store
+  const reduxCartItems = useSelector(selectCartItems);
 
   const [items, setItems] = useState([]);
   const [shipTo, setShipTo] = useState(null);
@@ -41,6 +46,29 @@ export default function GuestCheckout() {
   const [step, setStep] = useState('details'); // details, quote, payment
   
   const [createOrderMutation, {isSuccess, isLoading, isError}] = useCreateOrderMutation();
+  
+  // Check if user is accessing wrong route and redirect
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const hasValidAuth = Boolean(
+      isAuthenticated && 
+      user && 
+      user.id && 
+      token && 
+      token.trim() !== '' &&
+      token !== 'null' &&
+      token !== 'undefined'
+    );
+    
+    // If authenticated user is on /checkout/guest, redirect to /checkout
+    if (hasValidAuth && location.pathname === '/checkout/guest') {
+      navigate('/checkout', { replace: true });
+    }
+    // If guest user is on /checkout, redirect to /checkout/guest
+    else if (!hasValidAuth && location.pathname === '/checkout') {
+      navigate('/checkout/guest', { replace: true });
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
   
   
   // console.log("create order mutation ", createOrderMutation, isSuccess, isLoading, isError);
@@ -75,38 +103,35 @@ export default function GuestCheckout() {
     }
   }, [isAuthenticated, user]);
 
-    useEffect(() => {
-      loadCartItems();
-      setQuote(null);
-      setRisk(null);
-      setStep('details');
-    }, [location.key]);
+  // Load cart items from Redux store
+  useEffect(() => {
+    // Load from Redux cart slice (which syncs with localStorage)
+    const formattedItems = reduxCartItems.map(item => ({
+      listing_id: item.listing_id || item.id,
+      title: item.title,
+      price: item.price || item.price_per_unit || 0,
+      qty: item.qty || item.quantity || 1,
+      species: item.species || 'livestock',
+      product_type: item.product_type || 'animal'
+    }));
 
-  // Load cart items from localStorage
-  // useEffect(() => {
-  //   const guestCartData = localStorage.getItem('guest_cart');
-  //   const cartData = localStorage.getItem('cart');
-  //   let cartItems = [];
-
-  //   if (guestCartData) {
-  //     try { cartItems = JSON.parse(guestCartData); } 
-  //     catch (error) { console.error('Error parsing guest_cart:', error); }
-  //   } else if (cartData) {
-  //     try { cartItems = JSON.parse(cartData); } 
-  //     catch (error) { console.error('Error parsing cart:', error); }
-  //   }
-
-  //   const formattedItems = cartItems.map(item => ({
-  //     listing_id: item.listing_id || item.id,
-  //     title: item.title,
-  //     price: item.price || item.price_per_unit,
-  //     qty: item.qty || item.quantity || 1,
-  //     species: item.species || 'livestock',
-  //     product_type: item.product_type || 'animal'
-  //   }));
-
-  //   setItems(formattedItems);
-  // }, []);
+    setItems(formattedItems);
+    
+    // If cart is empty, redirect to cart page
+    if (formattedItems.length === 0 && location.pathname !== '/cart') {
+      toast({
+        title: "Cart is empty",
+        description: "Please add items to your cart before checkout",
+        variant: "destructive",
+      });
+      navigate('/cart');
+      return;
+    }
+    
+    setQuote(null);
+    setRisk(null);
+    setStep('details');
+  }, [location.key, reduxCartItems, navigate, toast, location.pathname]);
 
   // Fetch quote
   const getQuote = async () => {
@@ -131,29 +156,37 @@ export default function GuestCheckout() {
   };
 
  
-  const loadCartItems = () => {
-  const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
+  // Load cart items from Redux store
+  useEffect(() => {
+    // Load from Redux cart slice (which syncs with localStorage)
+    const formattedItems = reduxCartItems.map(item => ({
+      listing_id: item.listing_id || item.id,
+      title: item.title,
+      price: item.price || item.price_per_unit || 0,
+      qty: item.qty || item.quantity || 1,
+      species: item.species || 'livestock',
+      product_type: item.product_type || 'animal'
+    }));
 
-  const formattedItems = cartData.map(item => ({
-    listing_id: item.listing_id || item.id,
-    title: item.title,
-    price: item.price || item.price_per_unit,
-    qty: item.qty || item.quantity || 1,
-    species: item.species || 'livestock',
-    product_type: item.product_type || 'animal'
-  }));
+    setItems(formattedItems);
+    
+    // If cart is empty, redirect to cart page
+    if (formattedItems.length === 0 && location.pathname !== '/cart') {
+      toast({
+        title: "Cart is empty",
+        description: "Please add items to your cart before checkout",
+        variant: "destructive",
+      });
+      navigate('/cart');
+      return;
+    }
+    
+    setQuote(null);
+    setRisk(null);
+    setStep('details');
+  }, [location.key, reduxCartItems, navigate, toast, location.pathname]);
 
-  setItems(formattedItems);
-};
-
-useEffect(() => {
-  loadCartItems();      // fresh cart read
-  setQuote(null);       // old quote invalidate
-  setRisk(null);        // reset risk
-  setStep('details');   // back to step 1
-}, [location.key])
-
-const createOrder = async () => {
+  const createOrder = async () => {
   setError('');
   
   // 1️⃣ Check cart
