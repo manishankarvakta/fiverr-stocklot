@@ -98,12 +98,15 @@ const LoginGate = ({ open, onClose, onLogin, returnTo }) => {
         throw new Error('Password must be at least 6 characters');
       }
 
-      const data = await registerMutation({
+      const registrationPayload = {
         email: registerData.email,
         password: registerData.password,
         full_name: registerData.full_name,
-        role: registerData.role
-      }).unwrap();
+        role: registerData.role,
+        user_type: registerData.role
+      };
+
+      const data = await registerMutation(registrationPayload).unwrap();
       
       // Auto-login after registration
       if (data.access_token) {

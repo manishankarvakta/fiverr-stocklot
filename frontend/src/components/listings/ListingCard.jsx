@@ -222,6 +222,113 @@ const ListingCard = ({
     return listing.price_per_unit;
   };
 
+  const getSpeciesIcon = (species, title) => {
+    // Normalize input to lowercase for comparison
+    const normalizedSpecies = (species || '').toLowerCase();
+    const normalizedTitle = (title || '').toLowerCase();
+
+    // Check species field first
+    if (normalizedSpecies) {
+      if (normalizedSpecies.includes('chicken') || normalizedSpecies.includes('poultry') || 
+          normalizedSpecies.includes('broiler') || normalizedSpecies.includes('layer') ||
+          normalizedSpecies.includes('chick') || normalizedSpecies.includes('hen') ||
+          normalizedSpecies.includes('rooster') || normalizedSpecies.includes('cockerel')) {
+        return '🐔';
+      }
+      if (normalizedSpecies.includes('cattle') || normalizedSpecies.includes('cow') || 
+          normalizedSpecies.includes('bull') || normalizedSpecies.includes('heifer') ||
+          normalizedSpecies.includes('steer') || normalizedSpecies.includes('beef') ||
+          normalizedSpecies.includes('dairy')) {
+        return '🐄';
+      }
+      if (normalizedSpecies.includes('goat')) {
+        return '🐐';
+      }
+      if (normalizedSpecies.includes('sheep') || normalizedSpecies.includes('lamb') ||
+          normalizedSpecies.includes('ewe') || normalizedSpecies.includes('ram')) {
+        return '🐑';
+      }
+      if (normalizedSpecies.includes('pig') || normalizedSpecies.includes('swine') ||
+          normalizedSpecies.includes('hog') || normalizedSpecies.includes('boar') ||
+          normalizedSpecies.includes('sow')) {
+        return '🐷';
+      }
+      if (normalizedSpecies.includes('duck') || normalizedSpecies.includes('duckling')) {
+        return '🦆';
+      }
+      if (normalizedSpecies.includes('rabbit') || normalizedSpecies.includes('bunny')) {
+        return '🐰';
+      }
+      if (normalizedSpecies.includes('fish') || normalizedSpecies.includes('aquaculture') ||
+          normalizedSpecies.includes('tilapia') || normalizedSpecies.includes('fry') ||
+          normalizedSpecies.includes('fingerling')) {
+        return '🐟';
+      }
+      if (normalizedSpecies.includes('ostrich')) {
+        return '🦃';
+      }
+      if (normalizedSpecies.includes('turkey')) {
+        return '🦃';
+      }
+      if (normalizedSpecies.includes('goose') || normalizedSpecies.includes('geese')) {
+        return '🦢';
+      }
+      if (normalizedSpecies.includes('quail')) {
+        return '🐦';
+      }
+      if (normalizedSpecies.includes('guinea') && normalizedSpecies.includes('fowl')) {
+        return '🐦';
+      }
+    }
+
+    // Fallback to title-based detection if species is not available or not matched
+    if (normalizedTitle) {
+      if (normalizedTitle.includes('chicken') || normalizedTitle.includes('poultry') || 
+          normalizedTitle.includes('broiler') || normalizedTitle.includes('layer') ||
+          normalizedTitle.includes('chick') || normalizedTitle.includes('hen') ||
+          normalizedTitle.includes('rooster') || normalizedTitle.includes('cockerel')) {
+        return '🐔';
+      }
+      if (normalizedTitle.includes('cattle') || normalizedTitle.includes('cow') || 
+          normalizedTitle.includes('bull') || normalizedTitle.includes('heifer') ||
+          normalizedTitle.includes('steer') || normalizedTitle.includes('beef') ||
+          normalizedTitle.includes('dairy') || normalizedTitle.includes('angus') ||
+          normalizedTitle.includes('brahman') || normalizedTitle.includes('nguni')) {
+        return '🐄';
+      }
+      if (normalizedTitle.includes('goat') || normalizedTitle.includes('boer')) {
+        return '🐐';
+      }
+      if (normalizedTitle.includes('sheep') || normalizedTitle.includes('lamb') ||
+          normalizedTitle.includes('dorper') || normalizedTitle.includes('merino')) {
+        return '🐑';
+      }
+      if (normalizedTitle.includes('pig') || normalizedTitle.includes('swine') ||
+          normalizedTitle.includes('hog') || normalizedTitle.includes('boar')) {
+        return '🐷';
+      }
+      if (normalizedTitle.includes('duck') || normalizedTitle.includes('duckling')) {
+        return '🦆';
+      }
+      if (normalizedTitle.includes('rabbit') || normalizedTitle.includes('bunny')) {
+        return '🐰';
+      }
+      if (normalizedTitle.includes('fish') || normalizedTitle.includes('aquaculture') ||
+          normalizedTitle.includes('tilapia') || normalizedTitle.includes('fry')) {
+        return '🐟';
+      }
+      if (normalizedTitle.includes('ostrich')) {
+        return '🦃';
+      }
+      if (normalizedTitle.includes('turkey')) {
+        return '🦃';
+      }
+    }
+
+    // Default fallback
+    return '🐾';
+  };
+
   const mainImage = listing.images?.[0]?.url || 
                     listing.media?.[0]?.url || 
                     listing.image_url ||
@@ -241,14 +348,20 @@ const ListingCard = ({
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
+              const placeholder = e.target.nextSibling;
+              if (placeholder) {
+                placeholder.classList.remove('hidden');
+                placeholder.classList.add('flex');
+              }
             }}
           />
         ) : null}
         <div 
           className={`w-full h-full flex items-center justify-center ${mainImage ? 'hidden' : 'flex'}`}
         >
-          <Package className="h-16 w-16 text-emerald-300" />
+          <span className="text-6xl">
+            {getSpeciesIcon(listing.species, listing.title)}
+          </span>
         </div>
         
         {/* Badges */}

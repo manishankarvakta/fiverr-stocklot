@@ -165,7 +165,12 @@ function Header() {
   // };
 
   const isSeller = user && (user.roles || []).includes('seller');
+  const isBuyer = user && (user.roles || []).includes('buyer');
   const isAdmin = user && (user.roles || []).includes('admin');
+
+  console.log('user', user);
+
+
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && searchTerm.trim()) {
@@ -286,6 +291,7 @@ function Header() {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    
                     
                     {/* Profile & Settings */}
                     <DropdownMenuItem onClick={() => navigate('/profile')}>
@@ -419,7 +425,7 @@ function Header() {
           </div>
 
           {/* Context Switcher for Sellers */}
-          {isSeller && (
+          {isSeller || isBuyer && (
             <div className="mt-3 flex justify-center">
               <ContextSwitcher />
             </div>

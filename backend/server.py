@@ -2945,6 +2945,20 @@ async def create_sample_listings():
 # API Routes
 
 # Authentication routes
+def resolve_user_roles(user_type: Optional[str], legacy_role: Optional[UserRole] = None) -> List[UserRole]:
+    """Convert the incoming user_type string into the appropriate list of UserRole enums."""
+    normalized = (user_type or "").strip().lower()
+    if normalized == "both":
+        return [UserRole.BUYER, UserRole.SELLER]
+    if normalized == "seller":
+        return [UserRole.SELLER]
+    if normalized == "buyer":
+        return [UserRole.BUYER]
+    if legacy_role:
+        return [legacy_role]
+    return [UserRole.BUYER]
+
+
 @api_router.post("/auth/register")
 async def register_user(user_data: UserCreate, request: Request):
     """Register a new user with referral attribution"""
@@ -2962,7 +2976,7 @@ async def register_user(user_data: UserCreate, request: Request):
             email=user_data.email,
             full_name=user_data.full_name,
             phone=user_data.phone,
-            roles=[user_data.role]
+            roles=resolve_user_roles(user_data.user_type, user_data.role)
         )
         
         # Save to database
@@ -10436,7 +10450,7 @@ async def register_user_enhanced(
             email=user_data.email,
             full_name=user_data.full_name,
             phone=user_data.phone,
-            roles=[user_data.role]
+            roles=resolve_user_roles(user_data.user_type, user_data.role)
         )
         
         # Save to database

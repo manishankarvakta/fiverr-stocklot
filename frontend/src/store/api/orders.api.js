@@ -84,24 +84,27 @@ export const ordersApi = baseApi.injectEndpoints({
     }),
 
     createOrder: builder.mutation({
-     query: (args) => {
+      query: (args = {}) => {
       const body = args?.data || args;
-      const customHeaders = args?.header || {};
-      "user";
-      const token = localStorage.getItem('token');// auth provider
+        const customHeaders = args?.headers || {};
+        const orgContext =
+          customHeaders['X-Org-Context'] ||
+          localStorage.getItem('currentContext') ||
+          'user';
+        const token = localStorage.getItem('token');
+
       return {
         url: '/checkout/order',
         method: 'POST',
-        body: body,
-        headers:{
-          'X-org-context': orgContext,
-          ...(token? {Authorization: `Bearer ${token}`}:{}),
+          body,
+          headers: {
+            'X-Org-Context': orgContext,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...customHeaders,
         },
-
       };
      },
-     invalidatesTag: ['Order', 'Cart']
+      invalidatesTags: ['Order', 'Cart'],
     }),
 
     getOrderTracking: builder.query({

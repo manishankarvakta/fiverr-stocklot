@@ -18,6 +18,8 @@ import { useToast } from '../../hooks/use-toast';
 import { useGetListingPDPQuery } from '../../store/api/listings.api';
 import { useTrackAnalyticsMutation, useGetABTestConfigQuery, useTrackABEventMutation } from '../../store/api/admin.api';
 import { useAddToCartMutation, useLazyGetCartQuery } from '../../store/api/cart.api';
+import Header from '../ui/common/Header';
+import Footer from '../ui/common/Footer';
 
 const ListingPDP = () => {
   const { id } = useParams();
@@ -438,6 +440,9 @@ Please try again or add to cart first.`);
   const showCategoryBreadcrumb = normalizedData.category_group && normalizedData.category_group !== 'Livestock';
 
   return (
+    <>
+      <Header />
+     
     <main className="container mx-auto px-4 py-6">
       {/* SEO Meta */}
       <title>{seoTitle}</title>
@@ -468,7 +473,11 @@ Please try again or add to cart first.`);
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Gallery */}
         <div className="lg:col-span-6">
-          <ImageGallery media={normalizedData.media || []} />
+          <ImageGallery 
+            media={normalizedData.media || []} 
+            species={normalizedData.species}
+            title={normalizedData.title}
+          />
         </div>
 
         {/* Summary / CTA */}
@@ -653,6 +662,8 @@ Please try again or add to cart first.`);
         }}
       />
     </main>
+    <Footer />
+    </>
   );
 };
 
