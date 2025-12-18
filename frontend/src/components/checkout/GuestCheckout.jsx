@@ -281,16 +281,47 @@ export default function GuestCheckout() {
 
   console.log('FINAL ORDER PAYLOAD', payload); // ✅ check before sending
 
+  // 🧪 TEST MODE: Bypass payment for testing
+  const TEST_MODE = true; // Set to false to enable real payments
+  
   // 6️⃣ Send order
   setLoading(true);
   try {
     const result = await createOrderMutation(payload).unwrap();
     console.log('ORDER SUCCESS', result);
 
-    // // If authorization_url exists, redirect
+    // 🧪 TEST MODE: Skip payment redirect and show success
+    if (TEST_MODE) {
+      toast({
+        title: "✅ Order Created Successfully (Test Mode)",
+        description: `Order ${result?.order_group_id || result?.id || 'created'} has been created. Payment bypassed for testing.`,
+      });
+      
+      // Redirect to order confirmation or orders page
+      setTimeout(() => {
+        if (result?.order_group_id) {
+          navigate(`/orders/${result.order_group_id}`, { replace: true });
+        } else if (result?.id) {
+          navigate(`/orders/${result.id}`, { replace: true });
+        } else {
+          navigate('/orders', { replace: true });
+        }
+      }, 2000);
+      
+      return;
+    }
+
+    // Production mode: Handle payment redirect
     if (result?.authorization_url) {
-      // window.location.href = result.authorization_url;
-      console.log('result authorization ', result?.authorization_url)
+      console.log('Redirecting to payment:', result.authorization_url);
+      window.location.href = result.authorization_url;
+    } else {
+      // If no payment URL, assume order is complete
+      toast({
+        title: "Order Created Successfully",
+        description: "Your order has been placed successfully.",
+      });
+      navigate('/orders', { replace: true });
     }
   } catch (err) {
     console.error('ORDER ERROR', err);
