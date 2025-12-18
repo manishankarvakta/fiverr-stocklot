@@ -19,6 +19,10 @@ import { useGetOrdersQuery } from '../../store/api/orders.api';
 
 const MyOrders = () => {
   const { user } = useAuth();
+  const isAuth = true;
+  console.log('isAuth for my order', isAuth);
+  // to match the variable name in the API call
+ 
   console.log('user for my order', user)
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -32,7 +36,9 @@ const MyOrders = () => {
   const [submittingRefund, setSubmittingRefund] = useState(false);
 
   // Orders API
-  const { data: ordersData, isLoading, error, refetch } = useGetOrdersQuery({});
+// const { data: ordersData } = useGetOrdersQuery({ isAuth: isAuthenticated });
+  const { data: ordersData, isLoading, error, refetch } = useGetOrdersQuery({ isAuth });
+  console.log('ordersData', ordersData, isLoading, error);
 
   // Support multiple formats
   const orders = Array.isArray(ordersData)

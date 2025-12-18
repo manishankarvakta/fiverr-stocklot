@@ -12,7 +12,7 @@ export const ordersApi = baseApi.injectEndpoints({
 
     getOrders: builder.query({
       query: (params = {}) => ({
-        url: isAuthenticated ? '/orders' : '/checkout/guest/order',
+        url: params.isAuth ? '/orders' : '/checkout/guest/order',
         params,
       }),
       providesTags: ['Order'],
@@ -83,9 +83,9 @@ export const ordersApi = baseApi.injectEndpoints({
       const token = localStorage.getItem('token');// auth provider
       return {
         url: '/checkout/order',
-        mathod: 'POST',
+        method: 'POST',
         body: body,
-        header:{
+        headers:{
           'X-org-context': orgContext,
           ...(token? {Authorization: `Bearer ${token}`}:{}),
           ...customHeaders,

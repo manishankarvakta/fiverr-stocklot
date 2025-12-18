@@ -43,10 +43,10 @@ export default function GuestCheckout() {
   const [createOrderMutation, {isSuccess, isLoading, isError}] = useCreateOrderMutation();
   
   
-  console.log("create order mutation ", createOrderMutation, isSuccess, isLoading, isError);
-  console.log('location for details ', location);
+  // console.log("create order mutation ", createOrderMutation, isSuccess, isLoading, isError);
+  // console.log('location for details ', location);
   
-  console.log('shipTo', shipTo);
+  // console.log('shipTo', shipTo);
 
 //   useEffect(() => {
 //   const cart = JSON.parse(localStorage.getItem("cart_items") || "[]");

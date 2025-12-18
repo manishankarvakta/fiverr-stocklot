@@ -13,6 +13,7 @@ const DashboardLayout = ({ userRole = 'seller', user = null }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      
       {/* Sidebar */}
       <div className={`fixed left-0 top-0 h-full z-30 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         <Sidebar 
