@@ -11,12 +11,15 @@ export const ordersApi = baseApi.injectEndpoints({
     }),
 
     getOrders: builder.query({
-      query: (params = {}) => ({
-        url: params.isAuth ? '/orders' : '/checkout/guest/order',
-        params,
-      }),
-      providesTags: ['Order'],
-    }),
+  query: (params = {}) => ({
+    url: params.isAuth ? '/orders' : '/checkout/guest/order',
+    params,
+    headers: params.isAuth ? {
+      Authorization: `Bearer ${localStorage.getItem('token')}`
+    } : {}
+  }),
+  providesTags: ['Order'],
+}),
 
     getOrderById: builder.query({
       query: (orderId) => `/orders/${orderId}`,
@@ -24,13 +27,18 @@ export const ordersApi = baseApi.injectEndpoints({
     }),
 
     getOrderGroup: builder.query({
-      query: (orderGroupId) => `/orders/${orderGroupId}`,
-      providesTags: (result, error, orderGroupId) => [{ type: 'Order', id: orderGroupId }],
-    }),
+   query: ({ order_group_id, token }) => ({
+    url: `/orders/${order_group_id}`,
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }),
+  providesTags: (result, error, { order_group_id }) => [{ type: 'Order', id: order_group_id }],
+}),
 
     getOrderStatus: builder.query({
-      query: (orderGroupId) => `/orders/${orderGroupId}/status`,
-      providesTags: (result, error, orderGroupId) => [{ type: 'Order', id: orderGroupId }],
+      query: (order_group_id) => `/orders/${order_group_id}/status`,
+      providesTags: (result, error, order_group_id) => [{ type: 'Order', id: order_group_id }],
     }),
 
     updateOrderStatus: builder.mutation({
