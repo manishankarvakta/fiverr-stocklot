@@ -92,13 +92,21 @@ function Marketplace() {
   console.log('Smart search loading:', smartSearchLoading);
 
   // Derived state from API responses - handle different response formats
-  const categoryGroups = useMemo(() => {
-    if (!categoriesData) return [];
-    // Handle both array and object with categories property
-    if (Array.isArray(categoriesData)) return categoriesData;
-    if (categoriesData.categories) return categoriesData.categories;
-    return [];
-  }, [categoriesData]);
+const categoryGroups = useMemo(() => {
+  if (!categoriesData) return [];
+
+  const raw =
+    Array.isArray(categoriesData)
+      ? categoriesData
+      : categoriesData.categories || [];
+
+  // ✅ remove duplicates by id
+  const unique = Array.from(
+  new Map(raw.map(item => [item.name, item])).values()
+);
+  return unique;
+}, [categoriesData]);
+
   
   const productTypes = useMemo(() => {
     if (!productTypesData) return [];
