@@ -37,6 +37,17 @@ const OrderDetail = () => {
     });
   }, [id, token, isAuthenticated, isLoading, isError, error, orderGroup]);
 
+  // Debug: Log the full order group structure (must be before early returns)
+  React.useEffect(() => {
+    if (orderGroup) {
+      const orders = orderGroup.orders || [];
+      const orderContact = orderGroup.order_contact || {};
+      console.log('📦 Full Order Group Data:', JSON.stringify(orderGroup, null, 2));
+      console.log('📦 Orders:', orders);
+      console.log('📦 Order Contact:', orderContact);
+    }
+  }, [orderGroup]);
+
   const getStatusColor = (status) => {
     const statusLower = (status || '').toLowerCase();
     if (statusLower === 'completed' || statusLower === 'delivered') {
@@ -147,15 +158,6 @@ const OrderDetail = () => {
   const StatusIcon = getStatusIcon(orderGroup.status);
   const orders = orderGroup.orders || [];
   const orderContact = orderGroup.order_contact || {};
-  
-  // Debug: Log the full order group structure
-  React.useEffect(() => {
-    if (orderGroup) {
-      console.log('📦 Full Order Group Data:', JSON.stringify(orderGroup, null, 2));
-      console.log('📦 Orders:', orders);
-      console.log('📦 Order Contact:', orderContact);
-    }
-  }, [orderGroup, orders, orderContact]);
 
   return (
     <>

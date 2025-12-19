@@ -92,6 +92,7 @@ import MyOrders from './components/orders/MyOrders';
 import OrderTracking from './components/orders/OrderTracking';
 import OrderHistory from './components/orders/OrderHistory';
 import OrderDetail from './pages/orders/OrderDetail';
+import PublicOrderTracking from './pages/orders/PublicOrderTracking';
 import MyListings from './components/seller/MyListings';
 import ListingPerformance from './components/seller/ListingPerformance';
 import CustomerReviews from './components/seller/CustomerReviews';
@@ -156,6 +157,10 @@ function App() {
                 <Route path="/" element={<Homepage />} />
                 {/* <Route path="/sidebar-demo" element={<SidebarDemo />} /> */}
                 {/* <Route path="/debug-cart" element={<div>Debug cart route working!</div>} /> */}
+                
+                {/* Public Order Tracking - accessible to guests */}
+                <Route path="/track-order" element={<PublicOrderTracking />} />
+                <Route path="/track-order/:id" element={<PublicOrderTracking />} />
                 
                 {/* Email verification and password reset routes */}
                 <Route path="/verify-email" element={<EmailVerificationPage />} />

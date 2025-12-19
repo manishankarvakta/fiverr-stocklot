@@ -123,6 +123,19 @@ export const ordersApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Order'],
     }),
+
+    getPublicOrderTracking: builder.query({
+      query: (tracking_number) => ({
+        url: `/public/orders/track/${tracking_number}`,
+      }),
+      providesTags: (result, error, tracking_number) => [{ type: 'Order', id: tracking_number }],
+    }),
+
+    getSampleTrackingNumber: builder.query({
+      query: () => ({
+        url: '/public/orders/sample-tracking',
+      }),
+    }),
   }),
   overrideExisting: false,
 });
@@ -148,4 +161,8 @@ export const {
   useLazyGetOrderTrackingQuery,
   useGetOrderHistoryQuery,
   useLazyGetOrderHistoryQuery,
+  useGetPublicOrderTrackingQuery,
+  useLazyGetPublicOrderTrackingQuery,
+  useGetSampleTrackingNumberQuery,
+  useLazyGetSampleTrackingNumberQuery,
 } = ordersApi;
