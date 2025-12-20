@@ -159,7 +159,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Orders',
           icon: FileText,
           items: [
-            { path: '/seller/orders', label: 'All Orders', icon: FileText },
+            { path: '/orders/OrderDetail', label: 'All Orders', icon: FileText },
             { path: '/seller/orders/pending', label: 'Pending', icon: FileText }
           ]
         },

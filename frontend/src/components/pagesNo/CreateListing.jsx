@@ -1063,13 +1063,14 @@ const handleRequestSeller = async () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate('/seller/listings')}
                   className="border-emerald-300 text-emerald-700"
                 >
                   Cancel
                 </Button>
                  <Button
                   type="submit"
+                  onClick={handleSubmit}
                   disabled={submitting || isCreating}
                   className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
                 >
