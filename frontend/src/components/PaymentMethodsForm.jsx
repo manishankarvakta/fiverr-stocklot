@@ -7,6 +7,8 @@ import {
 import { 
   CreditCard, Plus, Edit, Trash2, CheckCircle, AlertTriangle, Building, Shield
 } from 'lucide-react';
+import Header from './ui/common/Header';
+import Footer from './ui/common/Footer';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -129,6 +131,9 @@ export default function PaymentMethodsForm({ user }) {
 
   if (loading) {
     return (
+      <>
+      
+
       <Card>
         <CardHeader>
           <CardTitle>Payment Methods</CardTitle>
@@ -140,11 +145,16 @@ export default function PaymentMethodsForm({ user }) {
           </div>
         </CardContent>
       </Card>
+      </>
     );
   }
-
+  
   return (
-    <div className="space-y-6">
+
+
+
+      <div className="space-y-6">
+      
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -366,5 +376,7 @@ export default function PaymentMethodsForm({ user }) {
         </DialogContent>
       </Dialog>
     </div>
+  
+   
   );
 }
