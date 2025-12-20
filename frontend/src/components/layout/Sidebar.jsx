@@ -236,7 +236,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         label: 'Settings',
         icon: Settings,
         items: [
-          { path: '/buyer/dashboard/settings/profile', label: 'Profile', icon: User },
+          { path: '/buyer/dashboard/profile', label: 'Profile', icon: User },
           { path: '/buyer/dashboard/settings/addresses', label: 'Addresses', icon: MapPin }
         ]
       }
