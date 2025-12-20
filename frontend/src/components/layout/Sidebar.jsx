@@ -19,7 +19,9 @@ import {
   Star,
   Eye,
   DollarSign,
-  Clock
+  Clock,
+  User,
+  MapPin
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -226,6 +228,16 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         icon: Users,
         items: [
           { path: '/seller/dashboard', label: 'Seller Dashboard', icon: DollarSign }
+        ]
+      },
+      // Settings
+      {
+        id: 'settings',
+        label: 'Settings',
+        icon: Settings,
+        items: [
+          { path: '/buyer/dashboard/settings/profile', label: 'Profile', icon: User },
+          { path: '/buyer/dashboard/settings/addresses', label: 'Addresses', icon: MapPin }
         ]
       }
     ];

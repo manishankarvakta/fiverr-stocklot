@@ -1,0 +1,54 @@
+// buyer dashboard module setup
+// Dashboard
+
+// Orders
+// ├─ My Orders
+// ├─ Tracking
+// ├─ History
+
+// Offers
+// ├─ Inbox
+
+// Wishlist
+
+// Alerts
+// ├─ Price Alerts
+
+// Buy Requests
+// ├─ My Requests
+// ├─ Create Request
+
+// Settings
+// ├─ Profile
+// ├─ Addresses
+
+
+// Seller dashboard Module setup
+
+// Dashboard
+// ├─ Analytics
+// ├─ Performance
+
+// Listings
+// ├─ My Listings
+// ├─ Create Listing
+// ├─ Inventory
+
+// Orders
+// ├─ All Orders
+// ├─ Shipping
+
+// Growth
+// ├─ Campaigns
+// ├─ Offers
+
+// Reports
+// ├─ Monthly Statements
+
+// Profile
+// ├─ Basic Info
+// ├─ Business Info
+
+// Settings
+// ├─ Notifications
+// ├─ KYC
