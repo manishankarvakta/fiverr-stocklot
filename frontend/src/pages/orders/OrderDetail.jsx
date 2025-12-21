@@ -168,7 +168,7 @@ const OrderDetail = () => {
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="outline"
-              onClick={() => navigate('/orders')}
+              onClick={() => navigate('/buyer/dashboard/orders')}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />

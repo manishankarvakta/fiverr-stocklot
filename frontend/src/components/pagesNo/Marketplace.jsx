@@ -88,7 +88,7 @@ function Marketplace() {
   const { data: listingsData, isLoading: listingsLoading, error: listingsError, refetch: refetchListings } = useGetListingsQuery(listingsParams);
   console.log('Listings data for:', listingsData);
   const [smartSearch, { isLoading: smartSearchLoading }] = useSmartSearchMutation();
-  console.log('Smart search loading:', smartSearchLoading);
+  // console.log('Smart search loading:', smartSearchLoading);
 // Later
 // if (!listingsLoading && refetchListings) {
 //   refetchListings();
@@ -310,7 +310,7 @@ const categoryGroups = useMemo(() => {
     }
   };
 
-  const clearSmartSearch = (refetchListings) => {
+  const clearSmartSearch = () => {
     setSmartSearchQuery('');
     setSmartSearchResults(null);
     refetchListings(); // Reload all listings using Redux
