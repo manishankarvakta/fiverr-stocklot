@@ -89,7 +89,10 @@ function Marketplace() {
   console.log('Listings data for:', listingsData);
   const [smartSearch, { isLoading: smartSearchLoading }] = useSmartSearchMutation();
   console.log('Smart search loading:', smartSearchLoading);
-
+// Later
+// if (!listingsLoading && refetchListings) {
+//   refetchListings();
+// }
   // Derived state from API responses - handle different response formats
 const categoryGroups = useMemo(() => {
   if (!categoriesData) return [];
@@ -310,7 +313,7 @@ const categoryGroups = useMemo(() => {
   const clearSmartSearch = () => {
     setSmartSearchQuery('');
     setSmartSearchResults(null);
-    refetchListings(); // Reload all listings using Redux
+    // refetchListings(); // Reload all listings using Redux
   };
 
   // Enhanced handleFilterChange to clear smart search when filters are used
