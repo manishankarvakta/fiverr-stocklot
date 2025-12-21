@@ -29,6 +29,7 @@ import {
 /* ---------------- User Trigger ---------------- */
 const UserTrigger = ({ user }) => {
   const name = user?.name || "User";
+  console.log("User name:", name);
   const roles = user?.roles || [];
   const firstLetter = name.charAt(0).toUpperCase();
 
@@ -107,13 +108,13 @@ const DashboardLayout = ({ user = null, userRole = "seller" }) => {
                 <Menu className="h-5 w-5" />
               </button>
 
-              <div className="relative hidden md:block">
+              {/* <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   placeholder="Search..."
                   className="pl-10 pr-4 py-2 border rounded-lg text-sm w-80"
                 />
-              </div>
+              </div> */}
             </div>
 
             {/* Right */}

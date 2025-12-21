@@ -52,3 +52,6 @@
 // Settings
 // ├─ Notifications
 // ├─ KYC
+
+
+//app .js route set module-wise group kore sajabo, mane Public routes, Auth routes, Protected routes, Buyer, Seller, Admin, Error section wise bhag kore dibo

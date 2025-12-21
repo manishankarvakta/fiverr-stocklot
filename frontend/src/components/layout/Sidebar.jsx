@@ -124,7 +124,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           icon: Package,
           items: [
             { path: '/seller/listings', label: 'My Listings', icon: Package },
-            { path: '/seller/listings/create', label: 'Create Listing', icon: Upload },
+            { path: '/create-listing', label: 'Create Listing', icon: Upload },
             { path: '/seller/inventory/bulk', label: 'Bulk Update', icon: Upload }
           ]
         },
@@ -159,8 +159,18 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Orders',
           icon: FileText,
           items: [
+            { path: '/checkout', label: 'checkout', icon: FileText },
             { path: '/orders/OrderDetail', label: 'All Orders', icon: FileText },
-            { path: '/seller/orders/pending', label: 'Pending', icon: FileText }
+            { path: '/orders/pending', label: 'Pending', icon: FileText }
+          ]
+        },
+        //report
+      {
+          id: 'reports',
+          label: 'Reports',
+          icon: FileText,
+          items: [
+            { path: '/reports/tax', label: 'Reports', icon: FileText }
           ]
         },
         // Role switcher for dual-role users
@@ -197,7 +207,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
       },
       {
         id: 'offers-inbox',
-        label: 'Accept offers',
+        label: 'Buy requests',
         icon: MessageSquare,
         items: [
           { path: '/offers-inbox', label: 'Accept Offers', icon: MessageSquare }
@@ -230,6 +240,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           { path: '/seller/dashboard', label: 'Seller Dashboard', icon: DollarSign }
         ]
       },
+      
       // Settings
       {
         id: 'settings',

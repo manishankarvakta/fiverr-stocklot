@@ -31,13 +31,13 @@ export default function AddressesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Saved Delivery Addresses</CardTitle>
-            <Button
+            {/* <Button
               className="bg-emerald-600 hover:bg-emerald-700"
               onClick={() => (window.location.href = "/checkout")}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Address
-            </Button>
+            </Button> */}
           </CardHeader>
 
           <CardContent>
