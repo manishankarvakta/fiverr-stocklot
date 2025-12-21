@@ -231,6 +231,15 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           { path: '/buyer/dashboard/orders/history', label: 'History', icon: Clock },
         ]
       },
+      {
+        id: 'settings',
+        label: 'Settings',
+        icon: Settings,
+        items: [
+          { path: '/profile', label: 'Profile', icon: User },
+          { path: '/addresses', label: 'Addresses', icon: MapPin }
+        ]
+      },
       // Role switcher for dual-role users
       {
         id: 'role-switch',
@@ -242,15 +251,6 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
       },
       
       // Settings
-      {
-        id: 'settings',
-        label: 'Settings',
-        icon: Settings,
-        items: [
-          { path: '/buyer/dashboard/profile', label: 'Profile', icon: User },
-          { path: '/buyer/dashboard/settings/addresses', label: 'Addresses', icon: MapPin }
-        ]
-      }
     ];
   };
 

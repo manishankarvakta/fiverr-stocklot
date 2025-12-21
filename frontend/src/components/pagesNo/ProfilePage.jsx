@@ -8,6 +8,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Avatar, AvatarFallback
 } from '@/components/ui';
+import Header from '../ui/common/Header';
+import Footer from '../layout/Footer';
 function ProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(user || {});
@@ -222,7 +224,9 @@ function ProfilePage() {
   const tabConfig = getTabsForRole();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+    <>
+    <Header />
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 p-6">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <Card className="shadow-xl border-emerald-200">
@@ -1030,6 +1034,9 @@ function ProfilePage() {
         </div>
       </div>
     </div>
+
+    <Footer />
+    </>
   );
 }
 export default ProfilePage;

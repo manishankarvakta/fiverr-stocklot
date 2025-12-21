@@ -310,10 +310,10 @@ const categoryGroups = useMemo(() => {
     }
   };
 
-  const clearSmartSearch = () => {
+  const clearSmartSearch = (refetchListings) => {
     setSmartSearchQuery('');
     setSmartSearchResults(null);
-    // refetchListings(); // Reload all listings using Redux
+    refetchListings(); // Reload all listings using Redux
   };
 
   // Enhanced handleFilterChange to clear smart search when filters are used
