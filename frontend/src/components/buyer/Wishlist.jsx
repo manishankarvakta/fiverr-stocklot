@@ -9,6 +9,23 @@ import {
 } from '../../store/api/wishlist.api';
 import { useAddToCartMutation } from '../../store/api/cart.api';
 
+// Helper function for availability badges
+const getAvailabilityBadge = (availability) => {
+  const availabilityConfig = {
+    available: { label: 'Available', color: 'bg-green-100 text-green-800' },
+    limited: { label: 'Limited Stock', color: 'bg-yellow-100 text-yellow-800' },
+    out_of_stock: { label: 'Out of Stock', color: 'bg-red-100 text-red-800' },
+    pre_order: { label: 'Pre-Order', color: 'bg-blue-100 text-blue-800' }
+  };
+
+  const config = availabilityConfig[availability] || availabilityConfig.available;
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
 const Wishlist = () => {
   const [filters, setFilters] = useState({
     category: 'all',
@@ -100,22 +117,6 @@ const Wishlist = () => {
     } catch (error) {
       console.error('Error adding to cart:', error);
     }
-  };
-
-  const getAvailabilityBadge = (availability) => {
-    const availabilityConfig = {
-      available: { label: 'Available', color: 'bg-green-100 text-green-800' },
-      limited: { label: 'Limited Stock', color: 'bg-yellow-100 text-yellow-800' },
-      out_of_stock: { label: 'Out of Stock', color: 'bg-red-100 text-red-800' },
-      pre_order: { label: 'Pre-Order', color: 'bg-blue-100 text-blue-800' }
-    };
-    
-    const config = availabilityConfig[availability] || availabilityConfig.available;
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
-    );
   };
 
   const getPriceChangeIndicator = (item) => {
@@ -316,7 +317,7 @@ const Wishlist = () => {
                   <div className="text-xs text-blue-600 mb-1">Active Price Alerts:</div>
                   {item.price_alerts.map((alert, index) => (
                     <div key={index} className="text-xs text-gray-600 bg-blue-50 px-2 py-1 rounded">
-                      Alert when price ≤ R{alert.target_price.toLocaleString()}
+                      Alert when price ≤ R{(alert.target_price ?? 0).toLocaleString()}
                     </div>
                   ))}
                 </div>

@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { useGetMyListingsQuery } from '@/store/api/listings.api';  
+import Header from '../ui/common/Header';
+import Footer from '../ui/common/Footer';
 
 const MyListings = () => {
   const { user } = useAuth();
@@ -59,6 +61,8 @@ const MyListings = () => {
   }
 
   return (
+    <>
+    <Header />
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
@@ -250,6 +254,8 @@ const MyListings = () => {
         </div>
       )}
     </div>
+      <Footer />
+    </>
   );
 };
 
