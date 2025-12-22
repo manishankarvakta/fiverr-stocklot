@@ -8,6 +8,8 @@ import {
   PieChart, BarChart3, Clock, Filter
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import Footer from '../ui/common/Footer';
+import Header from '../ui/common/Header';
 
 const TaxReports = () => {
   const { user } = useAuth();
@@ -215,6 +217,8 @@ const TaxReports = () => {
   const totalExpenses = currentYearReports.reduce((sum, r) => sum + (r.summary?.total_expenses || r.summary?.expenses || 0), 0);
 
   return (
+    <>
+    <Header />
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -459,6 +463,9 @@ const TaxReports = () => {
         </CardContent>
       </Card>
     </div>
+
+    <Footer />
+    </>
   );
 };
 

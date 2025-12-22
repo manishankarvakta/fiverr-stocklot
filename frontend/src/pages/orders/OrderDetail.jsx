@@ -19,10 +19,10 @@ const OrderDetail = () => {
   const { user, isAuthenticated } = useAuth();
   const token = localStorage.getItem('token');
 
-  const { data: orderGroup, isLoading, error, isError } = useGetOrderGroupQuery(
-    { order_group_id: id, token },
-    { skip: !id || !token || !isAuthenticated }
-  );
+ const { data: orderGroup, isLoading, error, isError } = useGetOrderGroupQuery(
+  { order_group_id: id, token },
+  { skip: !id || !token }
+);
 
   // Debug logging
   React.useEffect(() => {
