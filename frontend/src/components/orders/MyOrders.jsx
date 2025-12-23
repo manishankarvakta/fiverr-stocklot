@@ -16,6 +16,8 @@ import {
 
 import { useAuth } from '../../auth/AuthProvider';
 import { useGetOrdersQuery, useGetUserOrdersQuery } from '../../store/api/orders.api';
+import Header from '../ui/common/Header';
+import Footer from '../ui/common/Footer';
 
 const MyOrders = () => {
   const { user } = useAuth();
@@ -171,6 +173,9 @@ const MyOrders = () => {
 
   // UI Render
   return (
+    <>
+    {/* <Header /> */}
+   
     <div className="max-w-7xl mx-auto p-6 space-y-6">
 
       {/* Header */}
@@ -370,7 +375,10 @@ const MyOrders = () => {
         </div>
       )}
     </div>
-  );
-};
+
+    {/* <Footer /> */}
+
+  </>
+  );};
 
 export default MyOrders;

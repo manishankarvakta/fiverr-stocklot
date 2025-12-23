@@ -23,7 +23,6 @@ export const wishlistApi = baseApi.injectEndpoints({
       query: (itemId) => ({
         url: `/wishlist/remove/${itemId}`,
         method: 'DELETE',
-        params: { item_type: 'listing' },
       }),
       invalidatesTags: ['Wishlist'],
     }),
@@ -38,7 +37,7 @@ export const wishlistApi = baseApi.injectEndpoints({
     }),
 
     checkWishlistItem: builder.query({
-      query: (itemId) => `/wishlist/check/${itemId}?item_type=listing`,
+      query: (itemId) => `/wishlist/check/${itemId}`,
       providesTags: (result, error, itemId) => [{ type: 'Wishlist', id: itemId }],
     }),
 

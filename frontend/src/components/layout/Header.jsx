@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Search, ShoppingCart, User, LogOut, ChevronDown, MessageCircle, CreditCard, MapPin, LayoutDashboard, Plus, Building, Package, Users, Shield } from 'lucide-react';
+import { Menu, X, Search, ShoppingCart, User, LogOut, ChevronDown, MessageCircle, CreditCard, MapPin, Plus, Building, Package, Users, Shield } from 'lucide-react';
 // import { AuthProvider, AuthGate, useAuth } from './auth/AuthProvider';
 // import api from './utils/apiHelper';
 import { 
@@ -14,7 +14,7 @@ import LocationPicker from '../location/LocationPicker';
 import ShoppingCartModal from '../cart/ShoppingCart';
 import ContextSwitcher from '../seller/ContextSwitcher';
 import { useSelector } from "react-redux";
-import { LayoutDashboard } from "lucide-react";
+
 
 export default function Header() {
   const auth = useAuth();
@@ -191,7 +191,7 @@ export default function Header() {
                     
                     {/* Main Functions */}
                     <DropdownMenuItem onClick={() => navigate('/dashboard')}>
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      {/* <LayoutDashboard className="mr-2 h-4 w-4" /> */}
                       Dashboard
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/inbox')}>
