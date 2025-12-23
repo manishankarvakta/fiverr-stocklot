@@ -1,7 +1,11 @@
+import Footer from '../ui/common/Footer';
+import Header from '../ui/common/Header';
 import CreateOrganizationForm from './CreateOrganizationForm';
 
 export default function CreateOrganizationPage() {
   return (
+    <>
+    <Header />
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
@@ -16,5 +20,7 @@ export default function CreateOrganizationPage() {
         </div>
       </div>
     </div>
+    <Footer />
+    </>
   );
 }
