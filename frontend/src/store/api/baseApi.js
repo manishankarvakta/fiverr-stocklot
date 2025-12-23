@@ -87,6 +87,7 @@ export const baseApi = createApi({
     'Taxonomy',
     'Review',
     'Referral',
+    'Reports',
     'Blog',
     'Email',
   ],

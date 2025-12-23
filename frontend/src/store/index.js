@@ -27,6 +27,7 @@ import './api/ml.api';
 import './api/organizations.api';
 import './api/blog.api';
 import './api/referrals.api';
+import './api/reports.api';
 import './api/email.api';
 import './api/delivery.api';
 import './api/analytics.api';

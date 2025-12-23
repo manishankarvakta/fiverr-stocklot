@@ -2250,56 +2250,99 @@ async def complete_checkout(
         raise HTTPException(status_code=500, detail="Failed to complete checkout")
 
 # ORDER MANAGEMENT SYSTEM
+# @api_router.get("/orders/user")
+# async def get_user_orders_detailed(current_user: User = Depends(get_current_user)):
+#     """Get orders for current user (both as buyer and seller)"""
+#     try:
+#         # Get orders where user is buyer
+#         buyer_orders_docs = await db.orders.find({"buyer_id": current_user.id}).sort("created_at", -1).to_list(length=None)
+        
+#         # Get orders where user is seller
+#         seller_orders_docs = await db.orders.find({"seller_id": current_user.id}).sort("created_at", -1).to_list(length=None)
+        
+#         # Clean both buyer and seller orders
+#         buyer_orders = []
+#         seller_orders = []
+        
+#         for doc in buyer_orders_docs:
+#             try:
+#                 if "_id" in doc:
+#                     del doc["_id"]
+                    
+#                 # Serialize datetime fields
+#                 for field in ["created_at", "updated_at"]:
+#                     if field in doc and hasattr(doc[field], 'isoformat'):
+#                         doc[field] = doc[field].isoformat()
+                        
+#                 buyer_orders.append(doc)
+#             except Exception:
+#                 continue
+        
+#         for doc in seller_orders_docs:
+#             try:
+#                 if "_id" in doc:
+#                     del doc["_id"]
+                    
+#                 # Serialize datetime fields
+#                 for field in ["created_at", "updated_at"]:
+#                     if field in doc and hasattr(doc[field], 'isoformat'):
+#                         doc[field] = doc[field].isoformat()
+                        
+#                 seller_orders.append(doc)
+#             except Exception:
+#                 continue
+        
+#         return {
+#             "buyer_orders": buyer_orders,
+#             "seller_orders": seller_orders
+#         }
+    
+#     except Exception as e:
+#         logger.error(f"Error fetching user orders: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to fetch orders")
 @api_router.get("/orders/user")
 async def get_user_orders_detailed(current_user: User = Depends(get_current_user)):
-    """Get orders for current user (both as buyer and seller)"""
+    """
+    Get all orders for the current user (as buyer or seller)
+    Includes items and contact info
+    """
     try:
-        # Get orders where user is buyer
-        buyer_orders_docs = await db.orders.find({"buyer_id": current_user.id}).sort("created_at", -1).to_list(length=None)
-        
-        # Get orders where user is seller
-        seller_orders_docs = await db.orders.find({"seller_id": current_user.id}).sort("created_at", -1).to_list(length=None)
-        
-        # Clean both buyer and seller orders
-        buyer_orders = []
-        seller_orders = []
-        
-        for doc in buyer_orders_docs:
-            try:
-                if "_id" in doc:
-                    del doc["_id"]
-                    
-                # Serialize datetime fields
-                for field in ["created_at", "updated_at"]:
-                    if field in doc and hasattr(doc[field], 'isoformat'):
-                        doc[field] = doc[field].isoformat()
-                        
-                buyer_orders.append(doc)
-            except Exception:
-                continue
-        
-        for doc in seller_orders_docs:
-            try:
-                if "_id" in doc:
-                    del doc["_id"]
-                    
-                # Serialize datetime fields
-                for field in ["created_at", "updated_at"]:
-                    if field in doc and hasattr(doc[field], 'isoformat'):
-                        doc[field] = doc[field].isoformat()
-                        
-                seller_orders.append(doc)
-            except Exception:
-                continue
-        
+        # 1️⃣ Buyer orders
+        buyer_orders_docs = await db.order_groups.find({"buyer_id": str(current_user.id)}).sort("created_at", -1).to_list(None)
+
+        # 2️⃣ Seller orders
+        seller_orders_docs = await db.order_groups.find({"seller_id": str(current_user.id)}).sort("created_at", -1).to_list(None)
+
+        # 3️⃣ Attach items and contacts for each order
+        async def attach_details(order):
+            # Fetch items
+            items = await db.order_items.find({"order_group_id": order["order_group_id"]}).to_list(None)
+            order["items"] = items
+
+            # Fetch contact (only first one if multiple)
+            contacts = await db.order_contacts.find({"order_group_id": order["order_group_id"]}).to_list(None)
+            order["contact"] = contacts[0] if contacts else {}
+
+            # Serialize datetime fields
+            for field in ["created_at", "updated_at"]:
+                if field in order and hasattr(order[field], "isoformat"):
+                    order[field] = order[field].isoformat()
+
+            return order
+
+        # Attach details for all orders
+        buyer_orders = [await attach_details(order) for order in buyer_orders_docs]
+        seller_orders = [await attach_details(order) for order in seller_orders_docs]
+
         return {
             "buyer_orders": buyer_orders,
             "seller_orders": seller_orders
         }
-    
+
     except Exception as e:
-        logger.error(f"Error fetching user orders: {e}")
+        print(f"Error fetching user orders: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
+
 
 @api_router.put("/orders/{order_id}/status")
 async def update_order_status(
