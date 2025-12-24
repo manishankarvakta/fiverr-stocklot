@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -15,19 +15,13 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../../auth/AuthProvider';
-import { useGetOrdersQuery, useGetUserOrdersQuery } from '../../store/api/orders.api';
-import Header from '../ui/common/Header';
-import Footer from '../ui/common/Footer';
+import { useGetUserOrdersQuery } from '../../store/api/orders.api';
 
 const MyOrders = () => {
   const { user } = useAuth();
-  const isAuth = true;
-  // console.log('isAuth for my order', isAuth);
-  // to match the variable name in the API call
- 
-  // console.log('user for my order', user)
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [orders, setOrders] = useState([]);
 
   // Refund state
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -37,16 +31,32 @@ const MyOrders = () => {
   const [refundNotes, setRefundNotes] = useState('');
   const [submittingRefund, setSubmittingRefund] = useState(false);
 
-  // Orders API
-// const { data: ordersData } = useGetOrdersQuery({ isAuth: isAuthenticated });
-  // const { data: ordersData, isLoading, error, refetch } = useGetOrdersQuery({ isAuth });
-  // console.log('ordersData', ordersData, isLoading, error);
-  const { data: ordersData, isLoading, error } = useGetUserOrdersQuery();
-  console.log('ordersData', ordersData);
-  // Support multiple formats
-  const orders = Array.isArray(ordersData)
-    ? ordersData
-    : (ordersData?.orders || ordersData?.buyer_orders || []);
+  // Fetch orders
+  const { data: ordersData, isLoading, error, refetch } = useGetUserOrdersQuery();
+
+  // Flatten buyer_orders + seller_orders
+  useEffect(() => {
+    if (!ordersData) return;
+
+    const buyerOrderGroups = (ordersData.buyer_orders || []).map(group => ({ ...group, order_type: 'buyer' }));
+    const sellerOrderGroups = (ordersData.seller_orders || []).map(group => ({ ...group, order_type: 'seller' }));
+
+    const allOrderGroups = [...buyerOrderGroups, ...sellerOrderGroups];
+
+    const flattenedOrders = allOrderGroups.flatMap(group =>
+      (group.orders || []).map(order => ({
+        ...order,
+        order_group_id: group.id,
+        tracking_number: group.tracking_number,
+        group_status: group.status,
+        currency: group.currency,
+        created_at: order.created_at || group.created_at,
+        order_type: group.order_type,
+      }))
+    );
+
+    setOrders(flattenedOrders);
+  }, [ordersData]);
 
   // Refund API
   const handleRefundRequest = async () => {
@@ -59,7 +69,6 @@ const MyOrders = () => {
       setSubmittingRefund(true);
 
       const token = localStorage.getItem('token');
-
       const refundData = {
         order_id: selectedOrder.id,
         reason_code: refundReason,
@@ -87,14 +96,7 @@ const MyOrders = () => {
       }
 
       alert('Refund request submitted successfully!');
-      setShowRefundModal(false);
-
-      // RESET form
-      setSelectedOrder(null);
-      setRefundReason('');
-      setRefundNotes('');
-
-      // RELOAD orders
+      closeRefundModal();
       refetch();
 
     } catch (e) {
@@ -105,13 +107,11 @@ const MyOrders = () => {
     }
   };
 
-  // Refund eligibility
   const canRequestRefund = (order) => {
-    const refundable = ['placed', 'confirmed', 'shipped', 'delivered'];
+    const refundable = ['pending', 'confirmed', 'shipped', 'delivered'];
     return refundable.includes(order.status?.toLowerCase()) && !order.refund_requested;
   };
 
-  // Status Colors
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -134,7 +134,14 @@ const MyOrders = () => {
     }
   };
 
-  // Filtering
+  const closeRefundModal = () => {
+    setShowRefundModal(false);
+    setSelectedOrder(null);
+    setRefundReason('');
+    setRefundNotes('');
+  };
+
+  // Filter orders
   const filteredOrders = orders?.filter((order) => {
     const matchesSearch =
       order.id?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
@@ -156,14 +163,12 @@ const MyOrders = () => {
     );
   }
 
-  // Error screen (THIS is where your error was showing)
+  // Error screen
   if (error) {
     return (
       <div className="text-center p-8 text-red-600">
         <h3>Error loading orders</h3>
-        <p className="text-sm">
-          {error?.data?.detail || error?.message || 'Something went wrong.'}
-        </p>
+        <p className="text-sm">{error?.data?.detail || error?.message || 'Something went wrong.'}</p>
         <Button onClick={() => refetch()} className="mt-4 bg-emerald-600 hover:bg-emerald-700">
           Retry
         </Button>
@@ -171,14 +176,9 @@ const MyOrders = () => {
     );
   }
 
-  // UI Render
+  // Render UI
   return (
-    <>
-    {/* <Header /> */}
-   
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-emerald-900">My Orders</h1>
         <p className="text-emerald-700">Track and manage your livestock orders</p>
@@ -239,7 +239,7 @@ const MyOrders = () => {
                   <Badge className={`${getStatusColor(order.status)} border`}>
                     <div className="flex items-center gap-1">
                       {getStatusIcon(order.status)}
-                      {order.status}
+                      {order.status?.toUpperCase()}
                     </div>
                   </Badge>
                 </div>
@@ -248,12 +248,12 @@ const MyOrders = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
-                    <p className="text-sm text-gray-600">Seller</p>
-                    <p className="font-medium">{order.seller_name || 'Unknown'}</p>
+                    <p className="text-sm text-gray-600">{order.order_type === 'buyer' ? 'Seller' : 'Buyer'}</p>
+                    <p className="font-medium">{order.seller_name || order.buyer_name || 'Unknown'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Total Amount</p>
-                    <p className="font-medium">R{((order.total_amount || 0) / 100).toFixed(2)}</p>
+                    <p className="font-medium">R{Number(order.total_amount || 0).toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Items</p>
@@ -262,7 +262,6 @@ const MyOrders = () => {
                 </div>
 
                 <div className="flex justify-between items-center">
-
                   {/* Actions */}
                   <div className="flex gap-2">
                     <Button
@@ -273,7 +272,7 @@ const MyOrders = () => {
                       View Details
                     </Button>
 
-                    {order.status === 'shipped' && (
+                    {order.status?.toLowerCase() === 'shipped' && (
                       <Button
                         className="bg-emerald-600 hover:bg-emerald-700"
                         onClick={() => window.location.href = `/orders/${order?.id}/tracking`}
@@ -308,7 +307,6 @@ const MyOrders = () => {
                         </DialogHeader>
 
                         <div className="space-y-4">
-
                           <div>
                             <Label>Reason *</Label>
                             <Select value={refundReason} onValueChange={setRefundReason}>
@@ -354,7 +352,7 @@ const MyOrders = () => {
                         </div>
 
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setShowRefundModal(false)}>
+                          <Button variant="outline" onClick={closeRefundModal}>
                             Cancel
                           </Button>
                           <Button
@@ -375,10 +373,7 @@ const MyOrders = () => {
         </div>
       )}
     </div>
-
-    {/* <Footer /> */}
-
-  </>
-  );};
+  );
+};
 
 export default MyOrders;
