@@ -138,6 +138,15 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           ]
         },
         {
+          id: 'Listing Performance',
+          label: 'Listing Performance',
+          icon: Package,
+          items: [
+            { path: '/seller/performance', label: 'Listing Performance', icon: Package },
+        
+          ]
+        },
+        {
           id: 'delivery',
           label: 'Delivery',
           icon: TrendingUp,
