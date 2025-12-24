@@ -26,7 +26,7 @@ const SellerAnalytics = () => {
       refetchOnFocus: true
     }
   );
-
+console.log('seller analytics data', analyticsData);
   const [analytics, setAnalytics] = useState({
     overview: {},
     performance: {},
