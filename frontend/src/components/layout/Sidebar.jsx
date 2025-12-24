@@ -228,7 +228,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         items: [
           { path: '/orders/:id', label: 'Order', icon: FileText },
           { path: '/buyer/dashboard/orders', label: 'My Orders', icon: FileText },
-          { path: '/buyer/dashboard/orders/tracking', label: 'Order tracking', icon: FileText },
+          { path: '/track-order', label: 'Order tracking', icon: FileText },
           { path: '/buyer/dashboard/orders/history', label: 'History', icon: Clock },
         ]
       },

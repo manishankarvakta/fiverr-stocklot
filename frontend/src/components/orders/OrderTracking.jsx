@@ -12,10 +12,12 @@ import { useLazyGetOrderTrackingQuery, useGetOrderByIdQuery, useLazyGetOrderById
 const OrderTracking = () => {
   const [trackingId, setTrackingId] = useState('');
   const [trackTrackinging, { data: trackingData, isLoading: trackingLoading, error: trackingError }] = useLazyGetOrderTrackingQuery();
+
+  console.log('trackingData:', trackingData, 'trackingLoading:', trackingLoading, 'trackingError:', trackingError);
   
   // Fallback: if tracking endpoint doesn't exist, use order details
   const [getOrderById, { data: orderData, isLoading: orderLoading, error: orderError }] = useLazyGetOrderByIdQuery();
-
+  console.log('orderData:', orderData, 'orderLoading:', orderLoading, 'orderError:', orderError); 
   const handleTrack = () => {
     if (!trackingId.trim()) return;
     
