@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from '../../auth/AuthProvider';
 import Sidebar from "./Sidebar";
 
 import {
@@ -28,10 +29,10 @@ import {
 
 /* ---------------- User Trigger ---------------- */
 const UserTrigger = ({ user }) => {
-  const name = user?.name || "User";
+  const name = user?.full_name || user?.name || "User";
   console.log("User name:", name);
   const roles = user?.roles || [];
-  const firstLetter = name.charAt(0).toUpperCase();
+  const firstLetter = (name && name.length > 0) ? name.charAt(0).toUpperCase() : "U";
 
   return (
     <div className="flex items-center gap-3 px-2 py-1 hover:bg-gray-100 rounded-lg cursor-pointer">
@@ -59,16 +60,43 @@ const UserTrigger = ({ user }) => {
 };
 
 /* ---------------- Dashboard Layout ---------------- */
-const DashboardLayout = ({ user = null, userRole = "seller" }) => {
+const DashboardLayout = () => {
   const navigate = useNavigate();
+  const { user, switchRole, status } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Prevent rendering before user loads
+  if (status === 'loading' || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const roles = user?.roles || [];
   const isAdmin = roles.includes("admin");
   const isSeller = roles.includes("seller");
   const isBuyer = roles.includes("buyer");
 
+  // Derive current role (admin > seller > buyer)
+  const currentRole = isAdmin ? 'admin' : isSeller ? 'seller' : 'buyer';
+
   const toggleSidebar = () => setSidebarCollapsed((p) => !p);
+
+  const handleRoleSwitch = async () => {
+    try {
+      const newRole = isSeller ? 'buyer' : 'seller';
+      await switchRole(newRole);
+      // UI will update automatically due to state change
+    } catch (error) {
+      console.error('Failed to switch role:', error);
+      // Could add toast notification here
+    }
+  };
 
   const handleLogout = () => {
     // logout logic here
@@ -84,7 +112,7 @@ const DashboardLayout = ({ user = null, userRole = "seller" }) => {
         }`}
       >
         <Sidebar
-          userRole={userRole}
+          userRole={currentRole}
           isCollapsed={sidebarCollapsed}
           onToggle={toggleSidebar}
         />
@@ -138,7 +166,7 @@ const DashboardLayout = ({ user = null, userRole = "seller" }) => {
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
 
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleRoleSwitch}>
                     <User className="mr-2 h-4 w-4" />
                     {isSeller ? "Switch to Buyer" : "Switch to Seller"}
                   </DropdownMenuItem>
