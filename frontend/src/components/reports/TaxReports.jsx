@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -8,125 +8,36 @@ import {
   PieChart, BarChart3, Clock, Filter
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import Footer from '../ui/common/Footer';
+import Header from '../ui/common/Header';
+import { useGetTaxReportsQuery, useGenerateTaxReportMutation, useLazyDownloadTaxReportQuery } from '../../store/api/reports.api';
 
 const TaxReports = () => {
   const { user } = useAuth();
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [reportType, setReportType] = useState('annual');
 
-  useEffect(() => {
-    fetchTaxReports();
-  }, [selectedYear]);
+  // RTK Query hooks
+  const { data: reports = [], isLoading: loading, refetch } = useGetTaxReportsQuery({ year: selectedYear });
+  console.log('Fetched reports:', reports);
+  const [generateTaxReport] = useGenerateTaxReportMutation();
+  const [downloadTaxReport] = useLazyDownloadTaxReportQuery();
 
-  const fetchTaxReports = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/reports/tax?year=${selectedYear}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
 
-      if (response.ok) {
-        const data = await response.json();
-        setReports(data.reports || []);
-      } else {
-        console.error('Failed to fetch tax reports');
-        // Mock data for demo
-        setReports(getMockTaxReports());
-      }
-    } catch (error) {
-      console.error('Error fetching tax reports:', error);
-      // Mock data for demo
-      setReports(getMockTaxReports());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getMockTaxReports = () => [
-    {
-      id: '1',
-      title: 'Annual Tax Summary 2024',
-      type: 'annual',
-      year: 2024,
-      status: 'ready',
-      generated_at: '2024-12-15T10:30:00Z',
-      file_url: null,
-      summary: {
-        total_income: 125000,
-        total_expenses: 45000,
-        taxable_income: 80000,
-        tax_category: 'Agricultural Business'
-      }
-    },
-    {
-      id: '2',
-      title: 'VAT Return Q4 2024',
-      type: 'vat',
-      year: 2024,
-      quarter: 4,
-      status: 'ready',
-      generated_at: '2024-12-10T14:20:00Z',
-      file_url: null,
-      summary: {
-        vat_collected: 18750,
-        vat_paid: 6750,
-        net_vat_due: 12000
-      }
-    },
-    {
-      id: '3',
-      title: 'Monthly Statement - November 2024',
-      type: 'monthly',
-      year: 2024,
-      month: 11,
-      status: 'ready',
-      generated_at: '2024-12-01T09:15:00Z',
-      file_url: null,
-      summary: {
-        income: 15500,
-        expenses: 5200,
-        net_profit: 10300
-      }
-    }
-  ];
 
   const generateReport = async (type, period) => {
     setGenerating(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/reports/tax/generate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            type,
-            year: selectedYear,
-            ...period
-          })
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        // Refresh reports list
-        fetchTaxReports();
-        alert('Report generated successfully!');
-      } else {
-        throw new Error('Failed to generate report');
-      }
+      await generateTaxReport({
+        type,
+        year: selectedYear,
+        ...period
+      }).unwrap();
+      
+      // Refetch reports after generation
+      refetch();
+      alert('Report generated successfully!');
     } catch (error) {
       console.error('Error generating report:', error);
       alert('Failed to generate report. Please try again.');
@@ -137,29 +48,15 @@ const TaxReports = () => {
 
   const downloadReport = async (reportId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/reports/tax/${reportId}/download`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `tax-report-${reportId}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      } else {
-        throw new Error('Failed to download report');
-      }
+      const blob = await downloadTaxReport(reportId).unwrap();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tax-report-${reportId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading report:', error);
       alert('Failed to download report. Please try again.');
@@ -215,6 +112,8 @@ const TaxReports = () => {
   const totalExpenses = currentYearReports.reduce((sum, r) => sum + (r.summary?.total_expenses || r.summary?.expenses || 0), 0);
 
   return (
+    <>
+    <Header />
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -459,6 +358,9 @@ const TaxReports = () => {
         </CardContent>
       </Card>
     </div>
+
+    <Footer />
+    </>
   );
 };
 

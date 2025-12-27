@@ -126,7 +126,7 @@ import SellerProfile from './components/seller/SellerProfile';
 import "./App.css";
 import CreateListing from "./components/pagesNo/CreateListing";
 import Marketplace from "./components/pagesNo/Marketplace";
-
+// import Expertise  from "./components/seller/profile/Expertise";
 // Main App component
 function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -145,211 +145,421 @@ function App() {
     window.location.reload();
   };
 
-  return (
-    <AuthProvider>
-      <AuthGate>
-        <Router>
-          <div className="App">
-            {/* <Header /> */}
-            <main className="min-h-screen">
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Homepage />} />
-                {/* <Route path="/sidebar-demo" element={<SidebarDemo />} /> */}
-                {/* <Route path="/debug-cart" element={<div>Debug cart route working!</div>} /> */}
+  // return (
+  //   <AuthProvider>
+  //     <AuthGate>
+  //       <Router>
+  //         <div className="App">
+  //           {/* <Header /> */}
+  //           <main className="min-h-screen">
+  //             <Routes>
+  //               {/* Public routes */}
+  //               <Route path="/" element={<Homepage />} />
+  //               {/* <Route path="/sidebar-demo" element={<SidebarDemo />} /> */}
+  //               {/* <Route path="/debug-cart" element={<div>Debug cart route working!</div>} /> */}
                 
-                {/* Public Order Tracking - accessible to guests */}
-                <Route path="/track-order" element={<PublicOrderTracking />} />
-                <Route path="/track-order/:id" element={<PublicOrderTracking />} />
+  //               {/* Public Order Tracking - accessible to guests */}
+  //               <Route path="/track-order" element={<PublicOrderTracking />} />
+  //               <Route path="/track-order/:id" element={<PublicOrderTracking />} />
                 
-                {/* Email verification and password reset routes */}
-                <Route path="/verify-email" element={<EmailVerificationPage />} />
-                <Route path="/reset-password" element={<PasswordResetPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+  //               {/* Email verification and password reset routes */}
+  //               <Route path="/verify-email" element={<EmailVerificationPage />} />
+  //               <Route path="/reset-password" element={<PasswordResetPage />} />
+  //               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 
-                {/* Public-only routes (redirect if authenticated) */}
-                <Route element={<PublicOnlyRoute redirectTo="/marketplace" />}>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<EnhancedRegister />} />
-                </Route>
+  //               {/* Public-only routes (redirect if authenticated) */}
+  //               <Route element={<PublicOnlyRoute redirectTo="/marketplace" />}>
+  //                 <Route path="/login" element={<Login />} />
+  //                 <Route path="/register" element={<EnhancedRegister />} />
+  //               </Route>
                 
-                {/* Protected routes (require authentication) */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/create-listing" element={<CreateListing />} />
-                  <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/payment-methods" element={<PaymentMethodsPage />} />
-                  <Route path="/addresses" element={<AddressesPage />} />
-                  <Route path="/dashboard" element={<UniversalDashboard />} />
-                  <Route path="/seller-dashboard" element={<SellerDashboard />} />
-                  <Route path="/create-organization" element={<CreateOrganizationPage />} />
-                  <Route path="/orgs/:handle/dashboard" element={<OrganizationDashboard />} />
-                  <Route path="/referrals" element={<ReferralDashboard />} />
-                  <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
-                  <Route path="/inbox" element={<UnifiedInbox />} />
-                  <Route path="/reviews-test" element={<ReviewsTestPage />} />
+  //               {/* Protected routes (require authentication) */}
+  //               <Route element={<ProtectedRoute />}>
+  //                 <Route path="/create-listing" element={<CreateListing />} />
+  //                 <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
+  //                 <Route path="/profile" element={<ProfilePage />} />
+  //                 <Route path="/payment-methods" element={<PaymentMethodsPage />} />
+  //                 <Route path="/addresses" element={<AddressesPage />} />
+  //                 <Route path="/dashboard" element={<UniversalDashboard />} />
+  //                 <Route path="/seller-dashboard" element={<SellerDashboard />} />
+  //                 <Route path="/create-organization" element={<CreateOrganizationPage />} />
+  //                 <Route path="/orgs/:handle/dashboard" element={<OrganizationDashboard />} />
+  //                 <Route path="/referrals" element={<ReferralDashboard />} />
+  //                 <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
+  //                 <Route path="/inbox" element={<UnifiedInbox />} />
+  //                 <Route path="/reviews-test" element={<ReviewsTestPage />} />
                   
-                  {/* Orders & Tracking Routes */}
-                  <Route path="/orders" element={<MyOrders />} />
-                  <Route path="/orders/tracking" element={<OrderTracking />} />
-                  <Route path="/orders/history" element={<OrderHistory />} />
-                  <Route path="/orders/:id" element={<OrderDetail />} />
+  //                 {/* Orders & Tracking Routes */}
+  //                 <Route path="/orders" element={<MyOrders />} />
+  //                 <Route path="/orders/tracking" element={<OrderTracking />} />
+  //                 <Route path="/orders/history" element={<OrderHistory />} />
+  //                 <Route path="/orders/:id" element={<OrderDetail />} />
                   
-                  {/* Seller Routes */}
-                  <Route path="/seller/listings" element={<MyListings />} />
-                  <Route path="/seller/analytics" element={<SellerAnalytics />} />
-                  <Route path="/seller/performance" element={<ListingPerformance />} />
-                  <Route path="/seller/reviews" element={<CustomerReviews />} />
+  //                 {/* Seller Routes */}
+  //                 <Route path="/seller/listings" element={<MyListings />} />
+  //                 <Route path="/seller/analytics" element={<SellerAnalytics />} />
+  //                 <Route path="/seller/performance" element={<ListingPerformance />} />
+  //                 <Route path="/seller/reviews" element={<CustomerReviews />} />
                   
-                  {/* Buyer Routes */}
-                  <Route path="/buyer/saved-searches" element={<SavedSearches />} />
+  //                 {/* Buyer Routes */}
+  //                 <Route path="/buyer/saved-searches" element={<SavedSearches />} />
                   
-                  {/* Reports Routes */}
-                  <Route path="/reports/tax" element={<TaxReports />} />
+  //                 {/* Reports Routes */}
+  //                 <Route path="/reports/tax" element={<TaxReports />} />
                   
-                  {/* Settings Routes */}
-                  <Route path="/settings/notifications" element={<NotificationSettings />} />
-                  <Route path="/settings/alerts" element={<AlertPreferences />} />
+  //                 {/* Settings Routes */}
+  //                 <Route path="/settings/notifications" element={<NotificationSettings />} />
+  //                 <Route path="/settings/alerts" element={<AlertPreferences />} />
                   
-                  {/* Security routes (authenticated) */}
-                  <Route path="/auth/two-factor" element={<TwoFactorManagement />} />
-                  <Route path="/auth/reset-password" element={<PasswordResetPage />} />
-                  <Route path="/kyc" element={<KYCVerification />} />
-                </Route>
+  //                 {/* Security routes (authenticated) */}
+  //                 <Route path="/auth/two-factor" element={<TwoFactorManagement />} />
+  //                 <Route path="/auth/reset-password" element={<PasswordResetPage />} />
+  //                 <Route path="/kyc" element={<KYCVerification />} />
+  //               </Route>
                 
-                {/* Admin-only routes */}
-                <Route element={<ProtectedRoute roles={['admin']} />}>
-                  <Route path="/admin" element={<AdminDashboardPage />} />
-                  <Route path="/admin/blog/create" element={<BlogEditor />} />
-                  <Route path="/admin/blog/edit/:id" element={<BlogEditor />} />
-                  <Route path="/create-blog" element={<BlogEditor />} />
+  //               {/* Admin-only routes */}
+  //               <Route element={<ProtectedRoute roles={['admin']} />}>
+  //                 <Route path="/admin" element={<AdminDashboardPage />} />
+  //                 <Route path="/admin/blog/create" element={<BlogEditor />} />
+  //                 <Route path="/admin/blog/edit/:id" element={<BlogEditor />} />
+  //                 <Route path="/create-blog" element={<BlogEditor />} />
                   
-                  {/* New Admin Analytics Routes */}
-                  <Route path="/admin/analytics/overview" element={<AdminAnalyticsOverview />} />
-                  <Route path="/admin/analytics/pdp" element={<AdminAnalyticsPDP />} />
-                  <Route path="/admin/analytics/sellers/:id" element={<AdminSellerPerformance />} />
-                  <Route path="/admin/reports/revenue" element={<AdminRevenueReport />} />
+  //                 {/* New Admin Analytics Routes */}
+  //                 <Route path="/admin/analytics/overview" element={<AdminAnalyticsOverview />} />
+  //                 <Route path="/admin/analytics/pdp" element={<AdminAnalyticsPDP />} />
+  //                 <Route path="/admin/analytics/sellers/:id" element={<AdminSellerPerformance />} />
+  //                 <Route path="/admin/reports/revenue" element={<AdminRevenueReport />} />
                   
-                  {/* Admin Moderation Routes */}
-                  <Route path="/admin/moderation/users" element={<UserModeration />} />
-                  <Route path="/admin/moderation/listings" element={<ListingsModeration />} />
-                  <Route path="/admin/moderation/buy-requests" element={<BuyRequestModeration />} />
-                  <Route path="/admin/moderation/reviews" element={<ReviewModeration />} />
-                  <Route path="/admin/moderation/roles" element={<RolesQueue />} />
+  //                 {/* Admin Moderation Routes */}
+  //                 <Route path="/admin/moderation/users" element={<UserModeration />} />
+  //                 <Route path="/admin/moderation/listings" element={<ListingsModeration />} />
+  //                 <Route path="/admin/moderation/buy-requests" element={<BuyRequestModeration />} />
+  //                 <Route path="/admin/moderation/reviews" element={<ReviewModeration />} />
+  //                 <Route path="/admin/moderation/roles" element={<RolesQueue />} />
                   
-                  {/* Admin A/B Testing Routes */}
-                  <Route path="/admin/experiments" element={<AdminExperiments />} />
-                  <Route path="/admin/experiments/:id" element={<AdminExperimentResults />} />
-                </Route>
+  //                 {/* Admin A/B Testing Routes */}
+  //                 <Route path="/admin/experiments" element={<AdminExperiments />} />
+  //                 <Route path="/admin/experiments/:id" element={<AdminExperimentResults />} />
+  //               </Route>
                 
-                {/* Seller Growth Tools Routes */}
-                <Route element={<ProtectedRoute roles={['seller']} />}>
-                  <Route path="/seller/listings" element={<MyListings />} />
-                  <Route path="/seller/analytics" element={<SellerAnalytics />} />
-                  <Route path="/seller/performance" element={<ListingPerformance />} />
-                  <Route path="/seller/reviews" element={<CustomerReviews />} />
-                  <Route path="/seller/inventory/bulk" element={<InventoryBulkUpdate />} />
-                </Route>
+  //               {/* Seller Growth Tools Routes */}
+  //               <Route element={<ProtectedRoute roles={['seller']} />}>
+  //                 <Route path="/seller/listings" element={<MyListings />} />
+  //                 <Route path="/seller/analytics" element={<SellerAnalytics />} />
+  //                 <Route path="/seller/performance" element={<ListingPerformance />} />
+  //                 <Route path="/seller/reviews" element={<CustomerReviews />} />
+  //                 <Route path="/seller/inventory/bulk" element={<InventoryBulkUpdate />} />
+  //               </Route>
                 
-                {/* Buyer Personalization Routes */}
-                <Route element={<ProtectedRoute roles={['buyer']} />}>
-                  <Route path="/buyer/wishlist" element={<Wishlist />} />
-                  <Route path="/alerts/prices" element={<PriceAlerts />} />
-                </Route>
+  //               {/* Buyer Personalization Routes */}
+  //               <Route element={<ProtectedRoute roles={['buyer']} />}>
+  //                 <Route path="/buyer/wishlist" element={<Wishlist />} />
+  //                 <Route path="/alerts/prices" element={<PriceAlerts />} />
+  //               </Route>
 
-                {/* ============= NEW SIDEBAR-BASED DASHBOARD LAYOUTS ============= */}
+  //               {/* ============= NEW SIDEBAR-BASED DASHBOARD LAYOUTS ============= */}
                 
-                {/* Admin Dashboard with Sidebar */}
-                <Route element={<ProtectedRoute roles={['admin']} />}>
-                  <Route path="/admin/dashboard/*" element={<DashboardLayout userRole="admin" />}>
-                    <Route index element={<AdminAnalyticsOverview />} />
-                    <Route path="analytics" element={<AdminAnalyticsOverview />} />
-                    <Route path="moderation" element={<UserModeration />} />
-                    <Route path="experiments" element={<AdminExperiments />} />
-                  </Route>
-                </Route>
+  //               {/* Admin Dashboard with Sidebar */}
+  //               <Route element={<ProtectedRoute roles={['admin']} />}>
+  //                 <Route path="/admin/dashboard/*" element={<DashboardLayout userRole="admin" />}>
+  //                   <Route index element={<AdminAnalyticsOverview />} />
+  //                   <Route path="analytics" element={<AdminAnalyticsOverview />} />
+  //                   <Route path="moderation" element={<UserModeration />} />
+  //                   <Route path="experiments" element={<AdminExperiments />} />
+  //                 </Route>
+  //               </Route>
                 
-                {/* Seller Dashboard with Sidebar */}
-                <Route element={<ProtectedRoute roles={['seller']} />}>
-                  <Route path="/seller/dashboard/*" element={<DashboardLayout userRole="seller" />}>
-                    <Route index element={<SellerAnalytics />} />
-                    <Route path="analytics" element={<SellerAnalytics />} />
-                    <Route path="listings" element={<div>Seller Listings</div>} />
-                    <Route path="orders" element={<div>Seller Orders</div>} />
-                    <Route path="shipping-rates" element={<SellerShippingRates />} />
-                    <Route path="trading-statements" element={<MonthlyTradingStatements />} />
-                    <Route path="promotions" element={<SellerCampaigns />} />
-                    <Route path="offers" element={<SellerOffers />} />
-                  </Route>
+  //               {/* Seller Dashboard with Sidebar */}
+  //               {/* <Route element={<ProtectedRoute roles={['seller']} />}>
+  //                 <Route path="/seller/dashboard/*" element={<DashboardLayout userRole="seller" />}>
+  //                   <Route index element={<SellerAnalytics />} />
+  //                   <Route path="analytics" element={<SellerAnalytics />} />
+  //                   <Route path="listings" element={<div>Seller Listings</div>} />
+  //                   <Route path="orders" element={<div>Seller Orders</div>} />
+  //                   <Route path="shipping-rates" element={<SellerShippingRates />} />
+  //                   <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+  //                   <Route path="promotions" element={<SellerCampaigns />} />
+  //                   <Route path="offers" element={<SellerOffers />} />
+  //                 </Route> */}
                   
-                  {/* Seller Profile with Sidebar Navigation */}
-                  <Route path="/seller/profile/*" element={<SellerProfileLayout />}>
-                    <Route index element={<BasicInfo />} />
-                    <Route path="basic" element={<BasicInfo />} />
-                    <Route path="business" element={<BusinessInfo />} />
-                    <Route path="expertise" element={<div>Expertise Section</div>} />
-                    <Route path="photos" element={<div>Photos Section</div>} />
-                    <Route path="policies" element={<div>Policies Section</div>} />
-                    <Route path="pref/abouterences" element={<div>Preferences Section</div>} />
-                    <Route path="facility" element={<div>Facility Info Section</div>} />
-                    <Route path="experience" element={<div>Experience Section</div>} />
-                  </Route>
-                </Route>
+  //                 {/* Seller Profile with Sidebar Navigation */}
+  //                 {/* <Route path="/seller/profile/*" element={<SellerProfileLayout />}>
+  //                   <Route index element={<BasicInfo />} />
+  //                   <Route path="basic" element={<BasicInfo />} />
+  //                   <Route path="business" element={<BusinessInfo />} />
+  //                   <Route path="expertise" element={<div>Expertise Section</div>} />
+  //                   <Route path="photos" element={<div>Photos Section</div>} />
+  //                   <Route path="policies" element={<div>Policies Section</div>} />
+  //                   <Route path="pref/abouterences" element={<div>Preferences Section</div>} />
+  //                   <Route path="facility" element={<div>Facility Info Section</div>} />
+  //                   <Route path="experience" element={<div>Experience Section</div>} />
+  //                 </Route>
+  //               </Route> */}
+
+
+  //                             <Route element={<ProtectedRoute roles={['seller']} />}>
+  //               <Route path="/seller/dashboard" element={<DashboardLayout userRole="seller" />}>
+  //                 <Route index element={<SellerAnalytics />} />
+  //                 <Route path="analytics" element={<SellerAnalytics />} />
+  //                 <Route path="listings" element={<SellerListings/>} />
+  //                 <Route path="listings/create" element={<CreateListing />} />
+  //                 <Route path="inventory/bulk" element={<BulkUpdate />} />
+
+  //                 {/* Profile nested routes */}
+  //                 <Route path="profile/basic" element={<BasicInfo />} />
+  //                 <Route path="profile/business" element={<BusinessInfo />} />
+  //                 <Route path="profile/expertise" element={<Expertise />} />
+  //                 <Route path="profile/photos" element={<Photos />} />
+  //                 <Route path="profile/policies" element={<Policies />} />
+  //                 <Route path="profile/preferences" element={<Preferences />} />
+  //                 <Route path="profile/facility" element={<FacilityInfo />} />
+  //                 <Route path="profile/experience" element={<Experience />} />
+
+  //                 {/* Shipping & Orders */}
+  //                 <Route path="shipping-rates" element={<SellerShippingRates />} />
+  //                 <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+  //                 <Route path="promotions" element={<SellerCampaigns />} />
+  //                 <Route path="offers" element={<SellerOffers />} />
+  //                 <Route path="orders" element={<SellerOrders />} />
+  //                 <Route path="orders/pending" element={<PendingOrders />} />
+  //               </Route>
+  //             </Route>
+
                 
-                  <Route element={<ProtectedRoute roles={['buyer']} />}>
-              <Route path="/buyer/dashboard/*" element={<DashboardLayout userRole="buyer" />}>
-                <Route index element={<Wishlist />} /> 
-                <Route path="offers-inbox" element={<BuyerOffersPage />} />
-                <Route path="orders" element={<MyOrders />} />
-                <Route path="orders/tracking" element={<OrderTracking />} />
-                <Route path="orders/history" element={<OrderHistory />} />
-                <Route path="wishlist" element={<Wishlist />} />
-                <Route path="price-alerts" element={<PriceAlerts />} />
-                <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+  //                 <Route element={<ProtectedRoute roles={['buyer']} />}>
+  //             <Route path="/buyer/dashboard/*" element={<DashboardLayout userRole="buyer" />}>
+  //               <Route index element={<Wishlist />} /> 
+  //               <Route path="offers-inbox" element={<BuyerOffersPage />} />
+  //               <Route path="orders" element={<MyOrders />} />
+  //               <Route path="orders/tracking" element={<OrderTracking />} />
+  //               <Route path="orders/history" element={<OrderHistory />} />
+  //               <Route path="wishlist" element={<Wishlist />} />
+  //               <Route path="price-alerts" element={<PriceAlerts />} />
+  //               <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+  //             </Route>
+  //           </Route>
+                
+  //               {/* Public marketplace routes */}
+  //               <Route path="/marketplace" element={<Marketplace />} />
+  //               <Route path="/exotics" element={<ExoticsPage />} />
+  //               <Route path="/listing/:id" element={<ListingPDP />} />
+  //               <Route path="/seller/:handle" element={<SellerProfile />} />
+  //               <Route path="/buy-requests" element={<BuyRequestsPage onLogin={handleOpenLogin} />} />
+  //               <Route path="/cart" element={<CartPage />} />
+  //               <Route path="/checkout/guest" element={<GuestCheckout />} />
+  //               <Route path="/checkout" element={<GuestCheckout />} />
+  //               <Route path="/how-it-works" element={<HowItWorks />} />
+  //               <Route path="/about" element={<AboutUs />} />
+  //               <Route path="/pricing" element={<Pricing />} />
+  //               <Route path="/blog" element={<BlogList />} />
+  //               <Route path="/terms" element={<TermsOfService />} />
+  //               <Route path="/privacy" element={<PrivacyPolicy />} />
+  //               <Route path="/contact" element={<Contact />} />
+                
+  //               {/* Error routes */}
+  //               <Route path="/403" element={<div className="text-center p-8"><h1 className="text-2xl font-bold text-red-600">Access Denied</h1><p>You don't have permission to access this page.</p></div>} />
+  //               <Route path="*" element={<div className="text-center p-8"><h1 className="text-2xl font-bold">Page Not Found</h1></div>} />
+  //             </Routes>
+  //           </main>
+  //           {/* <Footer /> */}
+  //         </div>
+          
+  //         {/* Global FAQ Chatbot */}
+  //         <FAQChatbot />
+          
+  //         {/* Login Modal */}
+  //         <LoginGate
+  //           open={showLoginModal}
+  //           onClose={handleCloseLogin}
+  //           onLogin={handleLoginSuccess}
+  //         />
+          
+  //         {/* Toast Notifications */}
+  //         <Toaster />
+  //       </Router>
+  //     </AuthGate>
+  //   </AuthProvider>
+  // );
+
+
+  return (
+  <AuthProvider>
+    <AuthGate>
+      <Router>
+        <div className="App">
+          <main className="min-h-screen">
+            <Routes>
+
+              {/* =================== PUBLIC ROUTES =================== */}
+              <Route path="/" element={<Homepage />} />
+              <Route path="/track-order" element={<PublicOrderTracking />} />
+              <Route path="/track-order/:id" element={<PublicOrderTracking />} />
+              <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/exotics" element={<ExoticsPage />} />
+              <Route path="/listing/:id" element={<ListingPDP />} />
+              <Route path="/seller/:handle" element={<SellerProfile />} />
+              <Route path="/buy-requests" element={<BuyRequestsPage onLogin={handleOpenLogin} />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout/guest" element={<GuestCheckout />} />
+              <Route path="/checkout" element={<GuestCheckout />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/about" element={<AboutUs />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/blog" element={<BlogList />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/contact" element={<Contact />} />
+
+              {/* =================== AUTH ROUTES =================== */}
+              <Route path="/verify-email" element={<EmailVerificationPage />} />
+              <Route path="/reset-password" element={<PasswordResetPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route element={<PublicOnlyRoute redirectTo="/marketplace" />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<EnhancedRegister />} />
               </Route>
-            </Route>
+
+              {/* =================== PROTECTED ROUTES =================== */}
+              <Route element={<ProtectedRoute />}>
+                {/* Generic Protected */}
+                <Route path="/create-listing" element={<CreateListing />} />
+                <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/payment-methods" element={<PaymentMethodsPage />} />
+                <Route path="/addresses" element={<AddressesPage />} />
+                <Route path="/dashboard" element={<UniversalDashboard />} />
+                <Route path="/seller-dashboard" element={<SellerDashboard />} />
+                <Route path="/create-organization" element={<CreateOrganizationPage />} />
+                <Route path="/orgs/:handle/dashboard" element={<OrganizationDashboard />} />
+                <Route path="/referrals" element={<ReferralDashboard />} />
+                <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
+                <Route path="/inbox" element={<UnifiedInbox />} />
+                <Route path="/reviews-test" element={<ReviewsTestPage />} />
                 
-                {/* Public marketplace routes */}
-                <Route path="/marketplace" element={<Marketplace />} />
-                <Route path="/exotics" element={<ExoticsPage />} />
-                <Route path="/listing/:id" element={<ListingPDP />} />
-                <Route path="/seller/:handle" element={<SellerProfile />} />
-                <Route path="/buy-requests" element={<BuyRequestsPage onLogin={handleOpenLogin} />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/checkout/guest" element={<GuestCheckout />} />
-                <Route path="/checkout" element={<GuestCheckout />} />
-                <Route path="/how-it-works" element={<HowItWorks />} />
-                <Route path="/about" element={<AboutUs />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/blog" element={<BlogList />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/contact" element={<Contact />} />
-                
-                {/* Error routes */}
-                <Route path="/403" element={<div className="text-center p-8"><h1 className="text-2xl font-bold text-red-600">Access Denied</h1><p>You don't have permission to access this page.</p></div>} />
-                <Route path="*" element={<div className="text-center p-8"><h1 className="text-2xl font-bold">Page Not Found</h1></div>} />
-              </Routes>
-            </main>
-            {/* <Footer /> */}
-          </div>
-          
-          {/* Global FAQ Chatbot */}
-          <FAQChatbot />
-          
-          {/* Login Modal */}
-          <LoginGate
-            open={showLoginModal}
-            onClose={handleCloseLogin}
-            onLogin={handleLoginSuccess}
-          />
-          
-          {/* Toast Notifications */}
-          <Toaster />
-        </Router>
-      </AuthGate>
-    </AuthProvider>
-  );
+                {/* Orders & Tracking */}
+                <Route path="/orders" element={<MyOrders />} />
+                <Route path="/orders/tracking" element={<OrderTracking />} />
+                <Route path="/orders/history" element={<OrderHistory />} />
+                <Route path="/orders/:id" element={<OrderDetail />} />
+
+                {/* Seller */}
+                <Route path="/seller/listings" element={<MyListings />} />
+                <Route path="/seller/analytics" element={<SellerAnalytics />} />
+                <Route path="/seller/performance" element={<ListingPerformance />} />
+                <Route path="/seller/reviews" element={<CustomerReviews />} />
+
+                {/* Buyer */}
+                <Route path="/buyer/saved-searches" element={<SavedSearches />} />
+
+                {/* Reports */}
+                <Route path="/reports/tax" element={<TaxReports />} />
+
+                {/* Settings */}
+                <Route path="/settings/notifications" element={<NotificationSettings />} />
+                <Route path="/settings/alerts" element={<AlertPreferences />} />
+
+                {/* Security */}
+                <Route path="/auth/two-factor" element={<TwoFactorManagement />} />
+                <Route path="/auth/reset-password" element={<PasswordResetPage />} />
+                <Route path="/kyc" element={<KYCVerification />} />
+              </Route>
+
+              {/* =================== ADMIN ROUTES =================== */}
+              <Route element={<ProtectedRoute roles={['admin']} />}>
+                <Route path="/admin" element={<AdminDashboardPage />} />
+                <Route path="/admin/blog/create" element={<BlogEditor />} />
+                <Route path="/admin/blog/edit/:id" element={<BlogEditor />} />
+                <Route path="/create-blog" element={<BlogEditor />} />
+                <Route path="/admin/analytics/overview" element={<AdminAnalyticsOverview />} />
+                <Route path="/admin/analytics/pdp" element={<AdminAnalyticsPDP />} />
+                <Route path="/admin/analytics/sellers/:id" element={<AdminSellerPerformance />} />
+                <Route path="/admin/reports/revenue" element={<AdminRevenueReport />} />
+                <Route path="/admin/moderation/users" element={<UserModeration />} />
+                <Route path="/admin/moderation/listings" element={<ListingsModeration />} />
+                <Route path="/admin/moderation/buy-requests" element={<BuyRequestModeration />} />
+                <Route path="/admin/moderation/reviews" element={<ReviewModeration />} />
+                <Route path="/admin/moderation/roles" element={<RolesQueue />} />
+                <Route path="/admin/experiments" element={<AdminExperiments />} />
+                <Route path="/admin/experiments/:id" element={<AdminExperimentResults />} />
+              </Route>
+
+              {/* =================== SELLER DASHBOARD =================== */}
+              <Route element={<ProtectedRoute roles={['seller']} />}>
+                <Route path="/seller/dashboard" element={<DashboardLayout userRole="seller" />}>
+                  <Route index element={<SellerAnalytics />} />
+                  <Route path="analytics" element={<SellerAnalytics />} />
+                  {/* <Route path="listings" element={<SellerListings/>} /> */}
+                  <Route path="listings/create" element={<CreateListing />} />
+                  {/* <Route path="inventory/bulk" element={<BulkUpdate />} /> */}
+                  <Route path="profile/basic" element={<BasicInfo />} />
+                  <Route path="profile/business" element={<BusinessInfo />} />
+                  {/* <Route path="profile/expertise" element={<Expertise />} /> */}
+                  {/* <Route path="profile/photos" element={<Photos />} /> */}
+                  {/* <Route path="profile/policies" element={<Policies />} /> */}
+                  {/* <Route path="profile/preferences" element={<Preferences />} /> */}
+                  {/* <Route path="profile/facility" element={<FacilityInfo />} /> */}
+                  {/* <Route path="profile/experience" element={<Experience />} /> */}
+                  <Route path="shipping-rates" element={<SellerShippingRates />} />
+                  <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+                  <Route path="promotions" element={<SellerCampaigns />} />
+                  <Route path="offers" element={<SellerOffers />} />
+                  <Route path="orders" element={<SellerOrders />} />
+                  {/* <Route path="orders/pending" element={<PendingOrders />} /> */}
+                </Route>
+              </Route>
+              {/* seller profile  */}
+              <Route path="/seller/profile/*" element={<SellerProfileLayout />}>
+                  <Route index element={<BasicInfo />} />
+                  <Route path="basic" element={<BasicInfo />} />
+                  <Route path="business" element={<BusinessInfo />} />
+                  <Route path="expertise" element={<div>Expertise Section</div>} />
+                  <Route path="photos" element={<div>Photos Section</div>} />
+                  <Route path="policies" element={<div>Policies Section</div>} />
+                  <Route path="pref/abouterences" element={<div>Preferences Section</div>} />
+                  <Route path="facility" element={<div>Facility Info Section</div>} />
+                  <Route path="experience" element={<div>Experience Section</div>} />
+                </Route>
+              
+
+              {/* =================== BUYER DASHBOARD =================== */}
+              <Route element={<ProtectedRoute roles={['buyer']} />}>
+                <Route path="/buyer/dashboard/*" element={<DashboardLayout userRole="buyer" />}>
+                  <Route index element={<Wishlist />} /> 
+                  <Route path="offers-inbox" element={<BuyerOffersPage />} />
+                  <Route path="orders" element={<MyOrders />} />
+                  <Route path="orders/tracking" element={<OrderTracking />} />
+                  <Route path="orders/history" element={<OrderHistory />} />
+                  <Route path="wishlist" element={<Wishlist />} />
+                  <Route path="price-alerts" element={<PriceAlerts />} />
+                  <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+                </Route>
+              </Route>
+
+              {/* =================== ERROR ROUTES =================== */}
+              <Route path="/403" element={<div className="text-center p-8"><h1 className="text-2xl font-bold text-red-600">Access Denied</h1><p>You don't have permission to access this page.</p></div>} />
+              <Route path="*" element={<div className="text-center p-8"><h1 className="text-2xl font-bold">Page Not Found</h1></div>} />
+
+            </Routes>
+          </main>
+        </div>
+
+        {/* Global FAQ Chatbot */}
+        <FAQChatbot />
+
+        {/* Login Modal */}
+        <LoginGate
+          open={showLoginModal}
+          onClose={handleCloseLogin}
+          onLogin={handleLoginSuccess}
+        />
+
+        {/* Toast Notifications */}
+        <Toaster />
+      </Router>
+    </AuthGate>
+  </AuthProvider>
+);
+
 }
 
 export default App;

@@ -23,6 +23,7 @@ export { mlApi } from './ml.api';
 export { organizationsApi } from './organizations.api';
 export { blogApi } from './blog.api';
 export { referralsApi } from './referrals.api';
+export { reportsApi } from './reports.api';
 export { emailApi } from './email.api';
 export { deliveryApi } from './delivery.api';
 export { analyticsApi } from './analytics.api';

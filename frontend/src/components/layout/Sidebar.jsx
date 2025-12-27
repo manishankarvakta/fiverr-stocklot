@@ -19,7 +19,9 @@ import {
   Star,
   Eye,
   DollarSign,
-  Clock
+  Clock,
+  User,
+  MapPin
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -122,7 +124,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           icon: Package,
           items: [
             { path: '/seller/listings', label: 'My Listings', icon: Package },
-            { path: '/seller/listings/create', label: 'Create Listing', icon: Upload },
+            { path: '/create-listing', label: 'Create Listing', icon: Upload },
             { path: '/seller/inventory/bulk', label: 'Bulk Update', icon: Upload }
           ]
         },
@@ -133,6 +135,15 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           items: [
             { path: '/seller/dashboard/analytics', label: 'Performance', icon: BarChart3 },
             { path: '/seller/dashboard/trading-statements', label: 'Trading Statements', icon: FileText }
+          ]
+        },
+        {
+          id: 'Listing Performance',
+          label: 'Listing Performance',
+          icon: Package,
+          items: [
+            { path: '/seller/performance', label: 'Listing Performance', icon: Package },
+        
           ]
         },
         {
@@ -157,8 +168,18 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Orders',
           icon: FileText,
           items: [
-            { path: '/seller/orders', label: 'All Orders', icon: FileText },
-            { path: '/seller/orders/pending', label: 'Pending', icon: FileText }
+            { path: '/checkout', label: 'checkout', icon: FileText },
+            { path: '/orders/OrderDetail', label: 'All Orders', icon: FileText },
+            { path: '/orders/pending', label: 'Pending', icon: FileText }
+          ]
+        },
+        //report
+      {
+          id: 'reports',
+          label: 'Reports',
+          icon: FileText,
+          items: [
+            { path: '/reports/tax', label: 'Reports', icon: FileText }
           ]
         },
         // Role switcher for dual-role users
@@ -195,7 +216,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
       },
       {
         id: 'offers-inbox',
-        label: 'Accept offers',
+        label: 'Buy requests',
         icon: MessageSquare,
         items: [
           { path: '/offers-inbox', label: 'Accept Offers', icon: MessageSquare }
@@ -214,9 +235,19 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         label: 'Orders',
         icon: FileText,
         items: [
+          { path: '/orders/:id', label: 'Order', icon: FileText },
           { path: '/buyer/dashboard/orders', label: 'My Orders', icon: FileText },
-          { path: '/buyer/dashboard/orders/tracking', label: 'Order tracking', icon: FileText },
+          { path: '/track-order', label: 'Order tracking', icon: FileText },
           { path: '/buyer/dashboard/orders/history', label: 'History', icon: Clock },
+        ]
+      },
+      {
+        id: 'settings',
+        label: 'Settings',
+        icon: Settings,
+        items: [
+          { path: '/profile', label: 'Profile', icon: User },
+          { path: '/addresses', label: 'Addresses', icon: MapPin }
         ]
       },
       // Role switcher for dual-role users
@@ -227,7 +258,9 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         items: [
           { path: '/seller/dashboard', label: 'Seller Dashboard', icon: DollarSign }
         ]
-      }
+      },
+      
+      // Settings
     ];
   };
 

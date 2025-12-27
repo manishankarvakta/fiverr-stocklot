@@ -19,10 +19,10 @@ const OrderDetail = () => {
   const { user, isAuthenticated } = useAuth();
   const token = localStorage.getItem('token');
 
-  const { data: orderGroup, isLoading, error, isError } = useGetOrderGroupQuery(
-    { order_group_id: id, token },
-    { skip: !id || !token || !isAuthenticated }
-  );
+ const { data: orderGroup, isLoading, error, isError } = useGetOrderGroupQuery(
+  { order_group_id: id, token },
+  { skip: !id || !token }
+);
 
   // Debug logging
   React.useEffect(() => {
@@ -168,7 +168,7 @@ const OrderDetail = () => {
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="outline"
-              onClick={() => navigate('/orders')}
+              onClick={() => navigate('/buyer/dashboard/orders')}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />

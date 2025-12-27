@@ -8,14 +8,24 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Avatar, AvatarFallback
 } from '@/components/ui';
+import Header from '../ui/common/Header';
+import Footer from '../layout/Footer';
+import { useGetProfileOptionsQuery, useUpdateProfileMutation, useUploadFarmPhotosMutation, useUploadProfilePhotoMutation } from '@/store/api/profile.api';
+// 🔁 RTK QUERY IMPORTS
+// import {
+//   useGetProfileOptionsQuery,
+//   useUpdateProfileMutation,
+//   useUploadProfilePhotoMutation,
+//   useUploadFarmPhotosMutation,
+// } from '@/redux/api/profileApi';
 function ProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(user || {});
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  // const [loading, setLoading] = useState(false);
+  // const [uploading, setUploading] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [farmPhotos, setFarmPhotos] = useState([]);
-  const [profileOptions, setProfileOptions] = useState({});
+  // const [profileOptions, setProfileOptions] = useState(null);
   const [completionScore, setCompletionScore] = useState(0);
   const [activeTab, setActiveTab] = useState('basic');
 
@@ -25,6 +35,32 @@ function ProfilePage() {
   const isSeller = userRoles.includes('seller');
   const isDualRole = isBuyer && isSeller;
 
+  // useEffect(() => {
+  //   if (user) {
+  //     setProfile(user);
+  //     setProfilePhoto(user.profile_photo || null);
+  //     setFarmPhotos(user.farm_photos || []);
+  //     setCompletionScore(user.profile_completion_score || 0);
+  //   }
+  //   fetchProfileOptions();
+  // }, [user]);
+
+  // 🔁 RTK: PROFILE OPTIONS
+  const { data: profileOptions = {} } = useGetProfileOptionsQuery();
+
+  // 🔁 RTK MUTATIONS
+  const [updateProfileMutation, { isLoading: loading }] =
+    useUpdateProfileMutation();
+
+     const [uploadProfilePhoto, { isLoading: uploading }] =
+    useUploadProfilePhotoMutation();
+
+  const [uploadFarmPhotos] =
+    useUploadFarmPhotosMutation();
+
+
+
+     // INIT USER DATA (UNCHANGED)
   useEffect(() => {
     if (user) {
       setProfile(user);
@@ -32,142 +68,200 @@ function ProfilePage() {
       setFarmPhotos(user.farm_photos || []);
       setCompletionScore(user.profile_completion_score || 0);
     }
-    fetchProfileOptions();
   }, [user]);
 
-  const fetchProfileOptions = async () => {
+
+     const updateProfile = async (data) => {
     try {
-      const response = await fetch('/api/profile/options');
-      const data = await response.json();
-      setProfileOptions(data);
+      const result = await updateProfileMutation(data).unwrap();
+      setProfile(result.user);
+      setCompletionScore(result.profile_completion);
+      alert('Profile updated successfully!');
     } catch (error) {
-      console.error('Error fetching profile options:', error);
+      alert(error?.data?.detail || 'Failed to update profile');
     }
   };
 
-  const updateProfile = async (data) => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(data)
-      });
-      
-      const result = await response.json();
-      if (response.ok) {
-        setProfile(result.user);
-        setCompletionScore(result.profile_completion);
-        alert('Profile updated successfully!');
-      } else {
-        throw new Error(result.detail || 'Failed to update profile');
-      }
-    } catch (error) {
-      console.error('Profile update error:', error);
-      alert('Failed to update profile: ' + error.message);
-    }
-    setLoading(false);
-  };
-
+  
+  // 🔁 RTK: PROFILE PHOTO UPLOAD
   const handlePhotoUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) return alert('File too large');
+    if (!file.type.startsWith('image/')) return alert('Invalid file');
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (JPG, PNG)');
-      return;
-    }
-
-    setUploading(true);
-    
     try {
       const formData = new FormData();
       formData.append('photo', file);
-      
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/profile/photo', {
-        method: 'POST',
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setProfilePhoto(result.photo_url);
-        alert('Profile photo updated successfully!');
-      } else {
-        const error = await response.json();
-        throw new Error(error.detail || 'Upload failed');
-      }
-    } catch (error) {
-      console.error('Photo upload error:', error);
-      alert('Failed to upload photo: ' + error.message);
-    } finally {
-      setUploading(false);
+      const res = await uploadProfilePhoto(formData).unwrap();
+      setProfilePhoto(res.photo_url);
+    } catch {
+      alert('Upload failed');
     }
   };
 
+
+   // 🔁 RTK: FARM PHOTOS
   const handleFarmPhotosUpload = async (event) => {
     const files = Array.from(event.target.files);
-    if (files.length === 0) return;
+    if (!files.length || files.length > 10) return;
 
-    if (files.length > 10) {
-      alert('Maximum 10 photos allowed');
-      return;
-    }
-
-    setUploading(true);
-    
     try {
       const formData = new FormData();
-      files.forEach(file => formData.append('photos', file));
-      
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/profile/farm-photos', {
-        method: 'POST',
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setFarmPhotos(prev => [...prev, ...result.photo_urls]);
-        alert('Farm photos uploaded successfully!');
-      } else {
-        const error = await response.json();
-        throw new Error(error.detail || 'Upload failed');
-      }
-    } catch (error) {
-      console.error('Farm photos upload error:', error);
-      alert('Failed to upload farm photos: ' + error.message);
-    } finally {
-      setUploading(false);
+      files.forEach(f => formData.append('photos', f));
+      const res = await uploadFarmPhotos(formData).unwrap();
+      setFarmPhotos(prev => [...prev, ...res.photo_urls]);
+    } catch {
+      alert('Upload failed');
     }
   };
 
-  const updateArrayField = (fieldName, value, isChecked) => {
+
+   // ARRAY FIELD HANDLER (UNCHANGED)
+  const updateArrayField = (field, value, checked) => {
     setProfile(prev => {
-      const currentArray = prev[fieldName] || [];
-      if (isChecked) {
-        return { ...prev, [fieldName]: [...currentArray, value] };
-      } else {
-        return { ...prev, [fieldName]: currentArray.filter(item => item !== value) };
-      }
+      const arr = prev[field] || [];
+      return {
+        ...prev,
+        [field]: checked ? [...arr, value] : arr.filter(i => i !== value)
+      };
     });
   };
+
+  // const fetchProfileOptions = async () => {
+  //   try {
+  //     const response = await fetch('/api/profile/options');
+  //     const data = await response.json();
+  //     setProfileOptions(data);
+  //   } catch (error) {
+  //     console.error('Error fetching profile options:', error);
+  //   }
+  // };
+
+  // const updateProfile = async (data) => {
+  //   setLoading(true);
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     const response = await fetch('/api/profile', {
+  //       method: 'PATCH',
+  //       headers: { 
+  //         'Content-Type': 'application/json',
+  //         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  //       },
+  //       body: JSON.stringify(data)
+  //     });
+      
+  //     const result = await response.json();
+  //     if (response.ok) {
+  //       setProfile(result.user);
+  //       setCompletionScore(result.profile_completion);
+  //       alert('Profile updated successfully!');
+  //     } else {
+  //       throw new Error(result.detail || 'Failed to update profile');
+  //     }
+  //   } catch (error) {
+  //     console.error('Profile update error:', error);
+  //     alert('Failed to update profile: ' + error.message);
+  //   }
+  //   setLoading(false);
+  // };
+
+  // const handlePhotoUpload = async (event) => {
+  //   const file = event.target.files[0];
+  //   if (!file) return;
+
+  //   if (file.size > 5 * 1024 * 1024) {
+  //     alert('File size must be less than 5MB');
+  //     return;
+  //   }
+
+  //   if (!file.type.startsWith('image/')) {
+  //     alert('Please upload an image file (JPG, PNG)');
+  //     return;
+  //   }
+
+  //   setUploading(true);
+    
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append('photo', file);
+      
+  //     const token = localStorage.getItem('token');
+  //     const response = await fetch('/api/profile/photo', {
+  //       method: 'POST',
+  //       headers: {
+  //         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  //       },
+  //       body: formData
+  //     });
+
+  //     if (response.ok) {
+  //       const result = await response.json();
+  //       setProfilePhoto(result.photo_url);
+  //       alert('Profile photo updated successfully!');
+  //     } else {
+  //       const error = await response.json();
+  //       throw new Error(error.detail || 'Upload failed');
+  //     }
+  //   } catch (error) {
+  //     console.error('Photo upload error:', error);
+  //     alert('Failed to upload photo: ' + error.message);
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
+
+  // const handleFarmPhotosUpload = async (event) => {
+  //   const files = Array.from(event.target.files);
+  //   if (files.length === 0) return;
+
+  //   if (files.length > 10) {
+  //     alert('Maximum 10 photos allowed');
+  //     return;
+  //   }
+
+  //   setUploading(true);
+    
+  //   try {
+  //     const formData = new FormData();
+  //     files.forEach(file => formData.append('photos', file));
+      
+  //     const token = localStorage.getItem('token');
+  //     const response = await fetch('/api/profile/farm-photos', {
+  //       method: 'POST',
+  //       headers: {
+  //         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  //       },
+  //       body: formData
+  //     });
+
+  //     if (response.ok) {
+  //       const result = await response.json();
+  //       setFarmPhotos(prev => [...prev, ...result.photo_urls]);
+  //       alert('Farm photos uploaded successfully!');
+  //     } else {
+  //       const error = await response.json();
+  //       throw new Error(error.detail || 'Upload failed');
+  //     }
+  //   } catch (error) {
+  //     console.error('Farm photos upload error:', error);
+  //     alert('Failed to upload farm photos: ' + error.message);
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
+
+  // const updateArrayField = (fieldName, value, isChecked) => {
+  //   setProfile(prev => {
+  //     const currentArray = prev[fieldName] || [];
+  //     if (isChecked) {
+  //       return { ...prev, [fieldName]: [...currentArray, value] };
+  //     } else {
+  //       return { ...prev, [fieldName]: currentArray.filter(item => item !== value) };
+  //     }
+  //   });
+  // };
 
   const ProfileCompletionIndicator = () => (
     <div className="mb-8 p-6 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200 shadow-sm">
@@ -222,7 +316,9 @@ function ProfilePage() {
   const tabConfig = getTabsForRole();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+    <>
+    <Header />
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 p-6">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <Card className="shadow-xl border-emerald-200">
@@ -1030,6 +1126,9 @@ function ProfilePage() {
         </div>
       </div>
     </div>
+
+    <Footer />
+    </>
   );
 }
 export default ProfilePage;

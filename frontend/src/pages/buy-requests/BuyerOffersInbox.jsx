@@ -33,9 +33,22 @@ import { Inbox } from 'lucide-react';
 
 import { useAuth } from "@/auth/AuthProvider";
 import BuyerOffersPage from '../BuyerOffersPage';
+import Footer from '@/components/ui/common/Footer';
+import Header from '@/components/ui/common/Header';
 
 function BuyerOffersInbox() {
   const { user } = useAuth();
-  return <BuyerOffersPage user={user} />;
+  return (
+    <>
+
+    <Header />
+
+    <BuyerOffersPage user={user} />
+
+    <Footer />
+
+    </>
+
+  );
 }
 export default BuyerOffersInbox;

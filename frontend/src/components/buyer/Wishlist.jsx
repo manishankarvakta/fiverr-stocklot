@@ -9,6 +9,23 @@ import {
 } from '../../store/api/wishlist.api';
 import { useAddToCartMutation } from '../../store/api/cart.api';
 
+// Helper function for availability badges
+const getAvailabilityBadge = (availability) => {
+  const availabilityConfig = {
+    available: { label: 'Available', color: 'bg-green-100 text-green-800' },
+    limited: { label: 'Limited Stock', color: 'bg-yellow-100 text-yellow-800' },
+    out_of_stock: { label: 'Out of Stock', color: 'bg-red-100 text-red-800' },
+    pre_order: { label: 'Pre-Order', color: 'bg-blue-100 text-blue-800' }
+  };
+
+  const config = availabilityConfig[availability] || availabilityConfig.available;
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
 const Wishlist = () => {
   const [filters, setFilters] = useState({
     category: 'all',
@@ -21,21 +38,39 @@ const Wishlist = () => {
 
   // Use Redux RTK Query hooks
   const { data: wishlistData, isLoading: loading, refetch } = useGetWishlistQuery();
-  console.log('console.log', wishlistData)
-  console.log('wishlistData', wishlistData);
+  console.log('Wishlist Data:', wishlistData);
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
 
   const { data: statsData } = useGetWishlistStatsQuery();
-  console.log('statsData', statsData);
 
-  const wishlistItems = wishlistData?.items || [];
+  // Transform wishlist data to match component expectations
+  const wishlistItems = wishlistData?.items?.map(item => ({
+    id: item.id,
+    listing_id: item.item_id,
+    title: item.current_data?.title || 'Unknown Item',
+    current_price: item.current_data?.price || 0,
+    original_price: item.current_data?.original_price,
+    unit: item.current_data?.unit || 'unit',
+    availability: item.current_data?.status === 'active' ? 'available' : 'out_of_stock',
+    image_url: item.current_data?.images?.[0] || null,
+    seller_name: item.current_data?.seller_name || 'Unknown Seller',
+    seller_location: item.current_data?.location || 'Unknown Location',
+    seller_rating: item.current_data?.seller_rating || null,
+    added_at: item.added_at,
+    price_alerts: item.price_alert_enabled ? [{
+      target_price: item.target_price
+    }] : [],
+    price_change: item.current_data?.price_change,
+    description: item.current_data?.description,
+    notifications_enabled: item.price_alert_enabled || false
+  })) || [];
 
   // Load notification settings from wishlist data
   useEffect(() => {
     if (wishlistData?.items) {
       const notificationSettings = {};
       wishlistData.items.forEach(item => {
-        notificationSettings[item.id] = item.notifications_enabled || false;
+        notificationSettings[item.id] = item.price_alert_enabled || false;
       });
       setNotifications(notificationSettings);
     }
@@ -59,7 +94,7 @@ const Wishlist = () => {
       
       await updateWishlist({
         wishlistId: itemId,
-        notifications_enabled: newState
+        price_alert_enabled: newState
       }).unwrap();
       
       setNotifications(prev => ({
@@ -75,29 +110,13 @@ const Wishlist = () => {
   const addToCart = async (listing) => {
     try {
       await addToCartMutation({
-        listing_id: listing.listing_id || listing.id,
+        listing_id: listing.listing_id || listing.item_id,
         quantity: 1
       }).unwrap();
       console.log('Added to cart successfully');
     } catch (error) {
       console.error('Error adding to cart:', error);
     }
-  };
-
-  const getAvailabilityBadge = (availability) => {
-    const availabilityConfig = {
-      available: { label: 'Available', color: 'bg-green-100 text-green-800' },
-      limited: { label: 'Limited Stock', color: 'bg-yellow-100 text-yellow-800' },
-      out_of_stock: { label: 'Out of Stock', color: 'bg-red-100 text-red-800' },
-      pre_order: { label: 'Pre-Order', color: 'bg-blue-100 text-blue-800' }
-    };
-    
-    const config = availabilityConfig[availability] || availabilityConfig.available;
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
-    );
   };
 
   const getPriceChangeIndicator = (item) => {
@@ -298,7 +317,7 @@ const Wishlist = () => {
                   <div className="text-xs text-blue-600 mb-1">Active Price Alerts:</div>
                   {item.price_alerts.map((alert, index) => (
                     <div key={index} className="text-xs text-gray-600 bg-blue-50 px-2 py-1 rounded">
-                      Alert when price ≤ R{alert.target_price.toLocaleString()}
+                      Alert when price ≤ R{(alert.target_price ?? 0).toLocaleString()}
                     </div>
                   ))}
                 </div>

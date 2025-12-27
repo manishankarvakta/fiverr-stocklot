@@ -8,6 +8,9 @@ export const profileApi = baseApi.injectEndpoints({
         url: '/profile',
         method: 'PATCH',
         body: data,
+         headers: {
+      'Content-Type': 'application/json', // ✅ REQUIRED
+    },
       }),
       invalidatesTags: ['User'],
     }),

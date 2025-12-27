@@ -86,10 +86,13 @@ function Marketplace() {
   }, [filters, deliverableOnly]);
   
   const { data: listingsData, isLoading: listingsLoading, error: listingsError, refetch: refetchListings } = useGetListingsQuery(listingsParams);
-  console.log('Listings data for:', listingsData);
+  // console.log('Listings data for:', listingsData);
   const [smartSearch, { isLoading: smartSearchLoading }] = useSmartSearchMutation();
-  console.log('Smart search loading:', smartSearchLoading);
-
+  // console.log('Smart search loading:', smartSearchLoading);
+// Later
+// if (!listingsLoading && refetchListings) {
+//   refetchListings();
+// }
   // Derived state from API responses - handle different response formats
 const categoryGroups = useMemo(() => {
   if (!categoriesData) return [];

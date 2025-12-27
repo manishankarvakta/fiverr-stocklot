@@ -22,14 +22,50 @@ const PriceAlerts = () => {
   });
 
   // Use Redux RTK Query hooks
-  const { data: alertsData, isLoading: loading, refetch } = useGetPriceAlertsQuery();
-  const { data: statsData } = useGetPriceAlertStatsQuery();
+  const { data: alertsData, isLoading: loading, error: alertsError, refetch } = useGetPriceAlertsQuery();
+  console.log('Price Alerts Data:', alertsData);
+  console.log('Price Alerts Loading:', loading);
+  console.log('Price Alerts Error:', alertsError);
+  const { data: statsData, error: statsError } = useGetPriceAlertStatsQuery();
+  console.log('Price Alerts Stats:', statsData);
+  console.log('Price Alerts Stats Error:', statsError);
   const [createPriceAlert] = useCreatePriceAlertMutation();
   const [updatePriceAlert] = useUpdatePriceAlertMutation();
   const [deletePriceAlert] = useDeletePriceAlertMutation();
 
-  const alerts = alertsData?.alerts || [];
-  const stats = statsData || {};
+  // Handle different possible data structures from backend
+  const alerts = alertsData?.alerts || alertsData?.data?.alerts || [];
+  const stats = statsData || alertsData?.summary || alertsData?.data || {};
+
+  console.log('Processed alerts:', alerts);
+  console.log('Processed stats:', stats);
+
+  // Handle query errors
+  if (alertsError || statsError) {
+    const errorDetails = alertsError || statsError;
+    return (
+      <div className="text-center p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+          <h2 className="text-2xl font-bold text-red-800 mb-4">⚠️ API Error</h2>
+          <div className="text-left">
+            <p className="text-red-700 font-medium mb-2">Error Details:</p>
+            <ul className="list-disc list-inside text-red-700 space-y-1">
+              <li>Status: {errorDetails?.status || 'Unknown'}</li>
+              <li>Message: {errorDetails?.data?.message || errorDetails?.message || 'Server error'}</li>
+              <li>RTK Query is working correctly</li>
+              <li>Backend endpoint may have issues</li>
+            </ul>
+          </div>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
+        >
+          Retry API Call
+        </button>
+      </div>
+    );
+  }
 
   const handleCreatePriceAlert = async (alertData) => {
     try {
@@ -117,6 +153,12 @@ const PriceAlerts = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Price Alerts</h1>
           <p className="text-gray-600 mt-1">Get notified when livestock prices reach your target levels</p>
+          {!loading && !alertsError && alertsData && (
+            <p className="text-sm text-green-600 mt-2">
+              ✅ RTK Query working - {alerts.length} alerts loaded successfully
+              {stats && Object.keys(stats).length > 0 && ' with stats'}
+            </p>
+          )}
         </div>
         
         <button

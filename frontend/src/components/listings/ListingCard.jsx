@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '../ui';
 import { 
   MapPin, ShoppingCart, Gavel, Clock, Eye, Package, 
-  Truck, Shield, Star, TrendingUp, DollarSign 
+  Truck, Shield, Star, TrendingUp, DollarSign, Heart 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useAuth } from '@/auth/AuthProvider';
 import { useAddToCartMutation, useLazyGetCartQuery } from '@/store/api/cart.api';
+import { useAddToWishlistMutation, useCheckWishlistItemQuery } from '@/store/api/wishlist.api';
 import { addItem as addItemToCart } from '@/store/cartSlice';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,6 +27,15 @@ const ListingCard = ({
   const [addingToCart, setAddingToCart] = useState(false);
   const [addToCart] = useAddToCartMutation();
   const [refetchCart] = useLazyGetCartQuery();
+  const [addToWishlist] = useAddToWishlistMutation();
+  const [addingToWishlist, setAddingToWishlist] = useState(false);
+  
+  // Check if item is in wishlist
+  const { data: wishlistCheckData } = useCheckWishlistItemQuery(
+    { itemId: listing.id },
+    { skip: !user || !listing.id }
+  );
+  const isInWishlist = wishlistCheckData?.is_in_wishlist || false;
 
   // Calculate time remaining for auctions
   useEffect(() => {
@@ -174,6 +184,42 @@ const ListingCard = ({
       }
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleAddToWishlist = async (e) => {
+    e.stopPropagation(); // Prevent card click
+    
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to add items to your wishlist.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddingToWishlist(true);
+    try {
+      await addToWishlist({
+        item_id: listing.id,
+        item_type: "listing",
+        category: "favorites"
+      }).unwrap();
+
+      toast({
+        title: "Added to Wishlist!",
+        description: `${listing.title} added to your wishlist.`,
+      });
+    } catch (error) {
+      console.error('Error adding to wishlist:', error);
+      toast({
+        title: "Error",
+        description: 'Failed to add item to wishlist. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setAddingToWishlist(false);
     }
   };
 
@@ -373,6 +419,25 @@ const ListingCard = ({
             </Badge>
           </div>
         )}
+        
+        {/* Wishlist Heart */}
+        <button
+          onClick={handleAddToWishlist}
+          disabled={addingToWishlist}
+          className={`absolute top-2 right-2 p-2 rounded-full shadow-md transition-all duration-200 ${
+            (listing.listing_type === 'auction' || listing.listing_type === 'hybrid') && timeRemaining
+              ? 'right-16' // Move left if auction timer is present
+              : 'right-2'
+          } ${
+            isInWishlist 
+              ? 'bg-red-500 text-white hover:bg-red-600' 
+              : 'bg-white text-gray-600 hover:bg-red-50 hover:text-red-500'
+          }`}
+        >
+          <Heart 
+            className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''} ${addingToWishlist ? 'animate-pulse' : ''}`} 
+          />
+        </button>
       </div>
 
       <CardHeader className="pb-2">

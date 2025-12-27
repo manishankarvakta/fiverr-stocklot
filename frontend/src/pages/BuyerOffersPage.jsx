@@ -15,6 +15,7 @@ import {
 const BuyerOffersPage = ({ user }) => {
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // all, pending, accepted, declined
 
   const navigate = useNavigate();
@@ -118,6 +119,26 @@ const BuyerOffersPage = ({ user }) => {
     };
     return stats;
   };
+  const filteredOffers = useMemo(() => {
+  if (!offers) return [];
+
+  let result = [...offers];
+
+  // status filter
+  if (filter !== 'all') {
+    result = result.filter(o => o.status === filter);
+  }
+
+  // search (example: title or seller)
+  if (searchTerm) {
+    result = result.filter(o =>
+      o.request_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.seller_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
+
+  return result;
+}, [offers, filter, searchTerm]);
 
   if (!user) {
     return (
@@ -252,7 +273,7 @@ const BuyerOffersPage = ({ user }) => {
               </Button>
             </CardContent>
           </Card>
-        ) : offers.length === 0 ? (
+        ) : filteredOffers.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -275,7 +296,7 @@ const BuyerOffersPage = ({ user }) => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {offers.map((offer) => (
+            {filteredOffers.map((offer) => (
               <Card key={offer.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">

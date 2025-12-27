@@ -12,6 +12,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../ui/card';
 import { DollarSign, FileText, ShoppingCart, TrendingUp, Upload, Image as ImageIcon, X } from "lucide-react";
 import { useSelector } from "react-redux";
+import Header from "../ui/common/Header";
+import Footer from "../ui/common/Footer";
 
 // Backend URL helper imported from utils
 
@@ -334,7 +336,11 @@ const handleRequestSeller = async () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
+
+    <> 
+    <Header />
+   
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 p-6">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-emerald-900 mb-2">Create New Listing</h1>
@@ -1063,13 +1069,14 @@ const handleRequestSeller = async () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate('/seller/listings')}
                   className="border-emerald-300 text-emerald-700"
                 >
                   Cancel
                 </Button>
                  <Button
                   type="submit"
+                  onClick={handleSubmit}
                   disabled={submitting || isCreating}
                   className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white"
                 >
@@ -1081,6 +1088,9 @@ const handleRequestSeller = async () => {
         </Card>
       </div>
     </div>
+      
+      <Footer />
+      </>
   );
 }
 

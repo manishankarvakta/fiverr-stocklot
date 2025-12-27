@@ -2249,57 +2249,145 @@ async def complete_checkout(
         logger.error(f"Error completing checkout: {e}")
         raise HTTPException(status_code=500, detail="Failed to complete checkout")
 
-# ORDER MANAGEMENT SYSTEM
+#ORDER MANAGEMENT SYSTEM
 @api_router.get("/orders/user")
 async def get_user_orders_detailed(current_user: User = Depends(get_current_user)):
     """Get orders for current user (both as buyer and seller)"""
     try:
-        # Get orders where user is buyer
-        buyer_orders_docs = await db.orders.find({"buyer_id": current_user.id}).sort("created_at", -1).to_list(length=None)
-        
-        # Get orders where user is seller
-        seller_orders_docs = await db.orders.find({"seller_id": current_user.id}).sort("created_at", -1).to_list(length=None)
-        
-        # Clean both buyer and seller orders
-        buyer_orders = []
-        seller_orders = []
-        
-        for doc in buyer_orders_docs:
+        buyer_order_groups = []
+        seller_order_groups = []
+
+        # Get order groups where user is buyer
+        buyer_groups_cursor = db.order_groups.find({"buyer_user_id": current_user.id}).sort("created_at", -1)
+        async for group in buyer_groups_cursor:
             try:
-                if "_id" in doc:
-                    del doc["_id"]
-                    
+                if "_id" in group:
+                    del group["_id"]
+
                 # Serialize datetime fields
                 for field in ["created_at", "updated_at"]:
-                    if field in doc and hasattr(doc[field], 'isoformat'):
-                        doc[field] = doc[field].isoformat()
-                        
-                buyer_orders.append(doc)
-            except Exception:
+                    if field in group and hasattr(group[field], 'isoformat'):
+                        group[field] = group[field].isoformat()
+
+                # Get seller orders for this group
+                seller_orders = await db.seller_orders.find({"order_group_id": group["id"]}).to_list(length=None)
+                orders = []
+
+                for seller_order in seller_orders:
+                    if "_id" in seller_order:
+                        del seller_order["_id"]
+
+                    # Serialize datetime fields
+                    for field in ["created_at", "updated_at"]:
+                        if field in seller_order and hasattr(seller_order[field], 'isoformat'):
+                            seller_order[field] = seller_order[field].isoformat()
+
+                    # Get seller info
+                    seller = await db.users.find_one({"id": seller_order["seller_id"]})
+                    seller_name = seller.get("full_name") or seller.get("name") or "Unknown Seller" if seller else "Unknown Seller"
+
+                    # Get order items
+                    order_items = await db.order_items.find({"seller_order_id": seller_order["id"]}).to_list(length=None)
+                    for item in order_items:
+                        if "_id" in item:
+                            del item["_id"]
+
+                    # Format as expected by frontend
+                    order = {
+                        "id": seller_order["id"],
+                        "status": seller_order.get("status", "PENDING"),
+                        "total_amount": int(seller_order.get("total", 0) * 100),  # Convert to cents
+                        "created_at": seller_order.get("created_at", group.get("created_at")),
+                        "seller_name": seller_name,
+                        "items": order_items
+                    }
+                    orders.append(order)
+
+                # Add orders to group
+                group["orders"] = orders
+                buyer_order_groups.append(group)
+
+            except Exception as e:
+                logger.error(f"Error processing buyer order group {group.get('id')}: {e}")
                 continue
-        
-        for doc in seller_orders_docs:
+
+        # Get order groups where user is seller
+        seller_groups_cursor = db.seller_orders.find({"seller_id": current_user.id}).sort("created_at", -1)
+        processed_group_ids = set()
+
+        async for seller_order in seller_groups_cursor:
             try:
-                if "_id" in doc:
-                    del doc["_id"]
-                    
+                group_id = seller_order.get("order_group_id")
+                if not group_id or group_id in processed_group_ids:
+                    continue
+
+                processed_group_ids.add(group_id)
+
+                # Get the order group
+                group = await db.order_groups.find_one({"id": group_id})
+                if not group:
+                    continue
+
+                if "_id" in group:
+                    del group["_id"]
+
                 # Serialize datetime fields
                 for field in ["created_at", "updated_at"]:
-                    if field in doc and hasattr(doc[field], 'isoformat'):
-                        doc[field] = doc[field].isoformat()
-                        
-                seller_orders.append(doc)
-            except Exception:
+                    if field in group and hasattr(group[field], 'isoformat'):
+                        group[field] = group[field].isoformat()
+
+                # Get all seller orders for this group
+                all_seller_orders = await db.seller_orders.find({"order_group_id": group_id}).to_list(length=None)
+                orders = []
+
+                for so in all_seller_orders:
+                    if "_id" in so:
+                        del so["_id"]
+
+                    # Serialize datetime fields
+                    for field in ["created_at", "updated_at"]:
+                        if field in so and hasattr(so[field], 'isoformat'):
+                            so[field] = so[field].isoformat()
+
+                    # Get buyer info (since this is seller view)
+                    buyer = await db.users.find_one({"id": group.get("buyer_user_id")})
+                    buyer_name = buyer.get("full_name") or buyer.get("name") or "Unknown Buyer" if buyer else "Unknown Buyer"
+
+                    # Get order items
+                    order_items = await db.order_items.find({"seller_order_id": so["id"]}).to_list(length=None)
+                    for item in order_items:
+                        if "_id" in item:
+                            del item["_id"]
+
+                    # Format as expected by frontend
+                    order = {
+                        "id": so["id"],
+                        "status": so.get("status", "PENDING"),
+                        "total_amount": int(so.get("total", 0) * 100),  # Convert to cents
+                        "created_at": so.get("created_at", group.get("created_at")),
+                        "buyer_name": buyer_name,
+                        "items": order_items
+                    }
+                    orders.append(order)
+
+                # Add orders to group
+                group["orders"] = orders
+                seller_order_groups.append(group)
+
+            except Exception as e:
+                logger.error(f"Error processing seller order group {group_id}: {e}")
                 continue
-        
+
         return {
-            "buyer_orders": buyer_orders,
-            "seller_orders": seller_orders
+            "buyer_orders": buyer_order_groups,
+            "seller_orders": seller_order_groups
         }
-    
+
     except Exception as e:
         logger.error(f"Error fetching user orders: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
+
+
 
 @api_router.put("/orders/{order_id}/status")
 async def update_order_status(
@@ -11741,9 +11829,11 @@ async def create_offer(
             logger.warning(f"Failed to create conversation for offer {offer['id']}: {e}")
             # Don't fail the offer creation if conversation creation fails
         
-        return {"ok": True, "offer_id": offer["id"]}
+        return offer
         
     except ValueError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating offer: {e}")

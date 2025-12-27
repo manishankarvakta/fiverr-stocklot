@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui";
 import { MapPin, Plus } from "lucide-react";
+import Header from "../ui/common/Header";
+import Footer from "../ui/common/Footer";
 
 export default function AddressesPage() {
   const [addresses, setAddresses] = useState([]);
@@ -26,18 +28,22 @@ export default function AddressesPage() {
   };
 
   return (
+    <>
+   
+    <Header />
+
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100 p-6">
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Saved Delivery Addresses</CardTitle>
-            <Button
+            {/* <Button
               className="bg-emerald-600 hover:bg-emerald-700"
               onClick={() => (window.location.href = "/checkout")}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Address
-            </Button>
+            </Button> */}
           </CardHeader>
 
           <CardContent>
@@ -95,5 +101,7 @@ export default function AddressesPage() {
         </Card>
       </div>
     </div>
+    <Footer />
+    </>
   );
 }

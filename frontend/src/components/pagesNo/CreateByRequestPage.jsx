@@ -2,6 +2,8 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import EnhancedCreateBuyRequestForm from "../buyRequests/EnhancedCreateBuyRequestForm";
+import Header from "../ui/common/Header";
+import Footer from "../ui/common/Footer";
 
 function CreateBuyRequestPage() {
   const { user } = useAuth();
@@ -34,6 +36,8 @@ function CreateBuyRequestPage() {
   };
 
   return (
+    <>
+    <Header />
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8 text-center">
@@ -44,6 +48,8 @@ function CreateBuyRequestPage() {
         <EnhancedCreateBuyRequestForm onCreated={handleRequestCreated} />
       </div>
     </div>
+    <Footer />
+    </>
   );
 };
 export default CreateBuyRequestPage; 

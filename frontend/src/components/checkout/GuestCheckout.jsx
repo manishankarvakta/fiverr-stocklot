@@ -333,33 +333,7 @@ export default function GuestCheckout() {
 
 
 
-  // Risk Badge
-
-//  onChange={async (newLocation) => {
-//   setShipTo(newLocation);
-//   setAddresses(prev => [...prev, newLocation]);
-
-//   try {
-//     await addAddress(newLocation).unwrap(); // API call
-//   } catch (err) {
-//     console.error('Error saving address:', err);
-//   }
-// }}
-
-// const handleLocationChange = async (newLocation) => {
-//   setShipTo(newLocation);
-//   setAddresses(prev => [...prev, newLocation]);
-
-//   if (addAddress) {
-//     try {
-//       await addAddress(newLocation).unwrap(); // Ensure addAddress exists
-//     } catch (err) {
-//       console.error('Error saving address:', err);
-//     }
-//   }
-// };
-
- // 🔥 FIXED function for live location + localStorage + API save
+ 
 const handleLocationChange = (newLocation) => {
   const normalized = {
     id: Date.now(), // 🔑 unique id for edit/delete
