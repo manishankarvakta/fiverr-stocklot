@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(__file__))
 mongo_url = os.environ.get('MONGO_URL') or os.environ.get('DB_URL')
 if not mongo_url:
     # Try Docker Compose default first
-    mongo_url = 'mongodb://admin:adminpassword@stocklot-mongodb:27017/'
+    mongo_url = 'mongodb://admin:adminpassword@clients-stocklot-z8penj-mongodb-1:27025/'
     # Fallback to local
     # mongo_url = 'mongodb://localhost:27017/'
 

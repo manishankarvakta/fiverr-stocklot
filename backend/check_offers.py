@@ -6,7 +6,7 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # MongoDB connection
-mongo_url = os.environ.get('MONGO_URL') or os.environ.get('DB_URL') or 'mongodb://admin:adminpassword@stocklot-mongodb:27017/'
+mongo_url = os.environ.get('MONGO_URL') or os.environ.get('DB_URL') or 'mongodb://admin:adminpassword@clients-stocklot-z8penj-mongodb-1:27025/'
 db_name = 'stocklot'
 
 async def check_offers():

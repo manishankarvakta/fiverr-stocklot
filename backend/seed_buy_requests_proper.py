@@ -11,7 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 mongo_url = os.environ.get('MONGO_URL') or os.environ.get('DB_URL')
 if not mongo_url:
     # Use same default as server.py
-    mongo_url = 'mongodb://admin:adminpassword@stocklot-mongodb:27017/'
+    mongo_url = 'mongodb://admin:adminpassword@clients-stocklot-z8penj-mongodb-1:27025/'
     print("Using Docker Compose MongoDB URL (same as server.py)")
 else:
     print(f"Using MongoDB URL from environment: {mongo_url}")
