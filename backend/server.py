@@ -130,7 +130,7 @@ console = Console()
 #     raise ValueError("DB_URL, MONGO_URL, or MONGO_URI environment variable must be set")
 
 # db_name = os.environ.get('DB_NAME') or os.environ.get('MONGO_DBNAME', 'stocklot')
-mongo_url = 'mongodb://admin:adminpassword@clients-stocklot-z8penj-mongodb-1:27025/'
+mongo_url = 'mongodb://admin:adminpassword@mongodb:27017/'
 #mongo_url = 'mongodb://posDBUser:posDBPassword@103.239.43.246:27017/?authSource=admin' #local docker
 # mongo_url = 'mongodb://posDBUser:posDBPassword@tcm-pos-posdb-2i3j8w:27017/?authSource=admin' #dokploy
 db_name = 'stocklot'

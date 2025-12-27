@@ -35,7 +35,7 @@ def is_docker_available():
         return False
 
 if is_docker_available():
-    DEFAULT_MONGO_URL = "mongodb://admin:adminpassword@clients-stocklot-z8penj-mongodb-1:27025/"
+    DEFAULT_MONGO_URL = "mongodb://admin:adminpassword@mongodb:27017/"
 else:
     # Running locally, use exposed port
     DEFAULT_MONGO_URL = "mongodb://admin:adminpassword@localhost:27025/"
