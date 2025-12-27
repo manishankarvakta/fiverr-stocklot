@@ -45,7 +45,7 @@ function CartPage() {
     }
   }, [user, cartData, dispatch]);
   
-  console.log('cartData', cartData);  
+  // console.log('cartData', cartData);  
   
   const [updateCartItem] = useUpdateCartItemMutation();
   const [removeFromCartAPI] = useRemoveFromCartMutation();

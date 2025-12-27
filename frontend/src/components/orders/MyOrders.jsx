@@ -33,6 +33,7 @@ const MyOrders = () => {
 
   // Fetch orders
   const { data: ordersData, isLoading, error, refetch } = useGetUserOrdersQuery();
+  console.log('Orders Data:', ordersData);
 
   // Flatten buyer_orders + seller_orders
   useEffect(() => {

@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import Header from '../ui/common/Header';
+import Footer from '../ui/common/Footer';
 
 const ReferralDashboard = () => {
   // Simple way to check if user is logged in and show toasts
@@ -199,7 +201,10 @@ const ReferralDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 p-4">
+
+    <>
+    <Header />
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -394,6 +399,8 @@ const ReferralDashboard = () => {
         </Card>
       </div>
     </div>
+    <Footer />
+    </>
   );
 };
 

@@ -40,9 +40,13 @@ function BuyerOffersInbox() {
   const { user } = useAuth();
   return (
     <>
+
     <Header />
-  <BuyerOffersPage user={user} />
-  <Footer />
+
+    <BuyerOffersPage user={user} />
+
+    <Footer />
+
     </>
 
   );

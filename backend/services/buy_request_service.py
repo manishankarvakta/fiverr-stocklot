@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from enum import Enum
 import uuid
 import json
+from fastapi.encoders import jsonable_encoder
 
 logger = logging.getLogger(__name__)
 
@@ -232,11 +233,24 @@ class BuyRequestService:
         
         await self.db.buy_request_offers.insert_one(offer)
         
-        # Remove MongoDB _id
-        if "_id" in offer:
-            del offer["_id"]
-            
-        return offer
+        # Fetch seller name
+        seller_doc = await self.db.users.find_one({"id": seller_id})
+        seller_name = seller_doc.get("full_name", "Unknown Seller") if seller_doc else "Unknown Seller"
+        
+        # Prepare JSON-serializable response
+        response = {
+            "id": offer["id"],
+            "request_id": offer["request_id"],
+            "seller_id": offer["seller_id"],
+            "seller_name": seller_name,
+            "offer_price": offer["offer_price"],
+            "qty": offer["qty"],
+            "message": offer["message"],
+            "status": offer["status"],
+            "created_at": offer["created_at"].isoformat()
+        }
+        
+        return jsonable_encoder(response)
     
     async def get_offers_for_request(self, request_id: str) -> List[Dict[str, Any]]:
         """Get all offers for a buy request"""

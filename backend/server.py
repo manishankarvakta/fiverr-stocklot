@@ -11829,9 +11829,11 @@ async def create_offer(
             logger.warning(f"Failed to create conversation for offer {offer['id']}: {e}")
             # Don't fail the offer creation if conversation creation fails
         
-        return {"ok": True, "offer_id": offer["id"]}
+        return offer
         
     except ValueError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating offer: {e}")

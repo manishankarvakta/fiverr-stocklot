@@ -86,7 +86,7 @@ function Marketplace() {
   }, [filters, deliverableOnly]);
   
   const { data: listingsData, isLoading: listingsLoading, error: listingsError, refetch: refetchListings } = useGetListingsQuery(listingsParams);
-  console.log('Listings data for:', listingsData);
+  // console.log('Listings data for:', listingsData);
   const [smartSearch, { isLoading: smartSearchLoading }] = useSmartSearchMutation();
   // console.log('Smart search loading:', smartSearchLoading);
 // Later

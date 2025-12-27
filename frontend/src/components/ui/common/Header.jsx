@@ -169,7 +169,7 @@ function Header() {
   const isBuyer = user && (user.roles || []).includes('buyer');
   const isAdmin = user && (user.roles || []).includes('admin');
 
-  console.log('user', user);
+  // console.log('user', user);
 
 
 
