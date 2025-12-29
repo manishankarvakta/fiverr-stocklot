@@ -245,7 +245,7 @@ const DashboardLayout = () => {
                         className="text-red-600"
                       >
                         <Shield className="mr-2 h-4 w-4" />
-                        Admin Panel
+                        Admin Panela
                       </DropdownMenuItem>
                     </>
                   )}
