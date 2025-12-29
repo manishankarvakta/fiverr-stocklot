@@ -30,6 +30,18 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // const location = useLocation();
+  // console.log(location); 
+  // location.pathname -> "/buyer/dashboard/123"
+
+  // Split the path to get segments
+  const segments = location.pathname.split('/').filter(Boolean); 
+  // segments -> ["buyer", "dashboard", "123"]
+
+  const dashboardType = segments[0]; // index 2 = the 3rd part of URL
+  // console.log('Buyer ID:', dashboardType);
+  // const dashboardType = usePathname();
+
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => 
       prev.includes(groupId) 
@@ -40,7 +52,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
 
   // Define navigation structure based on user role
   const getNavigationConfig = () => {
-    if (userRole === 'admin') {
+    if (dashboardType === 'admin') {
       return [
         {
           id: 'dashboard',
@@ -55,9 +67,9 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Analytics',
           icon: BarChart3,
           items: [
-            { path: '/admin/analytics/overview', label: 'Overview', icon: BarChart3 },
-            { path: '/admin/analytics/pdp', label: 'Product Analytics', icon: Eye },
-            { path: '/admin/reports/revenue', label: 'Revenue Reports', icon: DollarSign }
+            { path: '/admin/dashboard/analytics/overview', label: 'Overview', icon: BarChart3 },
+            { path: '/admin/dashboard/analytics/pdp', label: 'Product Analytics', icon: Eye },
+            { path: '/admin/dashboard/reports/revenue', label: 'Revenue Reports', icon: DollarSign }
           ]
         },
         {
@@ -65,11 +77,11 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Moderation',
           icon: Shield,
           items: [
-            { path: '/admin/moderation/users', label: 'Users', icon: Users },
-            { path: '/admin/moderation/listings', label: 'Listings', icon: Package },
-            { path: '/admin/moderation/buy-requests', label: 'Buy Requests', icon: MessageSquare },
-            { path: '/admin/moderation/reviews', label: 'Reviews', icon: Star },
-            { path: '/admin/moderation/roles', label: 'Role Requests', icon: Shield }
+            { path: '/admin/dashboard/moderation/users', label: 'Users', icon: Users },
+            { path: '/admin/dashboard/moderation/listings', label: 'Listings', icon: Package },
+            { path: '/admin/dashboard/moderation/buy-requests', label: 'Buy Requests', icon: MessageSquare },
+            { path: '/admin/dashboard/moderation/reviews', label: 'Reviews', icon: Star },
+            { path: '/admin/dashboard/moderation/roles', label: 'Role Requests', icon: Shield }
           ]
         },
         {
@@ -77,8 +89,8 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'A/B Testing',
           icon: Target,
           items: [
-            { path: '/admin/experiments', label: 'Experiments', icon: Target },
-            { path: '/admin/experiments/results', label: 'Results', icon: BarChart3 }
+            { path: '/admin/dashboard/experiments', label: 'Experiments', icon: Target },
+            { path: '/admin/dashboard/experiments/results', label: 'Results', icon: BarChart3 }
           ]
         },
         {
@@ -86,14 +98,14 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Settings',
           icon: Settings,
           items: [
-            { path: '/admin/settings', label: 'General', icon: Settings },
-            { path: '/admin/settings/fees', label: 'Fees', icon: DollarSign }
+            { path: '/admin/dashboard/settings', label: 'General', icon: Settings },
+            { path: '/admin/dashboard/settings/fees', label: 'Fees', icon: DollarSign }
           ]
         }
       ];
     } 
     
-    if (userRole === 'seller') {
+    if (dashboardType === 'seller') {
       return [
         {
           id: 'dashboard',
@@ -188,7 +200,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Switch to Buyer',
           icon: Users,
           items: [
-            { path: '/buyer/dashboard', label: 'Buyer Dashboard', icon: Package }
+           { path: '/buyer/dashboard', label: 'Buyer Dashboard', icon: Package }
           ]
         }
       ];
@@ -257,6 +269,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         icon: Users,
         items: [
           { path: '/seller/dashboard', label: 'Seller Dashboard', icon: DollarSign }
+
         ]
       },
       
@@ -267,7 +280,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
   const navigationConfig = getNavigationConfig();
 
   const isActiveItem = (path) => {
-    return location.pathname === path;
+    return location.pathname.startsWith(path);
   };
 
   const isActiveGroup = (groupItems) => {

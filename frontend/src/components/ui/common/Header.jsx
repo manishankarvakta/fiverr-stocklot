@@ -10,7 +10,7 @@ import ShoppingCartModal from "@/components/cart/ShoppingCart";
 import { Menu, Search, X, ShoppingCart, MessageCircle, ChevronDown, CreditCard, DollarSign, MapPin, LayoutDashboard, Users, Shield, LogOut, User, Plus, Building, Package } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ContextSwitcher from "@/components/seller/ContextSwitcher";
-import api from '@/utils/apiHelper';
+
 import { useLazyGetCartQuery } from "@/store/api/cart.api";
 import { selectCartItemCount } from "@/store/cartSlice";
 // import { Menu } from "@radix-ui/react-menubar";
@@ -359,7 +359,7 @@ function Header() {
                     {user.roles.includes('admin') && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => navigate('/admin')} className="text-red-600">
+                        <DropdownMenuItem onClick={() => navigate('/admin/dashboard')} className="text-red-600">
                           <Shield className="mr-2 h-4 w-4" />
                           Admin Panel
                         </DropdownMenuItem>
