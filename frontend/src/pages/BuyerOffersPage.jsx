@@ -11,14 +11,18 @@ import {
   useAcceptOfferMutation,
   useDeclineOfferMutation,
 } from '@/store/api/buyRequests.api';
+import { useAuth } from '@/auth/AuthProvider';
 
-const BuyerOffersPage = ({ user }) => {
+  const BuyerOffersPage = () => {
+    const auth = useAuth();
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // all, pending, accepted, declined
 
   const navigate = useNavigate();
+
+  const user = auth.user
 
   // RTK Query hooks
   const { 

@@ -135,9 +135,9 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Listings',
           icon: Package,
           items: [
-            { path: '/seller/listings', label: 'My Listings', icon: Package },
+            { path: '/seller/dashboard/listings', label: 'My Listings', icon: Package },
             { path: '/create-listing', label: 'Create Listing', icon: Upload },
-            { path: '/seller/inventory/bulk', label: 'Bulk Update', icon: Upload }
+            { path: '/seller/dashboard/inventory/bulk', label: 'Bulk Update', icon: Upload }
           ]
         },
         {
@@ -154,7 +154,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Listing Performance',
           icon: Package,
           items: [
-            { path: '/seller/performance', label: 'Listing Performance', icon: Package },
+            { path: '/seller/dashboard/performance', label: 'Listing Performance', icon: Package },
         
           ]
         },
@@ -181,8 +181,8 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           icon: FileText,
           items: [
             { path: '/checkout', label: 'checkout', icon: FileText },
-            { path: '/orders/OrderDetail', label: 'All Orders', icon: FileText },
-            { path: '/orders/pending', label: 'Pending', icon: FileText }
+            { path: '/seller/dashboard/orders', label: 'All Orders', icon: FileText },
+            { path: '/seller/dashboard/orders/pending', label: 'Pending', icon: FileText }
           ]
         },
         //report
@@ -191,7 +191,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Reports',
           icon: FileText,
           items: [
-            { path: '/reports/tax', label: 'Reports', icon: FileText }
+            { path: '/seller/dashboard/reports/tax', label: 'Reports', icon: FileText }
           ]
         },
         // Role switcher for dual-role users
@@ -231,7 +231,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         label: 'Buy requests',
         icon: MessageSquare,
         items: [
-          { path: '/offers-inbox', label: 'Accept Offers', icon: MessageSquare }
+          { path: '/buyer/dashboard/offers-inbox', label: 'Accept Offers', icon: MessageSquare }
         ]
       },
       {
@@ -247,9 +247,9 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         label: 'Orders',
         icon: FileText,
         items: [
-          { path: '/orders/:id', label: 'Order', icon: FileText },
+          // { path: '/buyer/dashboard/orders/:id', label: 'Order', icon: FileText },
           { path: '/buyer/dashboard/orders', label: 'My Orders', icon: FileText },
-          { path: '/track-order', label: 'Order tracking', icon: FileText },
+          { path: '/track-order', label: 'Order tracking', icon: FileText, target: '_blank' },
           { path: '/buyer/dashboard/orders/history', label: 'History', icon: Clock },
         ]
       },
@@ -258,8 +258,8 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         label: 'Settings',
         icon: Settings,
         items: [
-          { path: '/profile', label: 'Profile', icon: User },
-          { path: '/addresses', label: 'Addresses', icon: MapPin }
+          { path: '/buyer/dashboard/profile', label: 'Profile', icon: User },
+          { path: '/buyer/dashboard/addresses', label: 'Addresses', icon: MapPin }
         ]
       },
       // Role switcher for dual-role users
@@ -294,6 +294,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
     return (
       <NavLink
         to={item.path}
+        target={item.target || '_self'}
         className={`
           flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200
           ${isNested ? 'ml-6 text-sm' : 'text-sm font-medium'}
