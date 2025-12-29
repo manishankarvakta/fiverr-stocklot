@@ -466,27 +466,49 @@ function App() {
               </Route>
 
               {/* =================== ADMIN ROUTES =================== */}
-              <Route element={<ProtectedRoute roles={['admin']} />}>
-                <Route path="/admin" element={<AdminDashboardPage />} />
-                <Route path="/admin/blog/create" element={<BlogEditor />} />
-                <Route path="/admin/blog/edit/:id" element={<BlogEditor />} />
-                <Route path="/create-blog" element={<BlogEditor />} />
-                <Route path="/admin/analytics/overview" element={<AdminAnalyticsOverview />} />
-                <Route path="/admin/analytics/pdp" element={<AdminAnalyticsPDP />} />
-                <Route path="/admin/analytics/sellers/:id" element={<AdminSellerPerformance />} />
-                <Route path="/admin/reports/revenue" element={<AdminRevenueReport />} />
-                <Route path="/admin/moderation/users" element={<UserModeration />} />
-                <Route path="/admin/moderation/listings" element={<ListingsModeration />} />
-                <Route path="/admin/moderation/buy-requests" element={<BuyRequestModeration />} />
-                <Route path="/admin/moderation/reviews" element={<ReviewModeration />} />
-                <Route path="/admin/moderation/roles" element={<RolesQueue />} />
-                <Route path="/admin/experiments" element={<AdminExperiments />} />
-                <Route path="/admin/experiments/:id" element={<AdminExperimentResults />} />
-              </Route>
+              {/* <Route  path="/admin/*" element={<ProtectedRoute roles={['admin']} />}>
+                <Route path="dashboard" element={<AdminDashboardPage />} />
+                <Route path="blog/create" element={<BlogEditor />} />
+                <Route path="blog/edit/:id" element={<BlogEditor />} />
+                <Route path="create-blog" element={<BlogEditor />} />
+                <Route path="analytics/overview" element={<AdminAnalyticsOverview />} />
+                <Route path="analytics/pdp" element={<AdminAnalyticsPDP />} />
+                <Route path="analytics/sellers/:id" element={<AdminSellerPerformance />} />
+                <Route path="reports/revenue" element={<AdminRevenueReport />} />
+                <Route path="moderation/users" element={<UserModeration />} />
+                <Route path="moderation/listings" element={<ListingsModeration />} />
+                <Route path="moderation/buy-requests" element={<BuyRequestModeration />} />
+                <Route path="moderation/reviews" element={<ReviewModeration />} />
+                <Route path="moderation/roles" element={<RolesQueue />} />
+                <Route path="experiments" element={<AdminExperiments />} />
+                <Route path="experiments/:id" element={<AdminExperimentResults />} />
+              </Route> */}
+
+              <Route  path="/admin/*" element={<ProtectedRoute roles={['admin']} />}>
+
+                <Route path="dashboard" element={<DashboardLayout userRole="admin" />}>
+                    <Route index element={<AdminDashboardPage />} />
+                    <Route path="blog/create" element={<BlogEditor />} />
+                    <Route path="blog/edit/:id" element={<BlogEditor />} />
+                    <Route path="create-blog" element={<BlogEditor />} />
+                    <Route path="analytics/overview" element={<AdminAnalyticsOverview />} />
+                    <Route path="analytics/pdp" element={<AdminAnalyticsPDP />} />
+                    <Route path="analytics/sellers/:id" element={<AdminSellerPerformance />} />
+                    <Route path="reports/revenue" element={<AdminRevenueReport />} />
+                    <Route path="moderation/users" element={<UserModeration />} />
+                    <Route path="moderation/listings" element={<ListingsModeration />} />
+                    <Route path="moderation/buy-requests" element={<BuyRequestModeration />} />
+                    <Route path="moderation/reviews" element={<ReviewModeration />} />
+                    <Route path="moderation/roles" element={<RolesQueue />} />
+                    <Route path="experiments" element={<AdminExperiments />} />
+                    <Route path="experiments/:id" element={<AdminExperimentResults />} />
+                </Route>
+              </Route> 
+
 
               {/* =================== SELLER DASHBOARD =================== */}
-              <Route element={<ProtectedRoute roles={['seller']} />}>
-                <Route path="/seller/dashboard" element={<DashboardLayout userRole="seller" />}>
+              <Route  path="/seller/*" element={<ProtectedRoute roles={['seller']} />}>
+                <Route path="dashboard" element={<DashboardLayout userRole="seller" />}>
                   <Route index element={<SellerAnalytics />} />
                   <Route path="analytics" element={<SellerAnalytics />} />
                   {/* <Route path="listings" element={<SellerListings/>} /> */}
@@ -523,8 +545,8 @@ function App() {
               
 
               {/* =================== BUYER DASHBOARD =================== */}
-              <Route element={<ProtectedRoute roles={['buyer']} />}>
-                <Route path="/buyer/dashboard/*" element={<DashboardLayout userRole="buyer" />}>
+              <Route path="/buyer/*" element={<ProtectedRoute roles={['buyer']} />}>
+                <Route path="dashboard" element={<DashboardLayout userRole="buyer" />}>
                   <Route index element={<Wishlist />} /> 
                   <Route path="offers-inbox" element={<BuyerOffersPage />} />
                   <Route path="orders" element={<MyOrders />} />

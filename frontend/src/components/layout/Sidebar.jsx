@@ -67,9 +67,9 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Analytics',
           icon: BarChart3,
           items: [
-            { path: '/admin/analytics/overview', label: 'Overview', icon: BarChart3 },
-            { path: '/admin/analytics/pdp', label: 'Product Analytics', icon: Eye },
-            { path: '/admin/reports/revenue', label: 'Revenue Reports', icon: DollarSign }
+            { path: '/admin/dashboard/analytics/overview', label: 'Overview', icon: BarChart3 },
+            { path: '/admin/dashboard/analytics/pdp', label: 'Product Analytics', icon: Eye },
+            { path: '/admin/dashboard/reports/revenue', label: 'Revenue Reports', icon: DollarSign }
           ]
         },
         {
@@ -77,11 +77,11 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Moderation',
           icon: Shield,
           items: [
-            { path: '/admin/moderation/users', label: 'Users', icon: Users },
-            { path: '/admin/moderation/listings', label: 'Listings', icon: Package },
-            { path: '/admin/moderation/buy-requests', label: 'Buy Requests', icon: MessageSquare },
-            { path: '/admin/moderation/reviews', label: 'Reviews', icon: Star },
-            { path: '/admin/moderation/roles', label: 'Role Requests', icon: Shield }
+            { path: '/admin/dashboard/moderation/users', label: 'Users', icon: Users },
+            { path: '/admin/dashboard/moderation/listings', label: 'Listings', icon: Package },
+            { path: '/admin/dashboard/moderation/buy-requests', label: 'Buy Requests', icon: MessageSquare },
+            { path: '/admin/dashboard/moderation/reviews', label: 'Reviews', icon: Star },
+            { path: '/admin/dashboard/moderation/roles', label: 'Role Requests', icon: Shield }
           ]
         },
         {
@@ -89,8 +89,8 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'A/B Testing',
           icon: Target,
           items: [
-            { path: '/admin/experiments', label: 'Experiments', icon: Target },
-            { path: '/admin/experiments/results', label: 'Results', icon: BarChart3 }
+            { path: '/admin/dashboard/experiments', label: 'Experiments', icon: Target },
+            { path: '/admin/dashboard/experiments/results', label: 'Results', icon: BarChart3 }
           ]
         },
         {
@@ -98,8 +98,8 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Settings',
           icon: Settings,
           items: [
-            { path: '/admin/settings', label: 'General', icon: Settings },
-            { path: '/admin/settings/fees', label: 'Fees', icon: DollarSign }
+            { path: '/admin/dashboard/settings', label: 'General', icon: Settings },
+            { path: '/admin/dashboard/settings/fees', label: 'Fees', icon: DollarSign }
           ]
         }
       ];

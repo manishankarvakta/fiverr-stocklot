@@ -241,7 +241,7 @@ const DashboardLayout = () => {
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => navigate("/admin")}
+                        onClick={() => navigate("/admin/dashboard")}
                         className="text-red-600"
                       >
                         <Shield className="mr-2 h-4 w-4" />
