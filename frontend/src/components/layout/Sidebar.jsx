@@ -182,7 +182,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           items: [
             { path: '/checkout', label: 'checkout', icon: FileText },
             { path: '/seller/dashboard/orders', label: 'All Orders', icon: FileText },
-            { path: '/seller/dashboard/orders/pending', label: 'Pending', icon: FileText }
+            // { path: '/seller/dashboard/orders/pending', label: 'Pending', icon: FileText }
           ]
         },
         //report
