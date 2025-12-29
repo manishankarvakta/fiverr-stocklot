@@ -126,6 +126,7 @@ import SellerProfile from './components/seller/SellerProfile';
 import "./App.css";
 import CreateListing from "./components/pagesNo/CreateListing";
 import Marketplace from "./components/pagesNo/Marketplace";
+import FoundError from "./components/issue/FoundError";
 // import Expertise  from "./components/seller/profile/Expertise";
 // Main App component
 function App() {
@@ -537,7 +538,10 @@ function App() {
 
               {/* =================== ERROR ROUTES =================== */}
               <Route path="/403" element={<div className="text-center p-8"><h1 className="text-2xl font-bold text-red-600">Access Denied</h1><p>You don't have permission to access this page.</p></div>} />
-              <Route path="*" element={<div className="text-center p-8"><h1 className="text-2xl font-bold">Page Not Found</h1></div>} />
+              {/* <Route path="*" element={<div className="text-center p-8"><h1 className="text-2xl font-bold">Page Not Found</h1></div>} /> */}
+              {/* <Route path="/404" element={<div className="text-center items-center p-8"><h1 className="text-5xl font-bold">404</h1></div>} /> */}
+
+              <Route path="*" element={<FoundError />} />
 
             </Routes>
           </main>

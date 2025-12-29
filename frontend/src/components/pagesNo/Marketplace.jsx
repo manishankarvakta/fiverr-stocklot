@@ -111,13 +111,102 @@ function Marketplace() {
 //   return unique;
 // }, [categoriesData]);
 
+// const categoryGroups = useMemo(() => {
+//   if (!categoriesData) return [];
+
+//   const raw = Array.isArray(categoriesData)
+//     ? categoriesData
+//     : categoriesData.categories || [];
+
+//   const seen = new Set();
+//   const result = [];
+
+//   for (const item of raw) {
+//     if (!item?.id) continue;
+
+//     if (!seen.has(item.id)) {
+//       seen.add(item.id);
+//       result.push(item);
+//     }
+//   }
+
+//   return result;
+// }, [categoriesData]);
+
+
+// ✅ Duplicate remove করার সঠিক function
+// const categoryGroups = useMemo(() => {
+//   if (!categoriesData) return [];
+
+//   // Handle both array and object with categories property
+//   const raw = Array.isArray(categoriesData) 
+//     ? categoriesData 
+//     : categoriesData.categories || [];
+
+//   // Remove duplicates by ID (or name if ID doesn't exist)
+//   const uniqueMap = new Map();
+  
+//   raw.forEach(item => {
+//     // Use ID as primary key, fallback to name
+//     const key = item.id || item.name;
+    
+//     // Only add if not already in map (keeps first occurrence)
+//     if (!uniqueMap.has(key)) {
+//       uniqueMap.set(key, item);
+//     }
+//   });
+
+//   return Array.from(uniqueMap.values());
+// }, [categoriesData]);
+
+
 const categoryGroups = useMemo(() => {
-    if (!categoriesData) return [];
-    // Handle both array and object with categories property
-    if (Array.isArray(categoriesData)) return categoriesData;
-    if (categoriesData.categories) return categoriesData.categories;
-    return [];
-  }, [categoriesData]);
+  if (!categoriesData) return [];
+
+  const raw = Array.isArray(categoriesData) 
+    ? categoriesData 
+    : categoriesData.categories || [];
+
+  // ✅ Remove duplicates by NAME (not ID)
+  const uniqueMap = new Map();
+  
+  raw.forEach(item => {
+    if (item.name && !uniqueMap.has(item.name)) {
+      uniqueMap.set(item.name, item);
+    }
+  });
+
+  return Array.from(uniqueMap.values());
+}, [categoriesData]);
+
+
+
+
+// const categoryGroups = useMemo(() => {
+//     if (!categoriesData) return [];
+//     // Handle both array and object with categories property
+//     if (Array.isArray(categoriesData)) return categoriesData;
+//     if (categoriesData.categories) return categoriesData.categories;
+//     return [];
+//   }, [categoriesData]);
+
+
+
+// const categoryGroups = useMemo(() => {
+//   if (!categoriesData) return [];
+
+//   const raw = Array.isArray(categoriesData)
+//     ? categoriesData
+//     : categoriesData.categories || [];
+
+//   // ✅ DEDUPE BY ID (MOST IMPORTANT)
+//   const unique = Array.from(
+//     new Map(raw.map(item => [item.id, item])).values()
+//   );
+
+//   return unique;
+// }, [categoriesData]);
+
 
   
   const productTypes = useMemo(() => {
@@ -551,7 +640,7 @@ const categoryGroups = useMemo(() => {
                   </SelectTrigger>
                   <SelectContent>
                     {categoryGroups.map((group, index) => (
-                      <SelectItem key={group.id || index} value={group.id || ''}>
+                      <SelectItem key={group.name || index} value={group.id || ''}>
                         {group.name || 'Unknown Category'}
                       </SelectItem>
                     ))}
