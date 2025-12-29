@@ -30,6 +30,18 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // const location = useLocation();
+  // console.log(location); 
+  // location.pathname -> "/buyer/dashboard/123"
+
+  // Split the path to get segments
+  const segments = location.pathname.split('/').filter(Boolean); 
+  // segments -> ["buyer", "dashboard", "123"]
+
+  const dashboardType = segments[0]; // index 2 = the 3rd part of URL
+  // console.log('Buyer ID:', dashboardType);
+  // const dashboardType = usePathname();
+
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => 
       prev.includes(groupId) 
@@ -40,7 +52,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
 
   // Define navigation structure based on user role
   const getNavigationConfig = () => {
-    if (userRole === 'admin') {
+    if (dashboardType === 'admin') {
       return [
         {
           id: 'dashboard',
@@ -93,7 +105,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
       ];
     } 
     
-    if (userRole === 'seller') {
+    if (dashboardType === 'seller') {
       return [
         {
           id: 'dashboard',
@@ -188,7 +200,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
           label: 'Switch to Buyer',
           icon: Users,
           items: [
-            { path: '/buyer/dashboard', label: 'Buyer Dashboard', icon: Package }
+           { path: '/buyer/dashboard', label: 'Buyer Dashboard', icon: Package }
           ]
         }
       ];
@@ -257,6 +269,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
         icon: Users,
         items: [
           { path: '/seller/dashboard', label: 'Seller Dashboard', icon: DollarSign }
+
         ]
       },
       
@@ -267,7 +280,7 @@ const Sidebar = ({ userRole = 'seller', isCollapsed = false, onToggle }) => {
   const navigationConfig = getNavigationConfig();
 
   const isActiveItem = (path) => {
-    return location.pathname === path;
+    return location.pathname.startsWith(path);
   };
 
   const isActiveGroup = (groupItems) => {

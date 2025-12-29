@@ -29,11 +29,12 @@ import {
 
 /* ---------------- User Trigger ---------------- */
 const UserTrigger = ({ user }) => {
+
   const name = user?.full_name || user?.name || "User";
   console.log("User name:", name);
   const roles = user?.roles || [];
   const firstLetter = (name && name.length > 0) ? name.charAt(0).toUpperCase() : "U";
-
+  
   return (
     <div className="flex items-center gap-3 px-2 py-1 hover:bg-gray-100 rounded-lg cursor-pointer">
       <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-semibold">
@@ -64,7 +65,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const { user, switchRole, status } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
+  
   // Prevent rendering before user loads
   if (status === 'loading' || !user) {
     return (
@@ -81,22 +82,33 @@ const DashboardLayout = () => {
   const isAdmin = roles.includes("admin");
   const isSeller = roles.includes("seller");
   const isBuyer = roles.includes("buyer");
-
-  // Derive current role (admin > seller > buyer)
+  
   const currentRole = isAdmin ? 'admin' : isSeller ? 'seller' : 'buyer';
+  const [activeRole, setActiveRole] = useState(currentRole);
+  // Derive current role (admin > seller > buyer)
 
   const toggleSidebar = () => setSidebarCollapsed((p) => !p);
 
-  const handleRoleSwitch = async () => {
-    try {
-      const newRole = isSeller ? 'buyer' : 'seller';
-      await switchRole(newRole);
-      // UI will update automatically due to state change
-    } catch (error) {
-      console.error('Failed to switch role:', error);
-      // Could add toast notification here
-    }
-  };
+  // const handleRoleSwitch = async () => {
+  //   try {
+  //     const newRole = isSeller ? 'buyer' : 'seller';
+  //     await switchRole(newRole);
+  //     // UI will update automatically due to state change
+  //   } catch (error) {
+  //     console.error('Failed to switch role:', error);
+  //     // Could add toast notification here
+  //   }
+  // };
+ const handleRoleSwitch = async () => {
+  try {
+    const newRole = activeRole === 'seller' ? 'buyer' : 'seller';
+    await switchRole(newRole);
+    setActiveRole(newRole); // update local state
+    navigate("/dashboard"); // redirect to /dashboard
+  } catch (error) {
+    console.error('Failed to switch role:', error);
+  }
+};
 
   const handleLogout = () => {
     // logout logic here
@@ -112,7 +124,7 @@ const DashboardLayout = () => {
         }`}
       >
         <Sidebar
-          userRole={currentRole}
+          userRole={activeRole}
           isCollapsed={sidebarCollapsed}
           onToggle={toggleSidebar}
         />
@@ -190,10 +202,23 @@ const DashboardLayout = () => {
 
                   <DropdownMenuSeparator />
 
+                  {/* <DropdownMenuItem 
+                    onClick={() => navigate(userRole === 'seller' ? '/seller/dashboard' : '/buyer/dashboard')}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </DropdownMenuItem> */}
+                  {/* <DropdownMenuItem 
+                    onClick={() => navigate(currentRole === 'seller' ? '/seller/dashboard' : '/buyer/dashboard')}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </DropdownMenuItem> */}
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard
                   </DropdownMenuItem>
+
 
                   <DropdownMenuItem onClick={() => navigate("/inbox")}>
                     <MessageCircle className="mr-2 h-4 w-4" />
