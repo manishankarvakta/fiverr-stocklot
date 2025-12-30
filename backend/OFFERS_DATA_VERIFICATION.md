@@ -97,7 +97,7 @@ docker exec -it stocklot-backend python seed_buy_requests_and_offers.py
 ### With Environment Variable:
 ```bash
 cd backend
-MONGO_URL="mongodb://admin:adminpassword@stocklot-mongodb:27017/" \
+MONGO_URL="mongodb://admin:adminpassword@mongodb:27017/" \
 python seed_buy_requests_and_offers.py
 ```
 

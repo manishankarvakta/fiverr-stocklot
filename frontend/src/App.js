@@ -199,7 +199,6 @@ function App() {
   //                 {/* Seller Routes */}
   //                 <Route path="/seller/listings" element={<MyListings />} />
   //                 <Route path="/seller/analytics" element={<SellerAnalytics />} />
-  //                 <Route path="/seller/performance" element={<ListingPerformance />} />
   //                 <Route path="/seller/reviews" element={<CustomerReviews />} />
                   
   //                 {/* Buyer Routes */}
@@ -425,7 +424,7 @@ function App() {
                 {/* Generic Protected */}
                 <Route path="/create-listing" element={<CreateListing />} />
                 <Route path="/create-buy-request" element={<CreateBuyRequestPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                {/* <Route path="/buyer/dashboard/profile" element={<ProfilePage />} /> */}
                 <Route path="/payment-methods" element={<PaymentMethodsPage />} />
                 <Route path="/addresses" element={<AddressesPage />} />
                 <Route path="/dashboard" element={<UniversalDashboard />} />
@@ -433,7 +432,7 @@ function App() {
                 <Route path="/create-organization" element={<CreateOrganizationPage />} />
                 <Route path="/orgs/:handle/dashboard" element={<OrganizationDashboard />} />
                 <Route path="/referrals" element={<ReferralDashboard />} />
-                <Route path="/offers-inbox" element={<BuyerOffersInbox />} />
+                {/* <Route path="/offers-inbox" element={<BuyerOffersInbox />} /> */}
                 <Route path="/inbox" element={<UnifiedInbox />} />
                 <Route path="/reviews-test" element={<ReviewsTestPage />} />
                 
@@ -446,14 +445,13 @@ function App() {
                 {/* Seller */}
                 <Route path="/seller/listings" element={<MyListings />} />
                 <Route path="/seller/analytics" element={<SellerAnalytics />} />
-                <Route path="/seller/performance" element={<ListingPerformance />} />
                 <Route path="/seller/reviews" element={<CustomerReviews />} />
 
                 {/* Buyer */}
                 <Route path="/buyer/saved-searches" element={<SavedSearches />} />
 
                 {/* Reports */}
-                <Route path="/reports/tax" element={<TaxReports />} />
+                
 
                 {/* Settings */}
                 <Route path="/settings/notifications" element={<NotificationSettings />} />
@@ -512,10 +510,13 @@ function App() {
                   <Route index element={<SellerAnalytics />} />
                   <Route path="analytics" element={<SellerAnalytics />} />
                   {/* <Route path="listings" element={<SellerListings/>} /> */}
+                  <Route path="listings" element={<MyListings />} />
                   <Route path="listings/create" element={<CreateListing />} />
                   {/* <Route path="inventory/bulk" element={<BulkUpdate />} /> */}
                   <Route path="profile/basic" element={<BasicInfo />} />
                   <Route path="profile/business" element={<BusinessInfo />} />
+                  <Route path="performance" element={<ListingPerformance />} />
+                  <Route path="reports/tax" element={<TaxReports />} />
                   {/* <Route path="profile/expertise" element={<Expertise />} /> */}
                   {/* <Route path="profile/photos" element={<Photos />} /> */}
                   {/* <Route path="profile/policies" element={<Policies />} /> */}
@@ -548,13 +549,15 @@ function App() {
               <Route path="/buyer/*" element={<ProtectedRoute roles={['buyer']} />}>
                 <Route path="dashboard" element={<DashboardLayout userRole="buyer" />}>
                   <Route index element={<Wishlist />} /> 
-                  <Route path="offers-inbox" element={<BuyerOffersPage />} />
+                  <Route path="offers-inbox" element={<BuyerOffersPage  />} />
                   <Route path="orders" element={<MyOrders />} />
                   <Route path="orders/tracking" element={<OrderTracking />} />
                   <Route path="orders/history" element={<OrderHistory />} />
                   <Route path="wishlist" element={<Wishlist />} />
                   <Route path="price-alerts" element={<PriceAlerts />} />
-                  <Route path="trading-statements" element={<MonthlyTradingStatements />} />
+                  <Route path="trading-statements" element={<MonthlyTradingStatements />} />\
+                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="addresses" element={<AddressesPage />} />
                 </Route>
               </Route>
 

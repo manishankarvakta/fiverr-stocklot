@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # MongoDB connection
 # Use environment variable or default to the same connection as server.py
 # If running locally (outside Docker), use localhost:27025 (exposed port)
-# If running in Docker, use stocklot-mongodb:27017
+# If running in Docker, use clients-stocklot-z8penj-mongodb-1:27025
 import socket
 def is_docker_available():
     """Check if we can resolve stocklot-mongodb hostname"""
@@ -35,7 +35,7 @@ def is_docker_available():
         return False
 
 if is_docker_available():
-    DEFAULT_MONGO_URL = "mongodb://admin:adminpassword@stocklot-mongodb:27017/"
+    DEFAULT_MONGO_URL = "mongodb://admin:adminpassword@mongodb:27017/"
 else:
     # Running locally, use exposed port
     DEFAULT_MONGO_URL = "mongodb://admin:adminpassword@localhost:27025/"

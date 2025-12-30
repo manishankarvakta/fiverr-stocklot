@@ -175,7 +175,6 @@ const ListingPerformance = () => {
 
   return (
     <>
-    <Header />
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-emerald-900">Listing Performance</h1>
@@ -383,7 +382,6 @@ const ListingPerformance = () => {
         </Card>
       )}
     </div>
-      <Footer />
     </>
   );
 };
