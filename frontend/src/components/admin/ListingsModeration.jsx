@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Search, Filter, Eye, CheckCircle, XCircle, AlertTriangle, Package } from 'lucide-react';
+import { useGetAdminListingsQuery } from '@/store/api/admin.api';
+
 // import adminApi from '../../api/adminClient';
 
 const ListingsModeration = () => {
-  const [listings, setListings] = useState([]);
+  // const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     status: 'pending',
@@ -13,6 +15,19 @@ const ListingsModeration = () => {
   });
   const [selectedListing, setSelectedListing] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
+
+// const { data, isLoading, isError } = useGetAdminListingsQuery({
+//   status: filters.status !== 'all' ? filters.status : undefined,
+//   page,
+//   limit: 20,
+// });
+const {data, isLoading, isError}= useGetAdminListingsQuery()
+
+console.log("Admin Listings Data:", data, isLoading, isError);
+
+const listings = data?.listings || [];
+const pagination = data?.pagination;
+
 
   useEffect(() => {
     loadListings();

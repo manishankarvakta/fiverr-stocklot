@@ -231,12 +231,11 @@ export const adminApi = baseApi.injectEndpoints({
     }),
 
     approveListing: builder.mutation({
-      query: ({ listingId, ...data }) => ({
+      query: (listingId) => ({
         url: `/admin/listings/${listingId}/approve`,
         method: 'POST',
-        body: data,
       }),
-      invalidatesTags: ['Admin', 'Listing'],
+      invalidatesTags: [{ type: 'Listing', id: 'LIST' }],
     }),
 
     rejectListing: builder.mutation({

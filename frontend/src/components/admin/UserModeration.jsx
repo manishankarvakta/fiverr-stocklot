@@ -15,7 +15,14 @@ const UserModeration = () => {
   });
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
-  const {data:users, error, isLoading, isError} = useGetAllUsersQuery();
+  // const {data:users, error, isLoading, isError} = useGetAllUsersQuery();
+
+  const { data: users = [], isLoading, isError, error } = useGetAllUsersQuery({
+  status: filters.status !== 'all' ? filters.status : undefined,
+  role: filters.role !== 'all' ? filters.role : undefined,
+  kyc_level: filters.kyc_level !== 'all' ? filters.kyc_level : undefined,
+  search: filters.search || undefined,
+});
 
   console.log("All Users Data:", users, isLoading, isError, error);
   useEffect(() => {
