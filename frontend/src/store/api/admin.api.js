@@ -974,6 +974,17 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: ['Admin'],
     }),
 
+    getRevenueSummary: builder.query({
+      query: ({ startDate, endDate }) => ({
+        url: '/admin/fees/revenue-summary',
+        params: {
+          start_date: startDate,
+          end_date: endDate
+        }
+      }),
+      providesTags: ['Admin', 'Revenue'],
+    }),
+
     // Moderation Recent
     getAdminModerationRecent: builder.query({
       query: (params = {}) => ({
@@ -1170,6 +1181,7 @@ export const {
   useGetAdminDashboardStatsQuery,
   useLazyGetAdminDashboardStatsQuery,
   useGetAdminModerationRecentQuery,
+  useGetRevenueSummaryQuery,
   useLazyGetAdminModerationRecentQuery,
 } = adminApi;
 
