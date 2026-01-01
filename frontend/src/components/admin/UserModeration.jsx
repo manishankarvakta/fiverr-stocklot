@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Search, Filter, MoreVertical, Ban, CheckCircle, AlertTriangle, User } from 'lucide-react';
+import { useGetAllUsersQuery } from '@/store/api/admin.api';
 // import adminApi from '../../api/adminClient';
 
 const UserModeration = () => {
-  const [users, setUsers] = useState([]);
+  // const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     status: 'all',
@@ -14,7 +15,9 @@ const UserModeration = () => {
   });
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
+  const {data:users, error, isLoading, isError} = useGetAllUsersQuery();
 
+  console.log("All Users Data:", users, isLoading, isError, error);
   useEffect(() => {
     loadUsers();
   }, [filters]);
@@ -29,8 +32,8 @@ const UserModeration = () => {
       if (filters.kyc_level !== 'all') params.kyc_level = filters.kyc_level;
       if (filters.search) params.search = filters.search;
       
-      const response = await adminApi.get('/admin/users', { params });
-      setUsers(response.data.users || []);
+      // const response = await adminApi.get('/admin/users', { params });
+      // setUsers(response.data.users || []);
       
     } catch (error) {
       console.error('Error loading users:', error);
@@ -120,11 +123,11 @@ const UserModeration = () => {
       banned: 'bg-gray-100 text-gray-800'
     };
     
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.pending}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
+    // return (
+    //   <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.pending}`}>
+    //     {status.charAt(0).toUpperCase() + status.slice(1)}
+    //   </span>
+    // );
   };
 
   const getRoleColor = (roles) => {

@@ -297,7 +297,7 @@ export const adminApi = baseApi.injectEndpoints({
         url: '/admin/buy-requests/moderation',
         params,
       }),
-      providesTags: ['Admin', 'BuyRequest'],
+      providesTags: ['Admin'],
     }),
 
     moderateBuyRequest: builder.mutation({
@@ -430,8 +430,9 @@ export const adminApi = baseApi.injectEndpoints({
     getRoleRequests: builder.query({
       query: (params = {}) => ({
         url: '/admin/roles/requests',
-        params,
+        params: filters,
       }),
+      
       providesTags: ['Admin'],
     }),
 

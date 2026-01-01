@@ -1,23 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
 import { Users, Clock, Check, X, Eye, MessageSquare, Shield, Star, Calendar, Filter, Search, FileText, UserPlus, Truck, Building, CheckCircle, XCircle } from 'lucide-react';
+import { useGetRoleRequestsQuery } from '@/store/api/admin.api';
 // import adminApi from '../../api/adminClient';
 
 const RolesQueue = () => {
-  const [requests, setRequests] = useState([]);
+  // const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     status: 'PENDING',
     role: '',
-    search: ''
+    search: '', 
+    q:'',
   });
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadRequests();
-  }, [filters]);
+  const {data, error, isLoading, isError} = useGetRoleRequestsQuery(filters);
+  console.log("Role Requests Data:", data, isLoading, isError, error);
+  const requests = data?.rows || [];
+  console.log("Fetched Role Requests:", requests);
+
+
+  // useEffect(() => {
+  //   loadRequests();
+  // }, [filters]);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -53,7 +61,7 @@ const RolesQueue = () => {
       alert(`Role request ${actionText} successfully!`);
       
       // Reload requests
-      await loadRequests();
+      // await loadRequests();
       setShowDetail(false);
       setSelectedRequest(null);
       

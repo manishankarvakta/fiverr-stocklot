@@ -31,7 +31,7 @@ from email_preferences_service import EmailPreferencesService, EmailPreferenceSt
 # from notification_service import send_welcome_email, send_order_confirmation, send_login_alert
 from blog_service import BlogService, BlogStatus, AIModel
 from referral_service import ReferralService, ReferralStage, RewardType
-from buy_request_service import BuyRequestService, BuyRequestStatus, OfferStatus, notify_nearby_sellers
+from buy_request_service import BuyRequestService, ModerationStatus, BuyRequestStatus, OfferStatus, notify_nearby_sellers
 
 # Import new extended services
 from messaging_service import MessagingService
@@ -12108,17 +12108,25 @@ async def get_moderation_queue(
     
     try:
         buy_request_service = BuyRequestService(db)
-        
+
+        # Convert string to Enum
+        moderation_status = ModerationStatus(status)
+
+        # ✅ Pass Enum to service
         requests = await buy_request_service.get_moderation_queue(
-            status=status,
+            status=moderation_status,
             limit=limit
         )
         
         return {"items": requests}
         
+    except ValueError:
+        # যদি invalid status আসে
+        raise HTTPException(status_code=400, detail="Invalid moderation status")
     except Exception as e:
         logger.error(f"Error fetching moderation queue: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch moderation queue")
+
 
 @api_router.post("/admin/buy-requests/{request_id}/moderate")
 async def moderate_buy_request(
