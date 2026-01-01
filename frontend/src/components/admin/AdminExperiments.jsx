@@ -19,6 +19,7 @@ const AdminExperiments = () => {
 
 const {data, isLoading, isError, refetch} = useGetABTestsQuery();
 console.log("Experiments Data:", data, isLoading, isError);
+
   useEffect(() => {
     loadExperiments();
   }, []);
