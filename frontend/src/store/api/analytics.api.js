@@ -44,10 +44,11 @@ export const analyticsApi = baseApi.injectEndpoints({
     }),
 
     getPDPAnalytics: builder.query({
-      query: (params = {}) => ({
+      query: (params = {days : 30}) => ({
         url: '/admin/analytics/pdp',
         params,
       }),
+      providesTags: ['Admin'],
     }),
 
     getABTestConfig: builder.query({

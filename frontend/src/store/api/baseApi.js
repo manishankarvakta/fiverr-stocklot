@@ -14,7 +14,17 @@ const baseQuery = fetchBaseQuery({
   baseUrl: `${getBackendUrl()}/api`,
   credentials: 'include', // Include cookies for session-based auth
   prepareHeaders: (headers, { getState }) => {
+
+  //   const token =
+  // getState().auth?.accessToken ||
+  // localStorage.getItem('token');
+  //   if (token) {
+  //     headers.set('Authorization', `Bearer ${token}`);
+  //   }
+
     // Get token from localStorage
+    
+    // const token = getState().auth?.accessToken;
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     
     // If we have a token, add it to headers

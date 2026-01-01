@@ -8086,7 +8086,11 @@ async def get_pdp_analytics(
     current_user: User = Depends(get_current_user)
 ):
     """Get PDP analytics for admin dashboard"""
-    if not current_user or current_user.user_type != "admin":
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # ✅ Fixed: Check roles instead of user_type
+    if UserRole.ADMIN not in current_user.roles:
         raise HTTPException(status_code=403, detail="Admin access required")
     
     try:

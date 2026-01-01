@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Eye, MousePointer, ShoppingCart, TrendingUp, Filter } from 'lucide-react';
+import { useGetPDPAnalyticsQuery } from '@/store/api/analytics.api';
 // import adminApi from '../../api/adminClient';
 
 const AdminAnalyticsPDP = () => {
@@ -18,6 +19,8 @@ const AdminAnalyticsPDP = () => {
   useEffect(() => {
     loadPDPAnalytics();
   }, [filters]);
+  const {data , isLoading, isError, error} = useGetPDPAnalyticsQuery({ days: 30 });
+  console.log('this is the pdp data', data, isLoading, isError, error);
 
   const loadPDPAnalytics = async () => {
     try {
@@ -26,8 +29,9 @@ const AdminAnalyticsPDP = () => {
       const response = await adminApi.get('/admin/analytics/pdp', {
         params: filters
       });
+
       
-      const data = response.data;
+      // const data = response.data;
       setPdpData(data.overview || {});
       setTopListings(data.top_listings || []);
       setConversionData(data.conversion_funnel || []);
