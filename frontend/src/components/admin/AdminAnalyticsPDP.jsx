@@ -1,78 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Eye, MousePointer, ShoppingCart, TrendingUp, Filter } from 'lucide-react';
 import { useGetPDPAnalyticsQuery } from '@/store/api/analytics.api';
-// import adminApi from '../../api/adminClient';
 
 const AdminAnalyticsPDP = () => {
-  const [pdpData, setPdpData] = useState({});
-  const [topListings, setTopListings] = useState([]);
-  const [conversionData, setConversionData] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    period: '30d',
+    period: 30,
     category: 'all',
     price_range: 'all'
   });
 
-  useEffect(() => {
-    loadPDPAnalytics();
-  }, [filters]);
-  const {data , isLoading, isError, error} = useGetPDPAnalyticsQuery({ days: 30 });
-  console.log('this is the pdp data', data, isLoading, isError, error);
+  // Fetch data from API
+  const { data, isLoading, isError, error } = useGetPDPAnalyticsQuery({ days: filters.period });
 
-  const loadPDPAnalytics = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await adminApi.get('/admin/analytics/pdp', {
-        params: filters
-      });
+  // Process data for conversion funnel
+  const conversionFunnelData = useMemo(() => {
+    if (!data) return [];
+    
+    return [
+      { stage: 'Page Views', users: data.total_views || 0, percentage: 100 },
+      { stage: 'Unique Viewers', users: data.unique_viewers || 0, percentage: ((data.unique_viewers / data.total_views) * 100 || 0).toFixed(1) },
+      { stage: 'Cart Adds', users: data.cart_adds || 0, percentage: ((data.cart_adds / data.total_views) * 100 || 0).toFixed(1) },
+      { stage: 'Purchases', users: Math.round((data.cart_adds * data.conversion_rate) / 100) || 0, percentage: data.conversion_rate || 0 }
+    ];
+  }, [data]);
 
-      
-      // const data = response.data;
-      setPdpData(data.overview || {});
-      setTopListings(data.top_listings || []);
-      setConversionData(data.conversion_funnel || []);
-      
-    } catch (error) {
-      console.error('Error loading PDP analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Conversion metrics cards
+  const conversionMetrics = useMemo(() => {
+    if (!data) return [];
+    
+    return [
+      {
+        title: 'Total Page Views',
+        value: data.total_views || 0,
+        icon: Eye,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100'
+      },
+      {
+        title: 'Unique Viewers',
+        value: data.unique_viewers || 0,
+        icon: MousePointer,
+        color: 'text-green-600',
+        bgColor: 'bg-green-100'
+      },
+      {
+        title: 'Cart Additions',
+        value: data.cart_adds || 0,
+        icon: ShoppingCart,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-100'
+      },
+      {
+        title: 'Conversion Rate',
+        value: `${data.conversion_rate || 0}%`,
+        icon: TrendingUp,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100'
+      }
+    ];
+  }, [data]);
 
-  const conversionColors = ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
-  const conversionMetrics = [
-    {
-      title: 'Page Views',
-      value: pdpData.total_views || 0,
-      icon: Eye,
-      color: 'text-blue-600'
-    },
-    {
-      title: 'Click-Through Rate',
-      value: `${((pdpData.clicks / pdpData.total_views) * 100 || 0).toFixed(1)}%`,
-      icon: MousePointer,
-      color: 'text-green-600'
-    },
-    {
-      title: 'Add to Cart Rate',
-      value: `${((pdpData.cart_adds / pdpData.total_views) * 100 || 0).toFixed(1)}%`,
-      icon: ShoppingCart,
-      color: 'text-orange-600'
-    },
-    {
-      title: 'Conversion Rate',
-      value: `${((pdpData.purchases / pdpData.total_views) * 100 || 0).toFixed(1)}%`,
-      icon: TrendingUp,
-      color: 'text-purple-600'
-    }
-  ];
-
-  if (loading) {
+  // Loading state
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse">
@@ -82,8 +73,28 @@ const AdminAnalyticsPDP = () => {
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
           </div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-64 bg-gray-200 rounded mb-6"></div>
+          <div className="h-96 bg-gray-200 rounded"></div>
         </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <h3 className="text-red-800 font-semibold mb-2">Error Loading Analytics</h3>
+        <p className="text-red-600">{error?.message || 'Failed to load PDP analytics data'}</p>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!data) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <p className="text-yellow-800">No analytics data available</p>
       </div>
     );
   }
@@ -94,7 +105,9 @@ const AdminAnalyticsPDP = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Product Page Analytics</h1>
-          <p className="text-gray-600 mt-1">Product detail page performance and optimization insights</p>
+          <p className="text-gray-600 mt-1">
+            Product detail page performance over the last {data.period_days} days
+          </p>
         </div>
         
         {/* Filters */}
@@ -103,39 +116,30 @@ const AdminAnalyticsPDP = () => {
             <Filter className="h-4 w-4 text-gray-500" />
             <select
               value={filters.period}
-              onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
-              className="border border-gray-300 rounded px-3 py-1 text-sm"
+              onChange={(e) => setFilters(prev => ({ ...prev, period: parseInt(e.target.value) }))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
             </select>
           </div>
-          
-          <select
-            value={filters.category}
-            onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
-            className="border border-gray-300 rounded px-3 py-1 text-sm"
-          >
-            <option value="all">All Categories</option>
-            <option value="poultry">Poultry</option>
-            <option value="ruminants">Ruminants</option>
-            <option value="exotic">Exotic</option>
-          </select>
         </div>
       </div>
 
-      {/* Conversion Metrics */}
+      {/* Conversion Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {conversionMetrics.map((metric, index) => (
-          <Card key={index}>
+          <Card key={index} className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">{metric.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">{metric.value}</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {typeof metric.value === 'number' ? metric.value.toLocaleString() : metric.value}
+                  </p>
                 </div>
-                <div className={`p-3 rounded-full bg-gray-100 ${metric.color}`}>
+                <div className={`p-3 rounded-full ${metric.bgColor} ${metric.color}`}>
                   <metric.icon className="h-6 w-6" />
                 </div>
               </div>
@@ -144,22 +148,45 @@ const AdminAnalyticsPDP = () => {
         ))}
       </div>
 
-      {/* Conversion Funnel */}
+      {/* Conversion Funnel Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Conversion Funnel</CardTitle>
+          <p className="text-sm text-gray-500 mt-1">User journey from page view to purchase</p>
         </CardHeader>
         <CardContent>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={conversionData} layout="horizontal">
+              <BarChart 
+                data={conversionFunnelData} 
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
-                <YAxis dataKey="stage" type="category" width={120} />
-                <Tooltip formatter={(value) => [value.toLocaleString(), 'Users']} />
-                <Bar dataKey="users" fill="#10b981" />
+                <YAxis dataKey="stage" type="category" />
+                <Tooltip 
+                  formatter={(value, name) => {
+                    if (name === 'users') return [value.toLocaleString(), 'Users'];
+                    return [value, name];
+                  }}
+                  labelFormatter={(label) => `Stage: ${label}`}
+                />
+                <Legend />
+                <Bar dataKey="users" fill="#3b82f6" radius={[0, 8, 8, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          
+          {/* Funnel Summary */}
+          <div className="mt-4 grid grid-cols-4 gap-4 border-t pt-4">
+            {conversionFunnelData.map((stage, index) => (
+              <div key={index} className="text-center">
+                <p className="text-xs text-gray-500">{stage.stage}</p>
+                <p className="text-lg font-bold text-gray-900">{stage.users.toLocaleString()}</p>
+                <p className="text-xs text-gray-400">{stage.percentage}%</p>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -168,39 +195,73 @@ const AdminAnalyticsPDP = () => {
       <Card>
         <CardHeader>
           <CardTitle>Top Performing Listings</CardTitle>
+          <p className="text-sm text-gray-500 mt-1">
+            Showing {data.top_listings?.length || 0} listings sorted by performance
+          </p>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">Listing</th>
-                  <th className="text-right py-2">Views</th>
-                  <th className="text-right py-2">CTR</th>
-                  <th className="text-right py-2">Conversion</th>
-                  <th className="text-right py-2">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topListings.map((listing, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-50">
-                    <td className="py-3">
-                      <div>
-                        <p className="font-medium">{listing.title}</p>
-                        <p className="text-gray-500 text-xs">{listing.category}</p>
-                      </div>
-                    </td>
-                    <td className="text-right py-3">{listing.views.toLocaleString()}</td>
-                    <td className="text-right py-3">{(listing.ctr * 100).toFixed(1)}%</td>
-                    <td className="text-right py-3">{(listing.conversion_rate * 100).toFixed(1)}%</td>
-                    <td className="text-right py-3">R{listing.revenue.toLocaleString()}</td>
+          {data.top_listings && data.top_listings.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left py-3 px-4 font-semibold">Listing</th>
+                    <th className="text-right py-3 px-4 font-semibold">Views</th>
+                    <th className="text-right py-3 px-4 font-semibold">Cart Adds</th>
+                    <th className="text-right py-3 px-4 font-semibold">Conversion Rate</th>
+                    <th className="text-right py-3 px-4 font-semibold">Avg. Time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {data.top_listings.map((listing, index) => (
+                    <tr 
+                      key={listing.listing_id || index} 
+                      className="border-b hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-xs">
+                            #{index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{listing.title}</p>
+                            <p className="text-gray-500 text-xs">{listing.listing_id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="text-right py-3 px-4 font-medium">
+                        {(listing.views || 0).toLocaleString()}
+                      </td>
+                      <td className="text-right py-3 px-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {listing.cart_adds || 0}
+                        </span>
+                      </td>
+                      <td className="text-right py-3 px-4">
+                        <span className="font-semibold text-purple-600">
+                          {listing.conversion_rate || 0}%
+                        </span>
+                      </td>
+                      <td className="text-right py-3 px-4 text-gray-600">
+                        {listing.avg_time_on_page || 0}s
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No listing data available</p>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Data Generation Info */}
+      <div className="text-sm text-gray-500 text-right">
+        <p>Last updated: {new Date(data.generated_at).toLocaleString()}</p>
+      </div>
     </div>
   );
 };
