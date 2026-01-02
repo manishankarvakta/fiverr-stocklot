@@ -8880,12 +8880,16 @@ async def get_daily_analytics(
     
     try:
         from services.analytics_service import AnalyticsService
+         db = get_database() # Ensure db is defined
         analytics = AnalyticsService(db)
         data = await analytics.get_daily_metrics(days)
         return data
     except Exception as e:
         logger.error(f"Error fetching daily analytics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+
+
+
 
 # Reviews Routes
 @api_router.get("/reviews")

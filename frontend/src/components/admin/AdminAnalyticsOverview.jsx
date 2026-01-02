@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Calendar, Download, TrendingUp, TrendingDown, DollarSign, Users, Package, ShoppingCart } from 'lucide-react';
 import { useGetAdminDashboardStatsQuery } from '@/store/api/admin.api';
+import { useGetAdminDailyAnalyticsQuery } from '@/store/api/analytics.api';
 // import adminApi from '../../api/adminClient';
 
 const AdminAnalyticsOverview = () => {
@@ -15,7 +16,8 @@ const AdminAnalyticsOverview = () => {
   const [loading, setLoading] = useState(true);
   const { data: dashboardStats } = useGetAdminDashboardStatsQuery();
   console.log('Dashboard Stats:', dashboardStats);
-
+  const {data: analyticsData, refetch, isLoading, isError, error} = useGetAdminDailyAnalyticsQuery(dateRange, { skip: false });
+  console.log('Analytics Data:', analyticsData);
   useEffect(() => {
     loadAnalyticsData();
   }, [dateRange]);
@@ -65,13 +67,13 @@ const AdminAnalyticsOverview = () => {
     {
       title: 'Total Revenue',
       // value: `R${(dashboardStats.total_revenue || 0).toLocaleString()}`,
-      change: dashboardStats.revenue_change || 0,
+      // change: dashboardStats.revenue_change || 0,
       icon: DollarSign,
       color: 'text-green-600'
     },
     {
       title: 'Active Users',
-      value: (dashboardStats.active_users || 0).toLocaleString(),
+      // value: (dashboardStats.active_users || 0).toLocaleString(),
       change: dashboardStats.user_growth || 0,
       icon: Users,
       color: 'text-blue-600'
