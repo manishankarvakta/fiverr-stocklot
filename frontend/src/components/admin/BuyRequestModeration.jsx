@@ -1,54 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Search, Filter, Eye, CheckCircle, XCircle, MessageSquare, Clock } from 'lucide-react';
-import { useGetAdminBuyRequestsModerationQuery, useModerateBuyRequestMutation } from '@/store/api/admin.api';
-// import adminApi from '../../api/adminClient';
+import { useGetAdminBuyRequestsQuery, useModerateBuyRequestMutation } from '@/store/api/admin.api';
 
 const BuyRequestModeration = () => {
-  const [buyRequests, setBuyRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    status: 'pending',
+    status: 'all',
     category: 'all',
     search: ''
   });
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
-  const [buyRequestModeration] =  useModerateBuyRequestMutation();
 
-  const {data: requestsData, refetch} = useGetAdminBuyRequestsModerationQuery()
-  // console.log("Buy Requests Data:", requestsData);
+  // RTK Query hooks
+  const { data: buyRequestsData, isLoading, refetch } = useGetAdminBuyRequestsQuery();
+  const [moderateBuyRequest] = useModerateBuyRequestMutation();
 
-  useEffect(() => {
-    loadBuyRequests();
-  }, [filters]);
+  console.log("Buy Requests Data:", buyRequestsData);
 
-  const loadBuyRequests = async () => {
-    try {
-      setLoading(true);
-      
-      const params = {};
-      if (filters.status !== 'all') params.moderation_status = filters.status;
-      if (filters.category !== 'all') params.category = filters.category;
-      if (filters.search) params.search = filters.search;
-      
-      const response = await adminApi.get('/admin/buy-requests', { params });
-      setBuyRequests(response.data.buy_requests || []);
-      
-    } catch (error) {
-      console.error('Error loading buy requests:', error);
-    } finally {
-      setLoading(false);
+  // Filter buy requests based on filters
+  const filteredRequests = React.useMemo(() => {
+    if (!buyRequestsData?.buy_requests) return [];
+
+    let filtered = [...buyRequestsData.buy_requests];
+
+    // Filter by status
+    if (filters.status !== 'all') {
+      filtered = filtered.filter(req => req.moderation_status === filters.status);
     }
-  };
 
+    // Filter by category/species
+    if (filters.category !== 'all') {
+      filtered = filtered.filter(req =>
+        req.species?.toLowerCase().includes(filters.category.toLowerCase())
+      );
+    }
 
+    // Filter by search
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(req =>
+        req.species?.toLowerCase().includes(searchLower) ||
+        req.buyer_name?.toLowerCase().includes(searchLower) ||
+        req.buyer_email?.toLowerCase().includes(searchLower) ||
+        req.product_type?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return filtered;
+  }, [buyRequestsData, filters]);
 
   const moderateRequest = async (requestId, action, reason = '') => {
     try {
       setActionLoading(prev => ({ ...prev, [requestId]: action }));
       await moderateBuyRequest({ requestId, action, reason }).unwrap();
       alert(`Buy request ${action}d successfully`);
+      refetch(); // Refresh data
     } catch (error) {
       console.error(error);
       alert(`Failed to ${action} buy request`);
@@ -66,12 +73,13 @@ const BuyRequestModeration = () => {
       approved: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
       pending: 'bg-yellow-100 text-yellow-800',
-      flagged: 'bg-orange-100 text-orange-800'
+      flagged: 'bg-orange-100 text-orange-800',
+      auto_pass: 'bg-blue-100 text-blue-800'
     };
-    
+
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.pending}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status ? status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ') : 'Pending'}
       </span>
     );
   };
@@ -82,15 +90,15 @@ const BuyRequestModeration = () => {
       medium: 'bg-yellow-100 text-yellow-800',
       low: 'bg-green-100 text-green-800'
     };
-    
+
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[priority] || styles.low}`}>
-        {priority}
+        {priority || 'Medium'}
       </span>
     );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse">
@@ -109,6 +117,12 @@ const BuyRequestModeration = () => {
           <h1 className="text-3xl font-bold text-gray-900">Buy Request Moderation</h1>
           <p className="text-gray-600 mt-1">Review and moderate livestock buy requests</p>
         </div>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Refresh
+        </button>
       </div>
 
       {/* Filters */}
@@ -125,7 +139,7 @@ const BuyRequestModeration = () => {
                 className="border border-gray-300 rounded px-3 py-1 text-sm"
               />
             </div>
-            
+
             <select
               value={filters.status}
               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
@@ -136,17 +150,20 @@ const BuyRequestModeration = () => {
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
               <option value="flagged">Flagged</option>
+              <option value="auto_pass">Auto Pass</option>
             </select>
-            
+
             <select
               value={filters.category}
               onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
               className="border border-gray-300 rounded px-3 py-1 text-sm"
             >
               <option value="all">All Categories</option>
-              <option value="poultry">Poultry</option>
-              <option value="ruminants">Ruminants</option>
-              <option value="exotic">Exotic</option>
+              <option value="chicken">Chickens</option>
+              <option value="duck">Ducks</option>
+              <option value="goat">Goats</option>
+              <option value="sheep">Sheep</option>
+              <option value="cattle">Cattle</option>
             </select>
           </div>
         </CardContent>
@@ -155,7 +172,7 @@ const BuyRequestModeration = () => {
       {/* Buy Requests Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Buy Requests ({buyRequests.length})</CardTitle>
+          <CardTitle>Buy Requests ({filteredRequests.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -164,22 +181,22 @@ const BuyRequestModeration = () => {
                 <tr className="border-b">
                   <th className="text-left py-3">Request</th>
                   <th className="text-left py-3">Buyer</th>
-                  <th className="text-left py-3">Category</th>
-                  <th className="text-left py-3">Budget</th>
-                  <th className="text-left py-3">Priority</th>
+                  <th className="text-left py-3">Species</th>
+                  <th className="text-left py-3">Quantity</th>
+                  <th className="text-left py-3">Price</th>
                   <th className="text-left py-3">Status</th>
                   <th className="text-left py-3">Created</th>
                   <th className="text-right py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {buyRequests.map((request) => (
+                {filteredRequests.map((request) => (
                   <tr key={request.id} className="border-b hover:bg-gray-50">
                     <td className="py-3">
                       <div>
-                        <p className="font-medium">{request.title}</p>
+                        <p className="font-medium">{request.product_type || request.species}</p>
                         <p className="text-gray-500 text-xs">
-                          {request.quantity} {request.unit} • {request.location}
+                          {request.province && `${request.province}, ${request.country}`}
                         </p>
                       </div>
                     </td>
@@ -191,17 +208,17 @@ const BuyRequestModeration = () => {
                     </td>
                     <td className="py-3">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                        {request.category}
+                        {request.species}
                       </span>
                     </td>
                     <td className="py-3 font-medium">
-                      R{request.budget_min?.toLocaleString()} - R{request.budget_max?.toLocaleString()}
+                      {request.qty} {request.unit}
+                    </td>
+                    <td className="py-3 font-medium">
+                      R{request.target_price?.toLocaleString()}
                     </td>
                     <td className="py-3">
-                      {getPriorityBadge(request.priority || 'medium')}
-                    </td>
-                    <td className="py-3">
-                      {getStatusBadge(request.moderation_status || 'pending')}
+                      {getStatusBadge(request.moderation_status)}
                     </td>
                     <td className="py-3 text-gray-500">
                       {new Date(request.created_at).toLocaleDateString()}
@@ -215,13 +232,13 @@ const BuyRequestModeration = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        
+
                         {request.moderation_status === 'pending' && (
                           <>
                             <button
                               onClick={() => moderateRequest(request.id, 'approve')}
                               disabled={actionLoading[request.id]}
-                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              className="p-1 text-green-600 hover:bg-green-50 rounded disabled:opacity-50"
                               title="Approve Request"
                             >
                               {actionLoading[request.id] === 'approve' ? (
@@ -230,14 +247,14 @@ const BuyRequestModeration = () => {
                                 <CheckCircle className="h-4 w-4" />
                               )}
                             </button>
-                            
+
                             <button
                               onClick={() => {
                                 const reason = prompt('Reason for rejection:');
                                 if (reason) moderateRequest(request.id, 'reject', reason);
                               }}
                               disabled={actionLoading[request.id]}
-                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              className="p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
                               title="Reject Request"
                             >
                               {actionLoading[request.id] === 'reject' ? (
@@ -254,8 +271,8 @@ const BuyRequestModeration = () => {
                 ))}
               </tbody>
             </table>
-            
-            {buyRequests.length === 0 && (
+
+            {filteredRequests.length === 0 && (
               <div className="text-center py-12 text-gray-500">
                 No buy requests found matching your criteria
               </div>
@@ -268,64 +285,99 @@ const BuyRequestModeration = () => {
       {selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4">{selectedRequest.title}</h3>
-            
+            <h3 className="text-lg font-bold mb-4">
+              {selectedRequest.product_type || selectedRequest.species}
+            </h3>
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <label className="text-gray-600">Buyer:</label>
                 <p className="font-medium">{selectedRequest.buyer_name}</p>
-              </div>
-              
-              <div>
-                <label className="text-gray-600">Category:</label>
-                <p className="font-medium">{selectedRequest.category}</p>
-              </div>
-              
-              <div>
-                <label className="text-gray-600">Quantity:</label>
-                <p className="font-medium">{selectedRequest.quantity} {selectedRequest.unit}</p>
-              </div>
-              
-              <div>
-                <label className="text-gray-600">Budget Range:</label>
-                <p className="font-medium">
-                  R{selectedRequest.budget_min?.toLocaleString()} - R{selectedRequest.budget_max?.toLocaleString()}
-                </p>
-              </div>
-              
-              <div>
-                <label className="text-gray-600">Priority:</label>
-                <p className="font-medium">{selectedRequest.priority || 'Medium'}</p>
-              </div>
-              
-              <div>
-                <label className="text-gray-600">Delivery Date:</label>
-                <p className="font-medium">
-                  {selectedRequest.delivery_date 
-                    ? new Date(selectedRequest.delivery_date).toLocaleDateString()
-                    : 'Flexible'
-                  }
-                </p>
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-gray-600">Description:</label>
-                <p className="font-medium mt-1">{selectedRequest.description}</p>
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-gray-600">Location:</label>
-                <p className="font-medium">{selectedRequest.location}</p>
+                <p className="text-xs text-gray-500">{selectedRequest.buyer_email}</p>
               </div>
 
-              {selectedRequest.special_requirements && (
-                <div className="col-span-2">
-                  <label className="text-gray-600">Special Requirements:</label>
-                  <p className="font-medium mt-1">{selectedRequest.special_requirements}</p>
+              <div>
+                <label className="text-gray-600">Species:</label>
+                <p className="font-medium">{selectedRequest.species}</p>
+              </div>
+
+              {selectedRequest.breed && (
+                <div>
+                  <label className="text-gray-600">Breed:</label>
+                  <p className="font-medium">{selectedRequest.breed}</p>
                 </div>
               )}
+
+              <div>
+                <label className="text-gray-600">Quantity:</label>
+                <p className="font-medium">{selectedRequest.qty} {selectedRequest.unit}</p>
+              </div>
+
+              <div>
+                <label className="text-gray-600">Target Price:</label>
+                <p className="font-medium">R{selectedRequest.target_price?.toLocaleString()}</p>
+              </div>
+
+              <div>
+                <label className="text-gray-600">Status:</label>
+                <p className="font-medium">{selectedRequest.status}</p>
+              </div>
+
+              {selectedRequest.weight_range && (
+                <div>
+                  <label className="text-gray-600">Weight Range:</label>
+                  <p className="font-medium">
+                    {selectedRequest.weight_range.min}-{selectedRequest.weight_range.max} {selectedRequest.weight_range.unit}
+                  </p>
+                </div>
+              )}
+
+              {selectedRequest.age_requirements && (
+                <div>
+                  <label className="text-gray-600">Age Requirements:</label>
+                  <p className="font-medium">
+                    {selectedRequest.age_requirements.min}-{selectedRequest.age_requirements.max} {selectedRequest.age_requirements.unit}
+                  </p>
+                </div>
+              )}
+
+              <div className="col-span-2">
+                <label className="text-gray-600">Location:</label>
+                <p className="font-medium">{selectedRequest.province}, {selectedRequest.country}</p>
+              </div>
+
+              {selectedRequest.vaccination_requirements?.length > 0 && (
+                <div className="col-span-2">
+                  <label className="text-gray-600">Vaccination Requirements:</label>
+                  <p className="font-medium">{selectedRequest.vaccination_requirements.join(', ')}</p>
+                </div>
+              )}
+
+              {selectedRequest.additional_requirements && (
+                <div className="col-span-2">
+                  <label className="text-gray-600">Additional Requirements:</label>
+                  <p className="font-medium mt-1">{selectedRequest.additional_requirements}</p>
+                </div>
+              )}
+
+              {selectedRequest.notes && (
+                <div className="col-span-2">
+                  <label className="text-gray-600">Notes:</label>
+                  <p className="font-medium mt-1">{selectedRequest.notes}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="text-gray-600">Offers Count:</label>
+                <p className="font-medium">{selectedRequest.offers_count || 0}</p>
+              </div>
+
+              <div>
+                <label className="text-gray-600">Moderation Score:</label>
+                <p className="font-medium">{selectedRequest.moderation_score}</p>
+              </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
               {selectedRequest.moderation_status === 'pending' && (
                 <>
@@ -338,7 +390,7 @@ const BuyRequestModeration = () => {
                   >
                     Approve
                   </button>
-                  
+
                   <button
                     onClick={() => {
                       const reason = prompt('Reason for rejection:');
@@ -351,7 +403,7 @@ const BuyRequestModeration = () => {
                   >
                     Reject
                   </button>
-                  
+
                   <button
                     onClick={() => {
                       const reason = prompt('Reason for flagging:');
@@ -366,10 +418,10 @@ const BuyRequestModeration = () => {
                   </button>
                 </>
               )}
-              
+
               <button
                 onClick={() => setSelectedRequest(null)}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 ml-auto"
               >
                 Close
               </button>
