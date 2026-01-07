@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Calendar, Download, TrendingUp, TrendingDown, DollarSign, Users, Package, ShoppingCart } from 'lucide-react';
+import { useGetAdminDashboardStatsQuery } from '@/store/api/admin.api';
 // import adminApi from '../../api/adminClient';
 
 const AdminAnalyticsOverview = () => {
   const [dailyStats, setDailyStats] = useState([]);
-  const [dashboardStats, setDashboardStats] = useState({});
+  // const [dashboardStats, setDashboardStats] = useState({});
   const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
   const [loading, setLoading] = useState(true);
+  const { data: dashboardStats } = useGetAdminDashboardStatsQuery();
+  console.log('Dashboard Stats:', dashboardStats);
 
   useEffect(() => {
     loadAnalyticsData();
@@ -61,7 +64,7 @@ const AdminAnalyticsOverview = () => {
   const getKPICards = () => [
     {
       title: 'Total Revenue',
-      value: `R${(dashboardStats.total_revenue || 0).toLocaleString()}`,
+      // value: `R${(dashboardStats.total_revenue || 0).toLocaleString()}`,
       change: dashboardStats.revenue_change || 0,
       icon: DollarSign,
       color: 'text-green-600'

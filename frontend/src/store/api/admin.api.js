@@ -231,12 +231,11 @@ export const adminApi = baseApi.injectEndpoints({
     }),
 
     approveListing: builder.mutation({
-      query: ({ listingId, ...data }) => ({
+      query: (listingId) => ({
         url: `/admin/listings/${listingId}/approve`,
         method: 'POST',
-        body: data,
       }),
-      invalidatesTags: ['Admin', 'Listing'],
+      invalidatesTags: [{ type: 'Listing', id: 'LIST' }],
     }),
 
     rejectListing: builder.mutation({
@@ -297,7 +296,7 @@ export const adminApi = baseApi.injectEndpoints({
         url: '/admin/buy-requests/moderation',
         params,
       }),
-      providesTags: ['Admin', 'BuyRequest'],
+      providesTags: ['Admin'],
     }),
 
     moderateBuyRequest: builder.mutation({
@@ -430,8 +429,9 @@ export const adminApi = baseApi.injectEndpoints({
     getRoleRequests: builder.query({
       query: (params = {}) => ({
         url: '/admin/roles/requests',
-        params,
+        params: filters,
       }),
+      
       providesTags: ['Admin'],
     }),
 
@@ -974,6 +974,17 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: ['Admin'],
     }),
 
+    getRevenueSummary: builder.query({
+      query: ({ startDate, endDate }) => ({
+        url: '/admin/fees/revenue-summary',
+        params: {
+          start_date: startDate,
+          end_date: endDate
+        }
+      }),
+      providesTags: ['Admin', 'Revenue'],
+    }),
+
     // Moderation Recent
     getAdminModerationRecent: builder.query({
       query: (params = {}) => ({
@@ -1170,6 +1181,7 @@ export const {
   useGetAdminDashboardStatsQuery,
   useLazyGetAdminDashboardStatsQuery,
   useGetAdminModerationRecentQuery,
+  useGetRevenueSummaryQuery,
   useLazyGetAdminModerationRecentQuery,
 } = adminApi;
 

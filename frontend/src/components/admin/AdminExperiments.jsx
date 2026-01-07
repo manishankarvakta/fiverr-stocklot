@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Plus, Play, Pause, BarChart3, TrendingUp, Users, Eye } from 'lucide-react';
+import { useGetABTestsQuery } from '@/store/api/analytics.api';
 // import adminApi from '../../api/adminClient';
 
 const AdminExperiments = () => {
@@ -15,6 +16,9 @@ const AdminExperiments = () => {
     traffic_split: 50,
     metrics: ['conversion_rate', 'engagement']
   });
+
+const {data, isLoading, isError, refetch} = useGetABTestsQuery();
+console.log("Experiments Data:", data, isLoading, isError);
 
   useEffect(() => {
     loadExperiments();

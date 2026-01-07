@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui';
 import { Search, Filter, Eye, CheckCircle, XCircle, MessageSquare, Clock } from 'lucide-react';
+import { useGetAdminBuyRequestsModerationQuery, useModerateBuyRequestMutation } from '@/store/api/admin.api';
 // import adminApi from '../../api/adminClient';
 
 const BuyRequestModeration = () => {
@@ -13,6 +14,10 @@ const BuyRequestModeration = () => {
   });
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
+  const [buyRequestModeration] =  useModerateBuyRequestMutation();
+
+  const {data: requestsData, refetch} = useGetAdminBuyRequestsModerationQuery()
+  // console.log("Buy Requests Data:", requestsData);
 
   useEffect(() => {
     loadBuyRequests();
@@ -37,20 +42,15 @@ const BuyRequestModeration = () => {
     }
   };
 
+
+
   const moderateRequest = async (requestId, action, reason = '') => {
     try {
       setActionLoading(prev => ({ ...prev, [requestId]: action }));
-      
-      await adminApi.post(`/admin/buy-requests/${requestId}/moderate`, {
-        action,
-        reason
-      });
-      
-      await loadBuyRequests();
+      await moderateBuyRequest({ requestId, action, reason }).unwrap();
       alert(`Buy request ${action}d successfully`);
-      
     } catch (error) {
-      console.error(`Error ${action}ing buy request:`, error);
+      console.error(error);
       alert(`Failed to ${action} buy request`);
     } finally {
       setActionLoading(prev => {
