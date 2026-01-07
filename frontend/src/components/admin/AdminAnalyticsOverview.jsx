@@ -16,7 +16,7 @@ const AdminAnalyticsOverview = () => {
   const [loading, setLoading] = useState(true);
   const { data: dashboardStats } = useGetAdminDashboardStatsQuery();
   console.log('Dashboard Stats:', dashboardStats);
-  const {data: analyticsData, refetch, isLoading, isError, error} = useGetAdminDailyAnalyticsQuery(dateRange, { skip: false });
+  const { data: analyticsData, refetch, isLoading, isError, error } = useGetAdminDailyAnalyticsQuery(dateRange, { skip: false });
   console.log('Analytics Data:', analyticsData);
   useEffect(() => {
     loadAnalyticsData();
@@ -25,15 +25,15 @@ const AdminAnalyticsOverview = () => {
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
-      
+
       const [dailyResponse, statsResponse] = await Promise.all([
         adminApi.get(`/admin/analytics/daily?start=${dateRange.start}&end=${dateRange.end}`),
         adminApi.get('/admin/dashboard/stats')
       ]);
-      
+
       setDailyStats(dailyResponse.data.daily_stats || []);
       setDashboardStats(statsResponse.data || {});
-      
+
     } catch (error) {
       console.error('Error loading analytics:', error);
     } finally {
@@ -48,7 +48,7 @@ const AdminAnalyticsOverview = () => {
         format,
         date_range: dateRange
       });
-      
+
       // Create download link
       const blob = new Blob([response.data], { type: `text/${format}` });
       const url = window.URL.createObjectURL(blob);
@@ -57,7 +57,7 @@ const AdminAnalyticsOverview = () => {
       link.download = `analytics_${dateRange.start}_${dateRange.end}.${format}`;
       link.click();
       window.URL.revokeObjectURL(url);
-      
+
     } catch (error) {
       console.error('Error exporting data:', error);
     }
@@ -74,21 +74,21 @@ const AdminAnalyticsOverview = () => {
     {
       title: 'Active Users',
       // value: (dashboardStats.active_users || 0).toLocaleString(),
-      change: dashboardStats.user_growth || 0,
+      // change: dashboardStats.user_growth || 0,
       icon: Users,
       color: 'text-blue-600'
     },
     {
       title: 'Total Listings',
-      value: (dashboardStats.total_listings || 0).toLocaleString(),
-      change: dashboardStats.listing_growth || 0,
+      // value: (dashboardStats.total_listings || 0).toLocaleString(),
+      // change: dashboardStats.listing_growth || 0,
       icon: Package,
       color: 'text-purple-600'
     },
     {
       title: 'Orders',
-      value: (dashboardStats.total_orders || 0).toLocaleString(),
-      change: dashboardStats.order_growth || 0,
+      // value: (dashboardStats.total_orders || 0).toLocaleString(),
+      // change: dashboardStats.order_growth || 0,
       icon: ShoppingCart,
       color: 'text-orange-600'
     }
@@ -118,7 +118,7 @@ const AdminAnalyticsOverview = () => {
           <h1 className="text-3xl font-bold text-gray-900">Analytics Overview</h1>
           <p className="text-gray-600 mt-1">Platform performance and key metrics</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
           {/* Date Range Picker */}
           <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2">
@@ -137,7 +137,7 @@ const AdminAnalyticsOverview = () => {
               className="border-none outline-none text-sm"
             />
           </div>
-          
+
           {/* Export Button */}
           <button
             onClick={() => exportData('csv')}
@@ -188,19 +188,19 @@ const AdminAnalyticsOverview = () => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyStats}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
+                <XAxis
+                  dataKey="date"
                   tickFormatter={(date) => new Date(date).toLocaleDateString()}
                 />
                 <YAxis tickFormatter={(value) => `R${value.toLocaleString()}`} />
-                <Tooltip 
+                <Tooltip
                   labelFormatter={(date) => new Date(date).toLocaleDateString()}
                   formatter={(value) => [`R${value.toLocaleString()}`, 'Revenue']}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#10b981" 
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#10b981"
                   strokeWidth={2}
                   dot={{ fill: '#10b981' }}
                 />
@@ -221,12 +221,12 @@ const AdminAnalyticsOverview = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dailyStats}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
+                  <XAxis
+                    dataKey="date"
                     tickFormatter={(date) => new Date(date).toLocaleDateString()}
                   />
                   <YAxis />
-                  <Tooltip 
+                  <Tooltip
                     labelFormatter={(date) => new Date(date).toLocaleDateString()}
                     formatter={(value) => [value, 'Orders']}
                   />
@@ -246,12 +246,12 @@ const AdminAnalyticsOverview = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dailyStats}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
+                  <XAxis
+                    dataKey="date"
                     tickFormatter={(date) => new Date(date).toLocaleDateString()}
                   />
                   <YAxis />
-                  <Tooltip 
+                  <Tooltip
                     labelFormatter={(date) => new Date(date).toLocaleDateString()}
                     formatter={(value) => [value, 'New Users']}
                   />

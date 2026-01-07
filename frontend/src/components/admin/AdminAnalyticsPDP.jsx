@@ -12,12 +12,13 @@ const AdminAnalyticsPDP = () => {
   });
 
   // Fetch data from API
-  const { data, isLoading, isError, error } = useGetPDPAnalyticsQuery({ days: filters.period });
-
+  // const { data, isLoading, isError, error } = useGetPDPAnalyticsQuery({ days: filters.period });
+  const { data, isLoading, isError, error } = useGetPDPAnalyticsQuery({ days: 30 });
+  console.log('pdp data', data)
   // Process data for conversion funnel
   const conversionFunnelData = useMemo(() => {
     if (!data) return [];
-    
+
     return [
       { stage: 'Page Views', users: data.total_views || 0, percentage: 100 },
       { stage: 'Unique Viewers', users: data.unique_viewers || 0, percentage: ((data.unique_viewers / data.total_views) * 100 || 0).toFixed(1) },
@@ -29,7 +30,7 @@ const AdminAnalyticsPDP = () => {
   // Conversion metrics cards
   const conversionMetrics = useMemo(() => {
     if (!data) return [];
-    
+
     return [
       {
         title: 'Total Page Views',
@@ -109,7 +110,7 @@ const AdminAnalyticsPDP = () => {
             Product detail page performance over the last {data.period_days} days
           </p>
         </div>
-        
+
         {/* Filters */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -157,15 +158,15 @@ const AdminAnalyticsPDP = () => {
         <CardContent>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={conversionFunnelData} 
+              <BarChart
+                data={conversionFunnelData}
                 layout="vertical"
                 margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="stage" type="category" />
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name) => {
                     if (name === 'users') return [value.toLocaleString(), 'Users'];
                     return [value, name];
@@ -177,7 +178,7 @@ const AdminAnalyticsPDP = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          
+
           {/* Funnel Summary */}
           <div className="mt-4 grid grid-cols-4 gap-4 border-t pt-4">
             {conversionFunnelData.map((stage, index) => (
@@ -214,8 +215,8 @@ const AdminAnalyticsPDP = () => {
                 </thead>
                 <tbody>
                   {data.top_listings.map((listing, index) => (
-                    <tr 
-                      key={listing.listing_id || index} 
+                    <tr
+                      key={listing.listing_id || index}
                       className="border-b hover:bg-gray-50 transition-colors"
                     >
                       <td className="py-3 px-4">
