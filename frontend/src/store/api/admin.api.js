@@ -10,7 +10,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin', 'User'],
     }),
-    
+
     getUserDetails: builder.query({
       query: (userId) => `/admin/users/${userId}`,
       providesTags: (result, error, userId) => [
@@ -18,7 +18,7 @@ export const adminApi = baseApi.injectEndpoints({
         'Admin',
       ],
     }),
-    
+
     updateUserStatus: builder.mutation({
       query: ({ userId, ...data }) => ({
         url: `/admin/users/${userId}/status`,
@@ -31,7 +31,7 @@ export const adminApi = baseApi.injectEndpoints({
         'Admin',
       ],
     }),
-    
+
     suspendUser: builder.mutation({
       query: ({ userId, ...data }) => ({
         url: `/admin/users/${userId}/suspend`,
@@ -44,7 +44,7 @@ export const adminApi = baseApi.injectEndpoints({
         'Admin',
       ],
     }),
-    
+
     banUser: builder.mutation({
       query: ({ userId, ...data }) => ({
         url: `/admin/users/${userId}/ban`,
@@ -57,13 +57,13 @@ export const adminApi = baseApi.injectEndpoints({
         'Admin',
       ],
     }),
-    
+
     // Moderation
     getModerationStats: builder.query({
       query: () => '/admin/moderation/stats',
       providesTags: ['Admin'],
     }),
-    
+
     getPendingModeration: builder.query({
       query: (params = {}) => ({
         url: '/admin/moderation/pending',
@@ -71,7 +71,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
-    
+
     approveModerationItem: builder.mutation({
       query: (itemId) => ({
         url: `/admin/moderation/${itemId}/approve`,
@@ -79,7 +79,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin'],
     }),
-    
+
     rejectModerationItem: builder.mutation({
       query: (itemId) => ({
         url: `/admin/moderation/${itemId}/reject`,
@@ -87,13 +87,13 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin'],
     }),
-    
+
     // KYC Management
     getKYCStats: builder.query({
       query: () => '/admin/kyc/stats',
       providesTags: ['Admin', 'KYC'],
     }),
-    
+
     getPendingKYC: builder.query({
       query: (params = {}) => ({
         url: '/admin/kyc/pending',
@@ -101,7 +101,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin', 'KYC'],
     }),
-    
+
     approveKYC: builder.mutation({
       query: (verificationId) => ({
         url: `/admin/kyc/${verificationId}/approve`,
@@ -109,7 +109,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin', 'KYC'],
     }),
-    
+
     rejectKYC: builder.mutation({
       query: (verificationId) => ({
         url: `/admin/kyc/${verificationId}/reject`,
@@ -117,7 +117,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin', 'KYC'],
     }),
-    
+
     // Admin Stats
     adminStats: builder.query({
       query: (params = {}) => ({
@@ -134,7 +134,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
-    
+
     exportAnalyticsData: builder.mutation({
       query: (data) => ({
         url: '/admin/reports/export',
@@ -142,17 +142,17 @@ export const adminApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
-    
+
     get2FAStats: builder.query({
       query: () => '/admin/2fa/stats',
       providesTags: ['Admin'],
     }),
-    
+
     getPasswordResetStats: builder.query({
       query: () => '/admin/password-reset/stats',
       providesTags: ['Admin'],
     }),
-    
+
     // Analytics
     getPlatformOverview: builder.query({
       query: (params = {}) => ({
@@ -161,7 +161,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
-    
+
     getSellerAnalytics: builder.query({
       query: ({ sellerId, ...params }) => ({
         url: `/analytics/seller/${sellerId}`,
@@ -169,7 +169,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
-    
+
     getBuyerInsights: builder.query({
       query: ({ buyerId, ...params }) => ({
         url: `/analytics/buyer/${buyerId}`,
@@ -177,7 +177,7 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
-    
+
     getMarketIntelligence: builder.query({
       query: (params = {}) => ({
         url: '/analytics/market-intelligence',
@@ -185,12 +185,12 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
-    
+
     getRealTimeMetrics: builder.query({
       query: () => '/analytics/real-time',
       providesTags: ['Admin'],
     }),
-    
+
     generateCustomReport: builder.mutation({
       query: (data) => ({
         url: '/analytics/custom-report',
@@ -198,7 +198,7 @@ export const adminApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
-    
+
     // Analytics tracking
     trackAnalytics: builder.mutation({
       query: (data) => ({
@@ -207,12 +207,12 @@ export const adminApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
-    
+
     // AB Testing
     getABTestConfig: builder.query({
       query: (listingId) => `/ab-test/pdp-config/${listingId}`,
     }),
-    
+
     trackABEvent: builder.mutation({
       query: (data) => ({
         url: '/ab-test/track-event',
@@ -431,7 +431,7 @@ export const adminApi = baseApi.injectEndpoints({
         url: '/admin/roles/requests',
         params: filters,
       }),
-      
+
       providesTags: ['Admin'],
     }),
 

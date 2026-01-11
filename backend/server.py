@@ -22,7 +22,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 import sys
 import asyncio
-
 # Add services directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'services'))
 from email_service import EmailService
@@ -8869,23 +8868,29 @@ async def get_seller_analytics(
         logger.error(f"Error fetching seller analytics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch analytics")
 
-@api_router.get("/admin/analytics/daily")
-async def get_daily_analytics(
-    days: int = 7,
+@api_router.get("/admin/analytics/seller/{seller_id}")
+async def get_seller_analytics(
+    seller_id: str,
+    days: int = 30,
     current_user: User = Depends(get_current_user)
 ):
-    """Get daily analytics for charts"""
-    if not current_user or current_user.user_type != "admin":
+    """Get analytics for a specific seller"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    if UserRole.ADMIN not in current_user.roles:
         raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
         from services.analytics_service import AnalyticsService
         analytics = AnalyticsService(db)
-        data = await analytics.get_daily_metrics(days)
-        return data
+        return await analytics.get_seller_analytics(seller_id, days)
     except Exception as e:
-        logger.error(f"Error fetching daily analytics: {e}")
+        logger.error(f"Error fetching seller analytics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+
+
+
 
 # Reviews Routes
 @api_router.get("/reviews")
